@@ -1,0 +1,113 @@
+{
+    "total": {
+        "auditedVariants": 7,
+        "auditedComponents": 4,
+        "unchanged": 6,
+        "changed": 1,
+        "sizeMismatch": 0,
+        "new": 0,
+        "maxDiffRatio": 0.11553,
+        "score": 86
+    },
+    "byVariant": [
+        {
+            "className": "BadgeComponent",
+            "title": "Badge",
+            "variantName": "Count",
+            "variantIndex": 0,
+            "status": "unchanged",
+            "width": 24,
+            "height": 22,
+            "diffPixels": 0,
+            "totalPixels": 528,
+            "diffRatio": 0,
+            "baselinePath": "vrt/baseline/BadgeComponent/00-count.png",
+            "currentPath": "vrt/baseline/BadgeComponent/00-count.png"
+        },
+        {
+            "className": "BadgeComponent",
+            "title": "Badge",
+            "variantName": "New",
+            "variantIndex": 1,
+            "status": "unchanged",
+            "width": 44,
+            "height": 22,
+            "diffPixels": 0,
+            "totalPixels": 968,
+            "diffRatio": 0,
+            "baselinePath": "vrt/baseline/BadgeComponent/01-new.png",
+            "currentPath": "vrt/baseline/BadgeComponent/01-new.png"
+        },
+        {
+            "className": "ButtonComponent",
+            "title": "Button",
+            "variantName": "Primary",
+            "variantIndex": 0,
+            "status": "unchanged",
+            "width": 76,
+            "height": 36,
+            "diffPixels": 0,
+            "totalPixels": 2736,
+            "diffRatio": 0,
+            "baselinePath": "vrt/baseline/ButtonComponent/00-primary.png",
+            "currentPath": "vrt/baseline/ButtonComponent/00-primary.png"
+        },
+        {
+            "className": "ButtonComponent",
+            "title": "Button",
+            "variantName": "Ghost",
+            "variantIndex": 1,
+            "status": "unchanged",
+            "width": 76,
+            "height": 36,
+            "diffPixels": 0,
+            "totalPixels": 2736,
+            "diffRatio": 0,
+            "baselinePath": "vrt/baseline/ButtonComponent/01-ghost.png",
+            "currentPath": "vrt/baseline/ButtonComponent/01-ghost.png"
+        },
+        {
+            "className": "CardComponent",
+            "title": "Card",
+            "variantName": "Default",
+            "variantIndex": 0,
+            "status": "unchanged",
+            "width": 280,
+            "height": 84,
+            "diffPixels": 0,
+            "totalPixels": 23520,
+            "diffRatio": 0,
+            "baselinePath": "vrt/baseline/CardComponent/00-default.png",
+            "currentPath": "vrt/baseline/CardComponent/00-default.png"
+        },
+        {
+            "className": "ToggleComponent",
+            "title": "Toggle",
+            "variantName": "Off",
+            "variantIndex": 0,
+            "status": "unchanged",
+            "width": 132,
+            "height": 24,
+            "diffPixels": 0,
+            "totalPixels": 3168,
+            "diffRatio": 0,
+            "baselinePath": "vrt/baseline/ToggleComponent/00-off.png",
+            "currentPath": "vrt/current/ToggleComponent/00-off.png"
+        },
+        {
+            "className": "ToggleComponent",
+            "title": "Toggle",
+            "variantName": "On",
+            "variantIndex": 1,
+            "status": "changed",
+            "width": 132,
+            "height": 24,
+            "diffPixels": 366,
+            "totalPixels": 3168,
+            "diffRatio": 0.11553,
+            "baselinePath": "vrt/baseline/ToggleComponent/01-on.png",
+            "currentPath": "vrt/current/ToggleComponent/01-on.png",
+            "diffPath": "vrt/diff/ToggleComponent/01-on.png"
+        }
+    ]
+}

@@ -1,0 +1,19 @@
+{
+    "version": "22.7",
+    "beats": [
+        { "kind": "ui", "shot": "look", "caption": "A new look. **Dark and light.**" },
+        {
+            "kind": "api",
+            "shot": "service-page",
+            "source": "lib/notification/notification.service.ts",
+            "caption": "Services and pipes get **their own pages.**"
+        },
+        {
+            "kind": "api",
+            "shot": "composition",
+            "source": "lib/field/field.component.ts",
+            "zoom": 1.5,
+            "caption": "Compose real templates. **Compiled, not mocked.**"
+        }
+    ]
+}

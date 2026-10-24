@@ -49,6 +49,10 @@ Thumbs.db
 
 test-output
 
+# video: render output of the product-video pipeline (recordings, masters,
+# deliverables). Only the tour and its poster under docs/assets/video/ are committed.
+video/out
+
 # test-workspace: Angular CLI workspace for local testing. Sources of the
 # test libs and both prism apps are committed, generated files are not.
 test-workspace/node_modules

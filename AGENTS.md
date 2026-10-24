@@ -36,6 +36,10 @@ This repo is an Nx monorepo on npm workspaces:
 - `test-workspace/` is a separate Angular workspace that consumes the local
   packages. Its `test-lib` is the demo styleguide and the scanner's real-world
   input (skill `prism-test-workspace`).
+- `video/` is a standalone npm project, outside the npm workspaces and Nx, that
+  builds the product videos (the tour on the docs start page, release clips) from
+  scripted recordings of `test-workspace`'s `video-lib` and Revideo scenes (skill
+  `prism-product-video`).
 - `docs/` is the published docsify site, `scripts/` holds the release and
   lint-fix scripts and `render-brand-assets.mjs`, which renders the README cover
   and the docs logo from `docs/assets/brand/cover.html`.
@@ -177,6 +181,7 @@ name: a personal skill with the same name silently overrides the project one.
 | `prism-scanner-module`     | Creating or extending a module under `packages/ng-prism/src/builder/scanner/` |
 | `prism-plugin`             | Creating a plugin against the `NgPrismPlugin` interface                       |
 | `prism-test-workspace`     | Running the demo styleguide on the local packages and checking a change in it |
+| `prism-product-video`      | Making a release clip, re-recording the videos, fixing a render               |
 
 # Subagents
 

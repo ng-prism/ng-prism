@@ -21,6 +21,8 @@
         "test:workspace:build": "cd test-workspace && npx ng run test-lib:prism-build",
         "test:workspace:clean": "cd test-workspace && rm -rf node_modules package-lock.json ng-prism.config.ts && git checkout -- angular.json package.json",
         "test:workspace:reset": "npm run test:workspace:clean && npm run test:workspace:setup && npm run test:workspace:install",
+        "video:install": "npm --prefix video ci",
+        "video": "npm --prefix video run video --",
         "check:deps": "node scripts/check-declared-deps.mjs",
         "style": "stylelint --allow-empty-input '**/*.{css,scss}'",
         "style:fix": "stylelint --allow-empty-input --fix '**/*.{css,scss}'",

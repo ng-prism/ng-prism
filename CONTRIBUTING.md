@@ -174,6 +174,37 @@ Same as above: `npm run test:workspace:reset` puts the workspace back into a run
 npm run docs   # Starts docsify on http://localhost:3000
 ```
 
+### Product Videos
+
+`video/` builds the product videos: the tour on the docs start page and a short clip per release. It is a standalone npm project outside the workspaces and Nx. Playwright records scripted runs through the styleguide of `test-workspace`'s `video-lib`, and [Revideo](https://re.video) puts code animations, captions, sounds and those recordings together. The code on screen is read from the `video-lib` sources, so it is always the code that rendered.
+
+#### Prerequisites
+
+- `brew install ffmpeg` (the masters are ProRes, the deliveries H.264)
+- `npm run video:install` installs `video/`'s own dependencies
+- The test workspace is installed (`npm run test:workspace:install`, with Verdaccio running)
+
+The recordings first build the core and the plugins they show (Nx-cached), then `video-lib`'s styleguide, and serve it on port **4420**, so a styleguide of your own on 4400 can keep running. Do not run `npm run test:workspace:update` while it does: that script frees port 4400 and clears the Angular cache. The styleguide loads its fonts from Google Fonts; a recording without them stops.
+
+#### Commands
+
+```bash
+npm run video                                # record every shot, render the tour, export it to out/deliver/ and the docs
+npm run video -- --release 22.7              # record every shot, render only the release clip of video/releases/22.7.json
+npm run video -- --release 22.7 --tour       # both
+npm run video -- --release 22.7 --skip-record   # reuse the recordings; refused when the sources changed since they were made
+```
+
+A release run leaves the committed tour (`docs/assets/video/tour.mp4`) alone. A run stops at the first failing step with its message. The single steps are scripts in `video/` as well (`npm --prefix video run record|render|export`).
+
+#### A release clip
+
+A release clip is described in `video/releases/<version>.json`: one to three beats, each a `ui` beat (a recording with a caption) or an `api` beat (the decorator types itself into a `video-lib` source on the left while the recording plays on the right). A beat's recording is a shot under `video/record/shots/`, registered in `index.ts`; a shot drives the page through its `ShotContext`, with every wait in video time. A beat's `zoom` moves the camera onto the first element its shot marked (a `ui` beat up to 2, an `api` beat up to 4). The render checks the description first, captions included.
+
+#### What gets committed
+
+The sources under `video/` and, when the tour changed, `docs/assets/video/tour.mp4` with `tour-poster.png`. Everything under `video/out/` (recordings, masters, deliveries such as the release clips) is ignored.
+
 ## Project Structure
 
 ```
@@ -193,6 +224,7 @@ ng-prism/
 │   ├── plugin-perf/           # @ng-prism/plugin-perf
 │   └── plugin-visual-regression/  # @ng-prism/plugin-visual-regression
 ├── test-workspace/            # Integration test workspace
+├── video/                     # Product videos (Revideo scenes, Playwright recordings)
 ├── docs/                      # Documentation (docsify)
 └── scripts/                   # Build & publish scripts
 ```

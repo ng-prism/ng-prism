@@ -157,6 +157,89 @@
                     }
                 }
             }
+        },
+        "video-lib": {
+            "projectType": "library",
+            "root": "projects/video-lib",
+            "sourceRoot": "projects/video-lib/src",
+            "architect": {
+                "build": {
+                    "builder": "@angular-devkit/build-angular:ng-packagr",
+                    "options": {
+                        "project": "projects/video-lib/ng-package.json"
+                    }
+                },
+                "prism": {
+                    "builder": "@ng-prism/core:serve",
+                    "options": {
+                        "entryPoint": "projects/video-lib/src/public-api.ts",
+                        "prismProject": "video-lib-prism",
+                        "libraryProject": "video-lib",
+                        "configFile": "video-lib.prism.config.ts",
+                        "port": 4420
+                    }
+                },
+                "prism-build": {
+                    "builder": "@ng-prism/core:build",
+                    "options": {
+                        "entryPoint": "projects/video-lib/src/public-api.ts",
+                        "prismProject": "video-lib-prism",
+                        "libraryProject": "video-lib",
+                        "configFile": "video-lib.prism.config.ts",
+                        "outputPath": "dist/video-lib-prism"
+                    }
+                }
+            }
+        },
+        "video-lib-prism": {
+            "projectType": "application",
+            "root": "projects/video-lib-prism",
+            "sourceRoot": "projects/video-lib-prism/src",
+            "architect": {
+                "build": {
+                    "builder": "@angular-devkit/build-angular:application",
+                    "options": {
+                        "outputPath": {
+                            "base": "dist/video-lib-prism",
+                            "browser": ""
+                        },
+                        "index": "projects/video-lib-prism/src/index.html",
+                        "browser": "projects/video-lib-prism/src/main.ts",
+                        "tsConfig": "projects/video-lib-prism/tsconfig.app.json",
+                        "styles": ["node_modules/highlight.js/styles/base16/solarized-dark.min.css"],
+                        "polyfills": ["zone.js"],
+                        "allowedCommonJsDependencies": ["highlight.js"],
+                        "preserveSymlinks": true,
+                        "assets": [
+                            {
+                                "glob": "**/*",
+                                "input": "projects/video-lib/fixtures/vrt",
+                                "output": "assets/vrt"
+                            }
+                        ]
+                    },
+                    "configurations": {
+                        "production": {
+                            "outputHashing": "all"
+                        },
+                        "development": {
+                            "outputHashing": "none",
+                            "optimization": false,
+                            "sourceMap": true
+                        }
+                    },
+                    "defaultConfiguration": "production"
+                },
+                "serve": {
+                    "builder": "@angular-devkit/build-angular:dev-server",
+                    "options": {
+                        "buildTarget": "video-lib-prism:build:development",
+                        "port": 4420,
+                        "hmr": true,
+                        "liveReload": true
+                    }
+                }
+            }
         }
     }
 }

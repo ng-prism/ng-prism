@@ -1,0 +1,7 @@
+<label class="ui-field" [class.ui-field--error]="error()">
+    <span class="ui-field__label">{{ label() }}</span>
+    <ng-content />
+    @if (error()) {
+        <span class="ui-field__error">{{ error() }}</span>
+    }
+</label>

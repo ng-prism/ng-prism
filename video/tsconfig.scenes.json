@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "target": "ES2023",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "lib": ["ES2023", "DOM", "DOM.Iterable"],
+        "types": [],
+        "strict": true,
+        "noEmit": true,
+        "allowImportingTsExtensions": true,
+        "verbatimModuleSyntax": true,
+        "skipLibCheck": true,
+        "jsx": "react-jsx",
+        "jsxImportSource": "@revideo/2d/lib"
+    },
+    "include": ["src/components", "src/scenes", "src/projects", "src/assets.d.ts"]
+}

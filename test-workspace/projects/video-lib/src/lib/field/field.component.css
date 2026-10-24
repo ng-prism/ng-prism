@@ -1,0 +1,42 @@
+/* Not encapsulated: the field also styles the `uiInput` control projected into it. */
+.ui-field {
+    display: grid;
+    gap: 6px;
+    width: 300px;
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #c9d4e5;
+}
+
+.ui-field__label {
+    font-weight: 600;
+}
+
+.ui-field__error {
+    font-size: 12px;
+    color: #f87171;
+}
+
+.ui-field--error .ui-field__label {
+    color: #f87171;
+}
+
+.ui-input {
+    padding: 9px 11px;
+    font: inherit;
+    color: #f1f5f9;
+    outline: none;
+    background: #0e1524;
+    border: 1px solid #2b3b55;
+    border-radius: 8px;
+}
+
+.ui-input:focus {
+    border-color: #3b82f6;
+}
+
+.ui-input--invalid,
+.ui-input--invalid:focus {
+    border-color: #f87171;
+}

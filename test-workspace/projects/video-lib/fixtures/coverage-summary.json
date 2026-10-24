@@ -1,0 +1,38 @@
+{
+    "total": {
+        "lines": { "total": 120, "covered": 108, "skipped": 0, "pct": 90 },
+        "statements": { "total": 124, "covered": 111, "skipped": 0, "pct": 89.51 },
+        "functions": { "total": 22, "covered": 19, "skipped": 0, "pct": 86.36 },
+        "branches": { "total": 30, "covered": 26, "skipped": 0, "pct": 86.66 }
+    },
+    "projects/video-lib/src/lib/button/button.component.ts": {
+        "lines": { "total": 10, "covered": 10, "skipped": 0, "pct": 100 },
+        "statements": { "total": 10, "covered": 10, "skipped": 0, "pct": 100 },
+        "functions": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+        "branches": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 }
+    },
+    "projects/video-lib/src/lib/badge/badge.component.ts": {
+        "lines": { "total": 10, "covered": 7, "skipped": 0, "pct": 70 },
+        "statements": { "total": 10, "covered": 7, "skipped": 0, "pct": 70 },
+        "functions": { "total": 2, "covered": 1, "skipped": 0, "pct": 50 },
+        "branches": { "total": 10, "covered": 9, "skipped": 0, "pct": 90 }
+    },
+    "projects/video-lib/src/lib/card/card.component.ts": {
+        "lines": { "total": 8, "covered": 8, "skipped": 0, "pct": 100 },
+        "statements": { "total": 8, "covered": 8, "skipped": 0, "pct": 100 },
+        "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+        "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+    },
+    "projects/video-lib/src/lib/toggle/toggle.component.ts": {
+        "lines": { "total": 12, "covered": 11, "skipped": 0, "pct": 91.66 },
+        "statements": { "total": 12, "covered": 11, "skipped": 0, "pct": 91.66 },
+        "functions": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+        "branches": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 }
+    },
+    "projects/video-lib/src/lib/notification/notification.service.ts": {
+        "lines": { "total": 6, "covered": 6, "skipped": 0, "pct": 100 },
+        "statements": { "total": 6, "covered": 6, "skipped": 0, "pct": 100 },
+        "functions": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+        "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+    }
+}

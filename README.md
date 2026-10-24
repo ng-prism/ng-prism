@@ -15,11 +15,7 @@ You add one decorator to your component. ng-prism picks it up at build time and 
 
 [Live demo](https://ng-prism.github.io/ng-prism/demo/?component=ButtonComponent) · [Documentation](https://ng-prism.github.io/ng-prism/)
 
-<!-- TODO(maintainer): record a 10 to 15 s GIF: pick a component in the sidebar,
-     switch the variant, change a control, watch the code snippet update.
-     Save it as docs/demo.gif and uncomment the line below.
-<p align="center"><img src="docs/demo.gif" alt="ng-prism in action" width="800" /></p>
--->
+<p align="center"><a href="https://ng-prism.github.io/ng-prism/"><b>Watch the one-minute tour</b></a></p>
 
 ## Same button, two approaches
 

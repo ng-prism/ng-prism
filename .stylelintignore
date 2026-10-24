@@ -11,3 +11,5 @@ coverage
 # prism cache under <workspaceRoot>/ng-prism-cache.
 /tmp
 ng-prism-cache
+# The product-video project holds only a Fontsource import sheet, no styles.
+/video

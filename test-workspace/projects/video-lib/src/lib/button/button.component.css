@@ -1,0 +1,51 @@
+:host {
+    display: inline-block;
+}
+
+.btn {
+    padding: 10px 20px;
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1;
+    color: #fff;
+    cursor: pointer;
+    outline: none;
+    background: #2563eb;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    transition:
+        background 120ms ease,
+        color 120ms ease;
+}
+
+.btn:hover {
+    background: #1d4ed8;
+}
+
+.btn:active {
+    background: #1e40af;
+}
+
+.btn:focus-visible {
+    outline: 2px solid #60a5fa;
+    outline-offset: 2px;
+}
+
+/*
+ * Deliberately too little contrast: the A11y beat of the product video shows this violation. The fill is solid (the
+ * canvas colour) because axe reports contrast over the canvas's dot pattern only as "needs review".
+ */
+.btn--ghost {
+    color: #3b4a6b;
+    background: #0e1524;
+    border-color: #26324a;
+}
+
+.btn--ghost:hover {
+    background: #131d31;
+}
+
+.btn--ghost:active {
+    background: #17233b;
+}

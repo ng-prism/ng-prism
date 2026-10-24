@@ -39,6 +39,10 @@ export default [
             '.claude',
             '.superpowers',
             '.posts',
+            // The product-video project: a standalone npm project with its
+            // own tsconfig and Revideo's JSX, checked by its own
+            // `npm --prefix video run check`, not by this config.
+            'video',
             // Verdaccio local-registry storage, always tmp/local-registry/
             // storage at the repo root. Same reasoning as the `/tmp` entry in
             // .prettierignore; unlike dist/out-tsc/coverage above, not per

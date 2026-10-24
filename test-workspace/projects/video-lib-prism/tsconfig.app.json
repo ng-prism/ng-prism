@@ -1,0 +1,10 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+        "outDir": "../../out-tsc/app",
+        "rootDir": "../..",
+        "types": []
+    },
+    "files": ["src/main.ts"],
+    "include": ["src/**/*.d.ts", "../../ng-prism-cache/video-lib-prism/**/*.ts"]
+}

@@ -19,7 +19,9 @@
             "prism-manifest/*": ["ng-prism-cache/*/prism-manifest.ts"],
             "test-lib": ["projects/test-lib/src/public-api.ts"],
             "test-ui-kit": ["projects/test-ui-kit/public-api.ts"],
-            "test-ui-kit/*": ["projects/test-ui-kit/*/public-api.ts"]
+            "test-ui-kit/*": ["projects/test-ui-kit/*/public-api.ts"],
+            "video-lib": ["projects/video-lib/src/public-api.ts"],
+            "video-lib.prism.config": ["video-lib.prism.config.ts"]
         }
     },
     "angularCompilerOptions": {

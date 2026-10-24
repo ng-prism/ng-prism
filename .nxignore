@@ -2,3 +2,7 @@
 # command line, so nx format:check (which passes the changed files explicitly)
 # would fail on every branch that touches it. AGENTS.md is formatted as usual.
 /CLAUDE.md
+
+# video/ is a standalone npm project (product videos) with its own package.json;
+# it is no Nx project and stays out of `nx run-many`.
+/video
