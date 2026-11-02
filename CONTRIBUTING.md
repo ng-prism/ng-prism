@@ -176,9 +176,9 @@ npm run docs   # Starts docsify on http://localhost:3000
 
 ### Product Films
 
-The tour on the docs start page and the clip per release are made with Claude Motion, the "Motion" artifact type on claude.ai. A film is a private artifact whose scenes, lifted styleguide markup and CSS live in its store; the picture is the real styleguide, lifted from a build of `test-workspace` and animated with a camera and a cursor, and the MP4 is exported from the film's page. `test-workspace`'s `video-lib` holds showcases written to fit the films' code cards.
+The tour on the docs start page and the clip per release are rendered on your machine with [HyperFrames](https://github.com/heygen-com/hyperframes) (HTML and GSAP, with a WebGL shader for the light of the title and the end card). The picture is the real styleguide: its DOM and used CSS, lifted from a build of `test-workspace` and animated with a camera and a cursor. A film is described in one file, `.videos/reference/<film>/film.mjs`; the skill's scripts measure it, voice it (ElevenLabs), generate the HyperFrames project, render it and encode the web version, a YouTube version, a thumbnail and English subtitles. `test-workspace`'s `video-lib` holds showcases written to fit the films' code cards.
 
-The agent skill `prism-motion-video` (`.agents/skills/prism-motion-video/`) has the house style, the templates for the title, the end card and the sound, and the scripts that lift the styleguide, check the lift against screenshots and preview a scene locally. The scripts use the root Playwright and `ffmpeg` (`brew install ffmpeg`). Only the tour's export is committed, as `docs/assets/video/tour.mp4` with `tour-poster.png`.
+The agent skill `prism-video` (`.agents/skills/prism-video/`) has the house style, the light title and end card, and the scripts. They need Node 22 or later, the root Playwright, `hyperframes` and `gsap` (exact devDependencies), and `ffmpeg` (`brew install ffmpeg`). Chrome for HyperFrames comes once with `node .agents/skills/prism-video/scripts/hf.mjs browser ensure`. Run HyperFrames only through that `hf.mjs`: it turns telemetry and update checks off and refuses the commands that upload or sign in. `.videos/` is gitignored; only the tour is committed, as `docs/assets/video/tour.mp4` with `tour-poster.png`.
 
 ## Project Structure
 

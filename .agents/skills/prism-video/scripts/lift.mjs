@@ -1,4 +1,4 @@
-// Lifts the DOM and the used CSS of styleguide states into Motion film modules.
+// Lifts the DOM and the used CSS of styleguide states for a film (skill prism-video).
 //   node lift.mjs <config.json> <out-dir>
 // The config names the served styleguide (`base`), the CSS file to write (`cssName`) and the steps: `goto` a query,
 // `click` a selector, `clickText` a button's name, `fill` a selector with `text`, `press` a key, `hover` a selector,

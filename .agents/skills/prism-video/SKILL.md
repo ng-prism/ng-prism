@@ -1,228 +1,247 @@
 ---
-name: prism-motion-video
-description: Use when making or changing an ng-prism product film - a release clip or the tour on the docs start page - with Claude Motion (the claude.ai "Motion" artifact type, MP4 export from its page), or when such a film needs ng-prism's title card, end card, captions, code cards, sound, narration, voice-over or sonic logo.
+name: prism-video
+description: Use when making or changing an ng-prism product film - a release clip or the tour on the docs start page - with HyperFrames (HTML + GSAP rendered to MP4 on this machine), or when such a film needs ng-prism's light title, light end card, captions, code or terminal cards, interstitials, music, sound, narration, voice-over, sonic logo, or its YouTube version, thumbnail and subtitles.
 ---
 
-# Product films with Claude Motion
+# Product films with HyperFrames
 
-A Motion film is a private claude.ai artifact whose content lives in its store (`ArtifactData`), not in git: one JS
-module per scene, lifted styleguide markup and CSS as modules, a score. The picture is the **real styleguide**: its DOM
-and used CSS, lifted from a build, animated with a camera and a cursor. It is sharp at any zoom and reproduces the
-product pixel for pixel. A narration goes on the exported MP4 afterwards.
+A film is a [HyperFrames](https://github.com/heygen-com/hyperframes) project that this skill generates and renders on
+this machine: one composition per scene, HTML and GSAP, with a WebGL shader for the light. The picture is the **real
+styleguide**: its DOM and used CSS, lifted from a build, animated with a camera and a cursor, sharp at any zoom and
+pixel for pixel the product. Each film is described in one file, `.videos/reference/<film>/film.mjs`; the scripts measure,
+voice, build, render and deliver it. The films are public and meant to catch people: fancy is welcome, kitsch is not.
 
 There are two kinds of film, a **release clip** for every minor and the **tour** on the docs start page. They look and
-sound the same: every film opens on the same title card, closes on the same end card and follows the house style below;
-`templates/` holds all of it. Only this differs:
+sound the same, open on the same light title and close on the same light end card. Only this differs:
 
-|                   | Release clip                                                     | Tour                                                                                |
-| ----------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Artifact          | a new one per release, titled "ng-prism <version>"               | one artifact, "ng-prism tour", changed in place (see _Changing the tour_)           |
-| Title card        | `VERSION`: the minor, e.g. `22.8` (set in mono)                  | `VERSION`: the slogan "Your components, in full spectrum." (set in Inter)           |
-| Beats             | the release's features, in the order of its release notes        | what ng-prism does, from annotating a component to its API page                     |
-| End card          | `COMMAND`: `ng update @ng-prism/core`                            | `COMMAND`: `ng add @ng-prism/core`                                                  |
-| Title's narration | "What's new in twenty-two point eight." (the minor spelled out)  | the slogan                                                                          |
-| Delivered         | `.videos/ng-prism-<version>.mp4`, attached to the GitHub release | `.videos/ng-prism-tour.mp4`, copied to `docs/assets/video/tour.mp4` with its poster |
-| Sources kept in   | `.videos/reference/<version>/`                                   | `.videos/reference/tour/`                                                           |
+|                    | Release clip                                                           | Tour                                                                        |
+| ------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `<film>`           | the minor, e.g. `22.8`                                                 | `tour`                                                                      |
+| `line` (title)     | the minor, `'22.8'` (set in mono)                                      | the slogan `'Your components, in **full spectrum.**'` (Inter)               |
+| Beats              | the release's features, in the order of its release notes              | what ng-prism does, from annotating a component to its API page             |
+| `command` (end)    | `ng update @ng-prism/core`                                             | `ng add @ng-prism/core`                                                     |
+| Title's voice line | "What's new in twenty-two point eight." (`sub: "What's new in 22.8."`) | the slogan                                                                  |
+| Delivered          | web version attached to the GitHub release (< 10 MB), YouTube version  | YouTube version; the web version also replaces `docs/assets/video/tour.mp4` |
+| Sources in         | `.videos/reference/<version>/`                                         | `.videos/reference/tour/`                                                   |
 
-`.videos/` at the repo root is gitignored and belongs to the maintainer: the masters exported from Motion in
-`.videos/originals-no-voice/`, the finished films (encoded, narrated) in `.videos/` itself, every film's sources in
-`.videos/reference/`, the narration's cache in `.videos/narration-cache/`.
+`.videos/` at the repo root is gitignored and belongs to the maintainer:
+
+- `.videos/reference/<film>/`: what rebuilds a film. `film.mjs`, the lift configs, `music/`, `credits.json`, a still
+  per scene.
+- `.videos/work/<film>/`: throwaway. Lift output, `coords.json`, the voice as WAV, the generated `project/`, the
+  60 fps master, the contact sheet.
+- `.videos/ng-prism-<film>.mp4`: the finished film, next to `-youtube.mp4`, `-youtube-thumbnail.png` and `.en.srt`.
+- `.videos/narration-cache/`: every voice line ever generated. `.videos/originals-no-voice/` holds the old Motion
+  masters and is no longer written.
 
 ## Every film has this shape
 
-| Scene                | Template                                 | Length   | Set per film                                       |
-| -------------------- | ---------------------------------------- | -------- | -------------------------------------------------- |
-| `title`              | `templates/scene-title.js`               | 4.0 s    | `VERSION` (table above)                            |
-| one beat per feature | `scene-code-card.js` or `scene-click.js` | 5.5–8 s  | everything: the templates are worked examples      |
-| `end`                | `templates/scene-end.js`                 | 4.0 s    | `COMMAND` (table above)                            |
-| sound                | `templates/score.js`                     | the film | `CLICKS` only, each as a scene id and a time in it |
-| narration            | `scripts/narrate.mjs`                    | the film | the beats' lines; the rest is fixed (step 12)      |
+| Scene                | Kind                        | Length   | Per film                                        |
+| -------------------- | --------------------------- | -------- | ----------------------------------------------- |
+| title                | `title`                     | 5.6 s    | `line` (table above) and the title's voice line |
+| one beat per feature | `app`, `code`, `tourCode`   | 5.5–10 s | everything                                      |
+| 1–2 interstitials    | `slash`, `split`, `kinetic` | 1.5–3 s  | text and objects; no voice line                 |
+| end                  | `end`                       | 5.5 s    | `command` (table above); voice "Try it out!"    |
+| music, sound effects | `film.music`, automatic     | the film | the track and where it comes in                 |
 
-A click beat takes 5.5–7 s, a code card 7.5–8 s. `templates/base.css` and `templates/shared.js` go in unchanged,
-`templates/scenes.example.json` is the shape of `modules/scenes.json` (its `fonts`, `palettes` and `theirs` stay as they
-are; each scene's `id`, `name`, `dur` and `desc` are the film's), and the asset `symbol.png` is
-`docs/logo_only_big.png`. Never change the title, the end card, the sound or the sonic logo unasked.
+Never change the title, the end card, the light or the sonic logo unasked; a film only sets their text.
 
 ## House style (the maintainer's decisions)
 
 - **Palette and type:** ground `#080d19`, the brand gradient cyan `#00cfea` → `#078bfa` → `#244bff` → violet `#a20cf0`,
-  text `#f1f5f9`; Inter for words, JetBrains Mono for code. 1920×1080; the master has 60 fps, the web encode 30.
-- **The window:** the lifted styleguide at 1440×900, placed at (240, 90) on the ground with its three soft glows.
+  text `#f1f5f9`; Inter for words, JetBrains Mono for code (both local: `assets/fonts/`, OFL). 1920×1080; the master
+  has 60 fps, the web version 30.
+- **Light:** the title and the end card are real light from a shader: a white beam with dust in it hits the prism, the
+  prism draws itself in light edges and fills, the spectrum fans out with filaments, gathers into a band and sets the
+  name alight letter by letter; one sheen through prism and name. The end card runs it the other way. Beam and
+  spectrum come from the shader, never from flat CSS gradients. Stills: `reference/`.
+- **The window:** the lifted styleguide at 1440×900, placed at (240, 90), radius 12 px, soft shadow and hairline.
 - **Captions:** one line, at most ~45 characters not counting the `**` markers, a full stop, one `**…**` part in the
-  brand gradient that closes the line, full stop included; lower third on a scrim, in at 0.15 s. One developer showing
-  another: no superlatives, no emojis.
-- **Pace:** the window, a code card and the caption come in during the first 0.5 s, and the camera may start its push;
-  the cursor shows from ~1.0 s, typing and clicks start at ~1.4 s or later, so the caption is read first. Every effect
-  holds 1.2 s or longer. One camera push in per beat, zoom 1.25–2.3; easing back out to show a result is fine. When the
-  camera frames the bottom panel, put the window's bottom edge at stage y ≈ 756.
-- **A click** is a cursor (`kit.cursor`, keys through `UI.at`) and a 0.2 s cross-fade from the lifted before state to
-  the after state. A popover scales in from 0.96 at its anchor. At most one highlight per beat (`.hi`).
-- **Code cards** (new `@Showcase` API): a card on the left over a veil, the file name on top, a contiguous slice of the
-  file's lines **verbatim**, one line typed at 34 cps with a caret, the rest already there; the typed line must fit
-  inside the card. Dropping the indentation all shown lines share is fine and is said to the maintainer; a long line
-  runs out of the card under the fade, never wrapped or shortened. video-lib's showcases are written to fit a card;
-  test-lib works where its lines do.
-- **Terminal cards** (a feature without UI of its own: rescans, builder output, warnings, migrations): the code card's
-  card and veil with a terminal in it. The command is typed at 34 cps, then the builder's real output appears
-  **verbatim**, line by line at the pace it really comes. Behind the card the window cross-fades to its after state at
-  the moment the output says the work is done, so cause and effect are both in the picture. No template yet: the first
-  film that needs one builds it from `scene-code-card.js` and adds it to `templates/`. A feature with nothing to show,
-  not even in the terminal, gets no beat; the release notes have it.
-- **Sound:** no music. In the film only keystrokes (automatic from `kit.typist`) and the cursor's clicks (`CLICKS`).
+  brand gradient that closes the line, full stop included. Lower third on a scrim, word by word with a blur, in at
+  0.3 s. One developer showing another: no superlatives, no emojis.
+- **Pace:** window, card and caption come in during the first 0.5 s; the cursor shows from ~1.0 s; typing and clicks
+  start at ~1.4 s or later, so the caption is read first. Every effect holds 1.2 s or longer. One camera push in per
+  beat, zoom 1.25–2.3; easing back out to show a result is fine. At most one highlight per beat. When the camera frames
+  the bottom panel, put the window's bottom edge at stage y ≈ 756.
+- **Transitions:** app beats whip: out 0.24 s to the left with blur, in 0.32 s from the right, a short whoosh. The
+  styleguide's first appearance builds from the top under a line of the spectrum (`scan: true`).
+- **Clicks:** the cursor presses in (0.78), a ring in cyan and violet widens at the point, and the lifted before state
+  cross-fades into the after state 0.04 s later. The cursor lives in camera space, counter-scaled so it keeps its size.
+- **Code cards** (new `@Showcase` API): the card on the left over a veil, the window behind it fading into the state the
+  typed line makes, so cause and effect are both in the picture (22.7's compose and a11y beats). No veil where the window
+  behind is light. The file name on top, a contiguous slice of the file's lines **verbatim**, one line typed at 34 cps
+  with a glowing caret, the rest already there. Dropping the indentation all lines share is fine and is said to the
+  maintainer; a long line runs out under the fade on the right, never wrapped or shortened. video-lib's showcases are
+  written to fit a card. The tour's opening card (`tourCode`, a 3D card in the middle typing a whole block) is the
+  tour's alone.
+- **Terminal cards** (a feature without UI: rescans, builder output, warnings, migrations): the code card's card and
+  veil with a terminal in it; the command typed at 34 cps, the builder's real output **verbatim** at the pace it really
+  comes, the window behind cross-fading when the output says the work is done. No pattern yet: the first film that
+  needs one adds it to `scripts/lib/beats.mjs`, built from `code`. A feature with nothing to show gets no beat.
+- **Interstitials:** 1–2 per film, 1.5–3 s, between beats, without a voice line, about the content around them. Claude
+  proposes them with the beats; the maintainer approves them with the voice lines. New patterns in the same light and
+  brand look are welcome (`scripts/lib/interstitials.mjs`).
+- **Sound:** CC0 music under the voice (step 9), ducked while it speaks; sound effects from HyperFrames' library
+  (clicks, keys, whooshes, bass impacts) come with the beats.
 - **Narration:** it opens with the sonic logo, `templates/sonic-logo.flac` (the ElevenLabs voice Lily whispering "N G
-  prism" in a hall), 0.5 s into the title. Everything after it is the ElevenLabs voice Chris, an advertising read: the
-  title's own line, one line per beat, and on the end card just "Try it out!". The end card shows the logo without
-  speaking it.
-- **Rejected, don't bring back:** mark pieces flying in, a light beam with a spectrum fan, twinkling stars, a ray burst,
-  a second shine on the title (one sheen through prism and name, like the end card), music of any kind, the macOS system
-  voices.
+  prism" in a hall), 0.45 s into the title, added automatically. Everything after it is the ElevenLabs voice Chris, an
+  advertising read: the title's line, one line per beat, "Try it out!" on the end card, which never speaks the logo.
+- **Never:** twinkling stars, ray bursts, the macOS system voices. Effects without a link to light, spectrum or the
+  product, and effects that push the feature out of the picture, are kitsch too.
+
+## HyperFrames, privately
+
+- Run HyperFrames **only** through `node .agents/skills/prism-video/scripts/hf.mjs <command>`: it switches telemetry,
+  update checks and auto installs off and refuses everything that uploads, signs in or reads credentials. Never run
+  `hyperframes usage` (it reads Claude Code's credentials), `publish`, `cloud`, `lambda`, `auth`, nor `snapshot
+--describe` (sends frames to Gemini). No HeyGen account is needed.
+- HyperFrames is a root devDependency, pinned exactly like Playwright. Chrome for it comes once:
+  `node .agents/skills/prism-video/scripts/hf.mjs browser ensure`. `hf.mjs doctor` reports `ok: false` without Docker,
+  whisper, Kokoro and MusicGen, which no film needs; Node, FFmpeg, FFprobe and Chrome must be ok.
+- What HyperFrames itself knows (timeline rules, `data-*` attributes, lint and check codes, audio, captions) is in the
+  package: `node_modules/hyperframes/dist/skills/hyperframes/SKILL.md` and its `references/`, `hyperframes-cli/` and
+  `media-use/`. Read them before writing a new pattern; don't install HyperFrames' own skills or plugin.
 
 ## Making a film
 
-`scripts/` and `templates/` are in this skill's folder; `.videos/` and `test-workspace/` are at the repo root. For a
-change to the tour, read _Changing the tour_ first.
+`scripts/` and `templates/` are in this skill's folder; `.videos/` and `test-workspace/` are at the repo root. Run
+everything from the repo root (`S=.agents/skills/prism-video/scripts`). For a change to the tour, read _Changing the
+tour_ first.
 
 1. **The source must exist.** A beat for new `@Showcase` API quotes a real showcase. If no showcase uses the option yet,
    add one to video-lib (that is a repo change: ask before committing it).
-2. **Build:** `npm run build:all` at the repo root, then in `test-workspace` `CI=1 npx ng run test-lib:prism-build`
-   (most beats) and `CI=1 npx ng run video-lib:prism-build` (code cards whose lines need video-lib's short showcases).
-   Not `npm run test:workspace:update`: it kills whatever holds `:4400`. `:4400` and `:4401` are the maintainer's: check
+2. **Build:** `npm run build:all`, then in `test-workspace` `CI=1 npx ng run test-lib:prism-build` (most beats) and
+   `CI=1 npx ng run video-lib:prism-build` (code cards whose lines need video-lib's short showcases). Not
+   `npm run test:workspace:update`: it kills whatever holds `:4400`. `:4400` and `:4401` are the maintainer's: check
    with `lsof` and leave them alone.
 3. **Serve** each build statically: `python3 -m http.server 4430 --bind 127.0.0.1` in
    `test-workspace/dist/test-lib-prism`, port 4431 in `test-workspace/dist/video-lib-prism`.
-4. **Lift** each state the film shows: write a config like `templates/lift-config.example.json` (`cssName` `ui-test.css`
-   for test-lib, `ui-video.css` for video-lib: `shared.js` loads those names), run
-   `node scripts/lift.mjs <config> <out>`, one out dir per build. A click needs a before and an after state. For a code
-   card, lift the states as they are after the typed line exists, and keep what that line adds at opacity 0 until it is
-   typed (the template does this with `prism-head-parts` in the first state). After a click, blur the focus (`eval`
-   step); a menu needs both clicks; a transition a longer `wait`.
-5. **Check the lift:** `node scripts/verify-lift.mjs <out> <css> <state…>` and read every `cmp-*.png` (real left, lift
-   right). Fix the lift until they match.
-6. **Package:** `node scripts/package-modules.mjs <out> <mods> <css> [ngv]`; video-lib gets the scope `ngv`.
-7. **Write the scenes** from the templates. A scene's class names begin with its id. Retiming a beat means every time in
-   it: the constants, and the literals in `render`, the cursor keys and visibility and the camera keys' `hold`.
-8. **Preview every new or changed scene before it goes in.** The player can't be watched from here:
-   `node scripts/preview.mjs <scene.js> <prefix> <t1,t2,…> --mods <mods> [--mods <mods2>] --dur <s>` renders it in a
-   stand-in with the player's camera, cursor and typist (no sound), and tiles the frames. No `PAGEERROR` may show; read
-   the sheet and full frames at the key moments, and compare a title or an end card with the stills in `reference/`.
-9. **Create the film:** find the Motion type (`Artifact` quickstart, or `list` with `scope: "types"`), publish with its
-   `type_url`, then follow the instructions the create result carries. Upload `symbol.png` as an asset and write its
-   `assets/symbol.png` document (`mime` `image/png`); `base.css`, `shared.js` and the packaged modules go in as modules
-   (`ArtifactData` batch with `file_path`), each scene as one `set` (`modules/scene-<id>.js`), then `modules/score.js`
-   and `modules/scenes.json` with `"stage": "final"`. Every write to an existing document needs `if_version`. The store
-   is the source: before changing a film later, read it back (`ArtifactData` `list` with `out_dir`).
-10. **Hand it over:** the link, a word on any dropped indentation, and ask the maintainer to scrub it once: a scene that
-    throws in the player shows only a card with its name. Export (MP4) is a button on the film's page, and only the
-    maintainer can press it: ask for 1080p, 60 fps, High, Sharper text on. That file is the master, its size does not
-    matter; the maintainer puts it into `.videos/originals-no-voice/`. A contact sheet of the master shows whether every
-    scene rendered in the real player: `ffmpeg -i <master> -vf "fps=1/1.5,scale=400:-1,tile=6x6" -frames:v 1 sheet.png`.
-11. **Encode for the web,** into a temporary file; narrating it comes next:
+4. **Lift** each state the film shows: a config like `templates/lift-config.example.json` per build in
+   `.videos/reference/<film>/` (`cssName` `ui-test.css` for test-lib, `ui-video.css` for video-lib), then
+   `node $S/lift.mjs <config> .videos/work/<film>/lift/<build>`, where `<build>` is the key the film gives it in
+   `builds` (`test`, `video`). A click needs a before and an after state; marks put `data-v` hooks on what the camera
+   and cursor aim at. For a code card, lift the state with what the typed line makes; the styleguide always shows the
+   component, so the card's before state is that same state with the new part hidden (an `alt` that sets
+   `opacity:0` on it, step 6).
+   After a click, blur the focus (`eval` step); a menu needs both clicks; a transition a longer `wait`.
+5. **Check the lift:** `node $S/verify-lift.mjs .videos/work/<film>/lift/<build> <css> <state…>` and read every
+   `cmp-*.png` (real left, lift right). Fix the lift until they match.
+6. **Describe the film** in `.videos/reference/<film>/film.mjs`, starting from `templates/film.example.mjs` (the tour,
+   worked through). It exports `{ kind: 'release' | 'tour', line, command, builds, marks, music, scenes(ctx) }`:
+    - `builds`: `{ video: { scope: 'ngv', css: 'ui-video.css' }, test: { scope: 'ngp', css: 'ui-test.css' } }`; the
+      scope keeps the two builds' styles apart.
+    - `marks`: `{ 'build/state': { name: selector } }`, everything camera, cursor and highlights aim at.
+    - `scenes({ box, mid })` returns the scenes in order. `box('state.name')` is a measured mark in stage space,
+      `mid(box, dx, dy)` its centre; times inside a scene are scene time. Every scene has `id`, `kind`, `dur` and
+      optionally `vo: { at, text, seed?, sub? }`:
 
-    ```bash
-    ffmpeg -i <master> -filter_complex "[0:v]fps=30,split[a][b];\
-    [b]trim=start=3.62,trim=end_frame=1,setpts=PTS-STARTPTS[p];[a]trim=start_frame=1,setpts=PTS-STARTPTS[r];\
-    [p][r]concat=n=2:v=1:a=0[v]" -map "[v]" -map 0:a -c:v libx264 -preset slow -crf <crf> -tune animation \
-      -profile:v high -pix_fmt yuv420p -c:a copy -movflags +faststart <encode>.mp4
-    ```
+    | `kind`     | Fields                                                                                                                                                                                                                                                                                                                                                  |
+    | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | `title`    | `dur: 5.6`, the title's voice line at 2.9 s                                                                                                                                                                                                                                                                                                             |
+    | `end`      | `dur: 5.5`, `vo: { at: 1.55, text: 'Try it out!' }`                                                                                                                                                                                                                                                                                                     |
+    | `app`      | `wins: [['build/state', alt?]…]` (a window per state; `alt` is HTML or a function that changes the lifted HTML), `cap`, `cam: [{ t, cx, cy, z, hold?, drift? }]`, `cur: [{ t, x, y }]`, `vis: [in0, in1, out0?, out1?]`, `clicks`, `fades: [{ win, at }]`, `his: [{ name, box, at }]`, `scan`, `light: [t0, t1]` (the header's sheen), `extra(tl, sfx)` |
+    | `code`     | `file`, `src` (lines, verbatim), `typedLine`, `t0`, `cap`, `win: { states: [before, after], after, cam? }` (each state a ref or `[ref, alt]`; the window fades to `after` at that second), `veil`, `width` (832; 700 for a narrow card)                                                                                                                 |
+    | `tourCode` | `file`, `src`, `typed` (lines), `t0`, `seconds`, `cap`                                                                                                                                                                                                                                                                                                  |
+    | `slash`    | `chip` (a file name), `head` (`'No **story files.**'`)                                                                                                                                                                                                                                                                                                  |
+    | `split`    | `outs: [[label, css]…]` (real values from the lifted CSS), `cap`, `label`                                                                                                                                                                                                                                                                               |
+    | `kinetic`  | `text` (`'Fast. **Really fast.**'`)                                                                                                                                                                                                                                                                                                                     |
 
-    `<crf>` is 22 for a release clip and 20 for the tour. A release clip has to stay under 10 MB, GitHub's limit for a
-    video on the free plan; CRF 22 turns a one-minute master of 47 MB into about 9 MB with the narration, CRF 20 into
-    about 11 MB. Neither shows a visible loss (compare crops of code and small text against the master).
+    A new beat is a description plus a few lines of arithmetic on `box`, not a new generator. A new pattern goes into
+    `scripts/lib/` with a test.
 
-    The filter swaps the first frame for the title's lockup at 3.62 s. A player without a poster, on GitHub or Reddit,
-    shows the first frame until someone presses play, and the film's own first frame is a blur of light. The swap keeps
-    every other frame where it was, so the narration stays in sync; check that frame 0 shows the lockup and the frame
-    count matches the plain encode.
-
-12. **Narrate:**
-    - **The lines:** the logo, the title's line, one line per beat written for a listener, the end card's. The
-      maintainer approves the beats' lines before anything is generated. They go to
-      `.videos/reference/<film>/narration.json` (`<film>` is the version or `tour`), a list of `{ at, until, text }`,
-      like `.videos/reference/22.7/narration.json`.
-    - **The timing:** `{ "at": 0.5, "logo": true }` first, then the title's line at 2.1 s (`"until": 4.0`); the end
-      card's "Try it out!" 0.4 s after its cut. A beat's line starts 0.3–0.6 s after its cut and ends 0.2 s before the
-      next line; `until` is the cut that ends its scene, which it may overrun by 0.6 s. At the default `--tempo 1.05`
-      Chris speaks about 2.6 words a second. Spell what he would read wrongly as it should sound (`N G prism`,
-      `J S Doc`).
-    - **The run,** from the repo root: the first command measures every line against its window, the second lays them
-      over the film.
-
-        ```bash
-        N=.agents/skills/prism-motion-video/scripts/narrate.mjs
-        node $N <encode>.mp4 .videos/reference/<film>/narration.json --dry
-        node $N <encode>.mp4 .videos/reference/<film>/narration.json .videos/ng-prism-<film>.mp4 --title "ng-prism <film>"
-        ```
-
-        It ducks the clicks under the voice, normalises to −16 LUFS, copies the picture and titles the MP4
-        `ng-prism <film> · voice: elevenlabs.io`. Play the result to the maintainer
-        (`open -a "QuickTime Player" .videos/ng-prism-<film>.mp4`) before it replaces anything.
-
-    - **ElevenLabs:** the free plan, with `ELEVENLABS_API_KEY` in the shell (the maintainer's is in `~/.zshrc`). It
-      can't use voices from ElevenLabs' library over the API, only the default voices, which is why the narrator is
-      Chris. Every line is generated once and cached in `.videos/narration-cache/`: `--dry` already generates every line
-      it measures, which is where the credits go, and the real run and a run after editing one line reuse what didn't
-      change. The plan has 10,000 characters a month, a film's narration about 700. A line that sounds wrong gets a
-      `"seed"` (any other number) for another take. The logo is not generated: `scripts/sonic-logo.mjs` rendered it
-      once, from `templates/sonic-logo-take.mp3`.
-
-13. **Deliver:**
-    - **A release clip** stays in `.videos/ng-prism-<version>.mp4`. Check that it is under 10 MB. The maintainer drags
-      it into the release notes in GitHub's web editor, which inserts a `github.com/user-attachments/assets/…` URL; a
-      file under the release's assets would only be a download. The URL becomes a player only when it stands alone in
-      its paragraph, so an empty line goes between it and the credit below; without it GitHub shows a plain link.
-    - **The tour** is copied to `docs/assets/video/tour.mp4`, with a new poster from the master's lockup:
-      `ffmpeg -ss 3.62 -i <master> -frames:v 1 docs/assets/video/tour-poster.png`.
-    - **The credit:** the free plan's licence is non-commercial and wants "elevenlabs.io" in the title wherever a film
-      is published. The release notes carry a line `Voice: elevenlabs.io` right below the clip; `docs/README.md` carries
-      it below the tour's `<video>`.
-    - **The sources** go to `.videos/reference/<film>/`, next to its `narration.json`: `scenes.json`, every scene and
-      the score (read back from the store), the lift configs, and a still of every scene from `preview.mjs`, named
-      `<scene id>.jpg`.
+7. **Measure:** `node $S/measure.mjs <film>` writes `.videos/work/<film>/coords.json` and a screenshot per state in
+   `measure/`. A state that was not lifted or a mark that matches nothing stops it, naming both.
+8. **Voice:** write each line for a listener: the title's line, one per beat (starting 0.35–0.8 s into it), "Try it
+   out!". **The maintainer approves the lines and the interstitials before anything is generated.** Spell what Chris
+   would read wrongly as it should sound (`N G prism`, `J S Doc`); a release's spelled-out version gets a `sub` for the
+   subtitles. `node $S/narrate.mjs <film> --dry` calls no API: it measures cached lines, estimates the others and says
+   how many characters a real run would spend. `node $S/narrate.mjs <film>` generates what is missing (needs
+   `ELEVENLABS_API_KEY`), writes the WAVs and `voice.json`, and stops if a line runs past its scene or into the next.
+   Chris speaks about 2.6 words a second at the tempo of 1.05.
+9. **Music:** `node $S/music.mjs search <words…>` lists CC0 tracks from Openverse (Freesound and others), nothing
+   else. Pick by tags, length and energy, suggest one, and let the maintainer listen (its page link) and confirm track
+   and licence. Then `node $S/music.mjs get <film> <id>` downloads it to `music/` and records it in `credits.json`.
+   Set `music: { file, from }` in `film.mjs`: the track comes in at 0.58 s so that its `from` second lands on the
+   title's impact at 0.6 s. After a build, `node $S/hf.mjs beats .videos/work/<film>/project` writes
+   `beats/<track>.json` in the project; choose `from` on a strong beat. CC0 needs no credit line anywhere.
+10. **Build:** `node $S/build.mjs <film>` measures the name for title and end card and generates
+    `.videos/work/<film>/project/`. It stops on a lift that would load anything from the network.
+11. **Check,** in `.videos/work/<film>/project/`: `node ../../../../$S/hf.mjs lint` (0 errors) and
+    `… hf.mjs check --json` (`"ok": true`; the warnings `negative_z_index` from the lifted CSS, `dead_stretch` in app
+    beats and `line_unread` in interstitials are expected). Then `… hf.mjs snapshot --at <times> --no-end -o ../snap`
+    at every scene's key moments (after each click, when a line is typed, the lockups) and read every contact sheet and
+    the frames that matter at full size. Compare title and end card with `reference/`.
+12. **Show it before rendering:** `… hf.mjs preview --port 4432` opens HyperFrames' Studio on localhost, where the
+    maintainer can scrub the film with sound. Fix what they find from step 6 on.
+13. **Render and deliver:** `node $S/deliver.mjs <film>` renders the 60 fps master (about 80 s for a minute on this
+    machine's GPU), checks its length against the film, measures loudness (−16 LUFS ±1, true peak ≤ −1.5 dBFS, else
+    a two-pass loudnorm in the encodes), and writes the web version (30 fps, x264, CRF 22 for a release, 20 for the
+    tour, first frame swapped for the title's lockup at 3.4 s, so a player without a poster shows the name), the
+    YouTube version (2560×1440, 60 fps, CRF 18), the thumbnail (1280×720 from the lockup), the subtitles and the
+    contact sheet `.videos/work/<film>/sheet.jpg`. Read the sheet: a scene with missing light or a black frame shows
+    there. It overwrites nothing without `--force`; `--skip-render` encodes the existing master again. Every MP4 is
+    titled `ng-prism <film> · voice: elevenlabs.io`. Play the film to the maintainer
+    (`open -a "QuickTime Player" .videos/ng-prism-<film>.mp4`) before it goes anywhere.
+14. **Publish:**
+    - **A release clip:** the maintainer drags the web version into the release notes in GitHub's web editor (a
+      `github.com/user-attachments/assets/…` URL becomes a player only alone in its paragraph: an empty line between it
+      and the credit). It must stay under 10 MB; `deliver.mjs` stops when it does not.
+    - **The tour,** after the maintainer's OK: `node $S/deliver.mjs tour --docs --force` copies it to
+      `docs/assets/video/tour.mp4` with a new `tour-poster.png`. Those two files are the only film files in git.
+    - **YouTube:** the `-youtube.mp4`, its thumbnail and the `.en.srt` (the voice lines as spoken, `N G prism` and
+      `J S Doc` written properly, the sonic logo as "ng-prism").
+    - **The voice credit:** ElevenLabs' free plan is non-commercial and wants "elevenlabs.io" wherever a film is
+      published: the MP4 title, a `Voice: elevenlabs.io` line right below the clip in the release notes, below the
+      tour's `<video>` in `docs/README.md`, and in the YouTube description.
+    - **The sources:** a still of every scene goes to `.videos/reference/<film>/<scene id>.jpg` (from the snapshots).
 
 ## Changing the tour
 
-The tour is one artifact, "ng-prism tour", and a change goes into it:
-
-1. Find it with `Artifact` `list` and read its store back (`ArtifactData` `list` with `out_dir`). If it is gone, rebuild
-   it from `.videos/reference/tour/` first (see _Reference_).
-2. Add, change or drop beats with steps 1–8; the title and the end card stay. Keep `scenes.json` in step with the
-   scenes, and move the later narration lines when a beat's length changes.
-3. Hand it over (step 10). From the new master on it is steps 11–13: all lines are narrated again (the unchanged ones
-   come from the cache), and the docs get the new `tour.mp4` and poster.
+Everything is in `.videos/reference/tour/`. Change `film.mjs` (beats, lines, interstitials; title and end card stay),
+lift what is new or changed with its configs, and run from step 7 on. Unchanged lines come from the cache; a beat that
+gets longer moves the later scenes by itself. After the maintainer's OK the docs get the new film and poster (step 14).
 
 ## Reference
 
-`reference/` in this skill holds stills of the title and the end card, rendered with `preview.mjs`. They are the same in
-every film, except that a release's title shows its minor (here 22.7) and the tour's its slogan:
+`reference/` holds stills of the light title and end card, 960×540. They are the same in every film, except that a
+release's title shows its minor and the tour's its slogan:
 
-| Stills                                     | What they show                                                                               |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `title-1-light.jpg` … `title-4-lockup.jpg` | the title at 0, 1.1, 2.95 and 3.62 s: inside the light, the flare, the one sheen, the lockup |
-| `end-1-sheen.jpg`, `end-2-card.jpg`        | the end card with its sheen, and as it stands                                                |
+| Stills                                                   | What they show                                                          |
+| -------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `title-1-beam.jpg`, `title-2-fan.jpg`                    | 0.62 s: the beam hits the prism; 1.4 s: the spectrum fans out           |
+| `title-3-ignite.jpg`, `title-4-lockup.jpg`               | 2.3 s: the band sets the name alight; 3.4 s: the lockup (poster, thumb) |
+| `end-1-inflow.jpg`, `end-2-ignite.jpg`, `end-3-card.jpg` | 0.45 s: the spectrum flows in; 1.2 s: white light out; 5.2 s: the card  |
 
-Every finished film's sources are in `.videos/reference/<film>/` (step 13). A new release starts from the most recent
-one: its scenes and stills show the house style at work. 22.7's, for instance, has a click (`scene-pages.js`), code
-cards (`scene-compose.js`, `scene-parts.js`), a code card over the dark panel (`scene-a11y.js`) and a phone in a device
-frame (`scene-mobile.js`). If a film's artifact is gone, it comes back from there: build the styleguides, lift and
-package with its lift configs, create a new film and write its scenes and score, `base.css` and `shared.js` from
-`templates/`, the packaged modules and the asset `symbol.png`. The lift shows the styleguide as it is at build time, so
-a rebuilt film looks like today's styleguide, not like its stills.
+`templates/film.example.mjs` is the tour as a worked example: every kind of beat but `code`, both interstitial
+patterns it uses, marks, music. Every film's sources are in `.videos/reference/<film>/`; the 22.7 clip and the tour
+before 2026-11 were made with Claude Motion (`.videos/reference/22.7/`, `tour-motion/`), and their scenes still show
+the house style at work, including a phone in a device frame (22.7's `scene-mobile.js`, `lift-phone.json`), which the
+first film that needs it brings into `scripts/lib/`.
 
 ## When something goes wrong
 
-| Symptom                                                  | Cause and fix                                                                                                                                                                                                                                                                                            |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A lifted element has lost its background or gradient     | Chrome serialises `background: var(…)` followed by a longhand as empty longhands; `lift.mjs` re-reads such rules from the raw stylesheet.                                                                                                                                                                |
-| A popover is missing or cut off in the lift              | It lived in the top layer. `lift.mjs` pins it `position: fixed` with a high `z-index` and `position-area: none`.                                                                                                                                                                                         |
-| Every lifted state is ~400 KB                            | The header logo is a 180 KB data URI; the lift swaps it for `var(--ngp-logo)`, which `UI.stage` points at `symbol.png`.                                                                                                                                                                                  |
-| Styles of the two builds overwrite each other            | Their `_ngcontent` ids and global rules differ: video-lib is scoped (`package-modules.mjs … ngv`).                                                                                                                                                                                                       |
-| Something animated in the styleguide stands still        | CSS animations and transitions don't run in a film: drive it from `t` (the header's sheen and glow: `UI.light`).                                                                                                                                                                                         |
-| Camera or cursor aim beside the element                  | Measure with `UI.box` in `init`, before the camera moves, against the state the element is in.                                                                                                                                                                                                           |
-| A scene shows only its name card in the player           | It threw while loading. Run it through `preview.mjs` with the film's modules: page errors are printed.                                                                                                                                                                                                   |
-| A gradient word shows the whole gradient in every letter | Split letters need `background-size` = word width and `background-position` = −`offsetLeft` (see the title).                                                                                                                                                                                             |
-| A dark smear over a light canvas beside a code card      | The veil behind the card. Leave it out where the window behind the card is light, and frame the dark panel instead (22.7's `scene-a11y.js`).                                                                                                                                                             |
-| A later state still shows an earlier one's inputs        | The styleguide keeps control values per component across navigation: click `Reset` and `goto` again before lifting the next beat.                                                                                                                                                                        |
-| A `click` with `:text-is()` times out                    | The text sits in a child (`<span class="prism-tab__label">`): address the element by `aria-label` or class instead.                                                                                                                                                                                      |
-| A phone-sized lift breaks the desktop windows            | Lift the phone at its size (`viewport` `{ width: 390, height: 844 }`, `touch: true` in the config), check it with `verify-lift.mjs … --size 390x844`, package it as `ui-phone.css` with the scope `ngm`, and show it in a device frame of the scene's own (22.7's `scene-mobile.js`, `lift-phone.json`). |
-| `preview.mjs` times out launching Chromium               | The machine is under load; run it again.                                                                                                                                                                                                                                                                 |
-| `narrate.mjs` gets 401 or `quota_exceeded`               | 401: the key is wrong or lacks the Text to Speech permission. `quota_exceeded`: the month's free characters are spent; cached lines still work, new ones wait for the reset.                                                                                                                             |
+| Symptom                                                  | Cause and fix                                                                                                                                                                                                  |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A lifted element has lost its background or gradient     | Chrome serialises `background: var(…)` followed by a longhand as empty longhands; `lift.mjs` re-reads such rules from the raw stylesheet.                                                                      |
+| A popover is missing or cut off in the lift              | It lived in the top layer. `lift.mjs` pins it `position: fixed` with a high `z-index` and `position-area: none`.                                                                                               |
+| A popover sits in the wrong place in the film            | Top-layer popovers are `position: fixed`; `.ngp { contain: layout paint }` makes the window their reference.                                                                                                   |
+| Every lifted state is ~400 KB                            | The header logo is a 180 KB data URI; the lift swaps it for `var(--ngp-logo)`, which the film points at its `symbol.png`.                                                                                      |
+| A later state still shows an earlier one's inputs        | The styleguide keeps control values per component across navigation: click `Reset` and `goto` again before lifting the next beat.                                                                              |
+| A `click` with `:text-is()` times out                    | The text sits in a child (`<span class="prism-tab__label">`): address the element by `aria-label` or class instead.                                                                                            |
+| `check` fails on fonts                                   | The CSS names a family that doesn't come along. The film's fonts are `Inter Prism` and `JBM Prism` (`--sans`, `--mono` on the window), loaded from `assets/fonts/`.                                            |
+| `css_transition_used` in `lint`                          | Transitions and animations run on the browser's clock: the build strips them from the lifted CSS. Something that should move is driven from the timeline (the header's sheen: `light`).                        |
+| Duplicate ids, broken SVG references                     | Several windows per page: the build prefixes ids per window, `url(#…)` and `href="#…"` with them. An id you add in `alt` is yours to keep unique.                                                              |
+| An element shows too early                               | A `fromTo` renders its start value at once: later tweens on the same property need `immediateRender: false`.                                                                                                   |
+| Camera or cursor aim beside the element                  | The mark was measured in another state: give it to the state the element is in, and measure again.                                                                                                             |
+| Monospace widths or the name's letters are off           | A page under `about:blank` loads no `file://` fonts: measuring pages are files (`measure.mjs`, `build.mjs` do this).                                                                                           |
+| `dead_stretch` in app beats                              | Windows carry `data-layout-ignore`, so `check` doesn't see them move: the snapshots decide.                                                                                                                    |
+| `text_occluded` on the name                              | The sheen is a layer over the name on purpose: both carry `data-layout-allow-occlusion`. Anything else covering text is a real finding.                                                                        |
+| The cursor sits at (0, 0)                                | A scene without a cursor: it stays hidden unless `cur` is set.                                                                                                                                                 |
+| The light freezes or is missing in single frames         | The shader was drawn from outside the scene's time: it may only draw in the `onUpdate` of the tween over the whole scene (`lib/light.mjs`).                                                                    |
+| A gradient word shows the whole gradient in every letter | Split letters need `background-size` = word width and `background-position` = −the letter's left edge (the title does this from the measured name).                                                            |
+| A dark smear over a light canvas beside a code card      | The veil behind the card: `veil: false` where the window behind is light, and frame the dark panel instead.                                                                                                    |
+| The build stops: "would load from the network"           | The lift or a pattern references a remote file (`url(https://…)`, `@import`, `src`): make it local.                                                                                                            |
+| `narrate.mjs` stops: a line runs past its scene          | Shorten the line, start it earlier, or lengthen the scene; the message names scene and overhang.                                                                                                               |
+| `narrate.mjs` gets 401 or `quota_exceeded`               | 401: the key is wrong or lacks the Text to Speech permission. `quota_exceeded`: the month's 10,000 free characters are spent; cached lines still work, new ones wait for the reset.                            |
+| `music.mjs` hangs or gets HTML                           | Openverse throttles anonymous clients; the script waits and retries. Try again a minute later.                                                                                                                 |
+| A phone-sized lift breaks the desktop windows            | Lift the phone at its size (`viewport` `{ width: 390, height: 844 }`, `touch: true`), check it with `verify-lift.mjs … --size 390x844`, give it its own build and scope (`ngm`) and a device frame of its own. |
