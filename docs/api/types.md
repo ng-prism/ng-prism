@@ -1,4 +1,4 @@
-# Type Reference
+# Types
 
 All types exported from `ng-prism` or `ng-prism/plugin`.
 

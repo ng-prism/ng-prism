@@ -560,7 +560,7 @@
                 repo: 'https://github.com/ng-prism/ng-prism',
                 loadSidebar: true,
                 basePath: location.hostname === 'localhost' ? '/' : '/ng-prism/',
-                subMaxLevel: 3,
+                subMaxLevel: 2,
                 auto2top: true,
                 search: {
                     placeholder: 'Search docs...',
@@ -572,6 +572,41 @@
                     successText: 'Copied'
                 }
             };
+        </script>
+        <!-- Old URLs of pages that were merged: "/old-route" or "/old-route?id=old-anchor" -> "/new-route[?id=anchor]" -->
+        <script type="application/json" id="prism-redirects">
+            {
+                "/guide/showcasing-services": "/guide/services-and-pipes",
+                "/guide/showcasing-pipes": "/guide/services-and-pipes?id=pipes"
+            }
+        </script>
+        <script>
+            // Sends the browser from an old URL to its new place, on load and on every hash change. Docsify's alias
+            // option keeps the old URL in the address bar, so the sidebar would not mark the page.
+            (() => {
+                const redirects = JSON.parse(document.getElementById('prism-redirects').textContent);
+
+                const redirect = () => {
+                    const hash = location.hash.slice(1); // "/guide/page.md?id=anchor"
+                    const split = hash.indexOf('?');
+                    const route = (split < 0 ? hash : hash.slice(0, split)).replace(/\.md$/, '');
+                    const search = split < 0 ? '' : hash.slice(split + 1);
+                    const query = search.split('&');
+                    const id = new URLSearchParams(search).get('id');
+
+                    const target = (id && redirects[route + '?id=' + id]) || redirects[route];
+                    if (!target) return;
+
+                    // An id in the target replaces the old one, otherwise the old one is kept.
+                    const [path, targetQuery] = target.split('?');
+                    const rest = targetQuery ? query.filter((param) => !param.startsWith('id=')) : query;
+                    const params = (targetQuery ? [targetQuery] : []).concat(rest).filter(Boolean);
+                    location.replace('#' + path + (params.length ? '?' + params.join('&') : ''));
+                };
+
+                redirect();
+                window.addEventListener('hashchange', redirect);
+            })();
         </script>
         <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/docsify.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>

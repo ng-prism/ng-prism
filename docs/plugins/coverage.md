@@ -1,4 +1,4 @@
-# Coverage Plugin
+# Coverage
 
 `@ng-prism/plugin-coverage` displays per-component test coverage metrics from your existing test runner output. It reads Istanbul/v8 `coverage-summary.json` at build time and renders a coverage panel per component.
 

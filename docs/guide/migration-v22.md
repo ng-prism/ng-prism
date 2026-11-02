@@ -1,4 +1,4 @@
-# Migration to v22
+# Migrating from 21.x
 
 `@ng-prism/core@22.0.0` moves the auto-generated `prism-manifest.ts` out of your source tree into a workspace-level cache directory and switches the import to a tsconfig path mapping. This is a **breaking change**: the previous layout will not work against the new pipeline.
 

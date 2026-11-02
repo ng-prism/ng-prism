@@ -1,4 +1,4 @@
-# Publishing Libraries with @Showcase
+# Publishing Libraries
 
 ## The Problem
 

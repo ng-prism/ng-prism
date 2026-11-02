@@ -1,4 +1,4 @@
-# Visual Regression Plugin
+# Visual Regression
 
 `@ng-prism/plugin-visual-regression` renders a visual regression report inside the styleguide, so per-variant screenshot diffs live next to the component they belong to instead of in a CI log.
 

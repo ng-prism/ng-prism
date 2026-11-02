@@ -1,4 +1,4 @@
-# How the Scanner Works
+# Scanner
 
 The ng-prism scanner uses the TypeScript Compiler API to extract `@Showcase` metadata, component structure, and input/output types from library source files at build time, with no runtime reflection.
 

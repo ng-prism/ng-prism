@@ -1,4 +1,4 @@
-# Box Model Plugin
+# Box Model
 
 `@ng-prism/plugin-box-model` overlays CSS box model dimensions on the rendered component, letting you inspect margin, border, padding, and content dimensions without leaving the showcase.
 

@@ -1,4 +1,4 @@
-# State Preservation
+# Links & State
 
 ng-prism keeps the UI state alive across full-page reloads, which helps a lot during component-driven development. Two layers cooperate:
 

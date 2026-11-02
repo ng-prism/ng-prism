@@ -1,4 +1,4 @@
-# Perf Plugin
+# Perf
 
 `@ng-prism/plugin-perf` profiles the render and re-render performance of your components using the browser's Performance API and reports timing metrics per variant.
 

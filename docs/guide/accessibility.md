@@ -1,4 +1,4 @@
-# Built-in Accessibility Auditing
+# Accessibility Panel
 
 ng-prism includes an accessibility panel powered by [axe-core](https://github.com/dequelabs/axe-core). It's part of the core, so no plugin is required.
 

@@ -1,4 +1,4 @@
-# Visual Regression Testing
+# Visual Regression
 
 A built Prism app already knows every component and every variant in your library, and can be driven to any one of them from a URL. That makes it a natural source of truth for per-variant screenshot testing: one baseline image per variant, re-captured on every build and compared pixel by pixel.
 

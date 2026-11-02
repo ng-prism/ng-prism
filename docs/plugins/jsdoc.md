@@ -1,4 +1,4 @@
-# JSDoc Plugin
+# JSDoc
 
 `@ng-prism/plugin-jsdoc` extracts JSDoc comments from your component source files at build time and renders them as an API documentation panel in the showcase.
 

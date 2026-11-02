@@ -1,4 +1,4 @@
-# Plugin Overview
+# Overview
 
 Plugins extend ng-prism with additional panels, controls, and build-time data extraction. They are registered in your `ng-prism.config.ts` and activated automatically during both the build pipeline and at runtime.
 

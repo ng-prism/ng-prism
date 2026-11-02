@@ -3,60 +3,78 @@
 - **Getting Started**
 
     - [Introduction](/)
-    - [Installation & Setup](guide/installation.md)
+    - [Installation](guide/installation.md)
     - [Your First Showcase](guide/first-showcase.md)
-    - [Configuration](guide/configuration.md)
-    - [Publishing Libraries](guide/library-publishing.md)
-    - [Migrating to v22](guide/migration-v22.md)
     - [AI Coding Agents](guide/ai-agents.md)
 
-- **Core Concepts**
+- **Writing Showcases**
 
-    - [@Showcase Decorator](guide/showcase-decorator.md)
+    - [@Showcase](guide/showcase-decorator.md)
     - [Variants](guide/variants.md)
+    - [Inputs & Controls](guide/inputs-and-controls.md)
+    - [States & Pseudo States](guide/states.md)
     - [Content Projection](guide/content-projection.md)
+    - [Compositions](guide/compositions.md)
     - [Directive Hosting](guide/directive-hosting.md)
+    - [Parts](guide/parts.md)
     - [Component Pages](guide/component-pages.md)
-    - [Showcasing Services](guide/showcasing-services.md)
-    - [Showcasing Pipes](guide/showcasing-pipes.md)
+    - [Services & Pipes](guide/services-and-pipes.md)
+    - [What the Scanner Reads](guide/scanner-reads.md)
+
+- **The Styleguide**
+
+    - [Tour of the UI](guide/styleguide-ui.md)
     - [Measuring](guide/measuring.md)
+    - [Accessibility Panel](guide/accessibility.md)
+    - [Links & State](guide/url-state.md)
 
-- **Core Panels**
+- **Configuration**
 
-    - [Accessibility (A11y)](guide/accessibility.md)
-
-- **Customization**
-
+    - [Configuration](guide/configuration.md)
     - [Theming](guide/theming.md)
-    - [State Preservation](guide/url-state.md)
+    - [Publishing Libraries](guide/library-publishing.md)
 
-- **External Tooling**
+- **Testing & CI**
 
     - [External Tooling API](guide/external-tooling.md)
     - [Visual Regression](guide/visual-regression.md)
+    - [A11y Reports](guide/a11y-reports.md)
+    - [Audits in CI](guide/ci.md)
 
 - **Plugins**
 
-    - [Plugin Overview](plugins/overview.md)
-    - [JSDoc: API Docs](plugins/jsdoc.md)
-    - [Figma: Embed & Design Diff](plugins/figma.md)
-    - [Box Model Inspector](plugins/box-model.md)
-    - [Perf: Performance](plugins/perf.md)
-    - [Coverage: Test Coverage](plugins/coverage.md)
-    - [Visual Regression: VRT Report](plugins/visual-regression.md)
-    - [Writing a Plugin](plugins/writing-plugins.md)
+    - [Overview](plugins/overview.md)
+    - [JSDoc](plugins/jsdoc.md)
+    - [Figma](plugins/figma.md)
+    - [Box Model](plugins/box-model.md)
+    - [Perf](plugins/perf.md)
+    - [Coverage](plugins/coverage.md)
+    - [Visual Regression](plugins/visual-regression.md)
 
-- **API Reference**
+- **Plugin Development**
+
+    - [Writing a Plugin](plugins/writing-plugins.md)
+    - [Panel Design](plugins/panel-design.md)
+    - [Plugin Hooks](architecture/plugin-hooks.md)
+
+- **Reference**
 
     - [ShowcaseConfig](api/showcase-config.md)
     - [NgPrismConfig](api/ng-prism-config.md)
+    - [Builders](api/builders.md)
     - [NgPrismPlugin](api/ng-prism-plugin.md)
+    - [Plugin UI Kit](api/plugin-ui.md)
     - [Runtime Services](api/services.md)
-    - [Type Reference](api/types.md)
+    - [Types](api/types.md)
+    - [Build Warnings](api/build-warnings.md)
+
+- **Upgrading**
+
+    - [Migrating from 21.x](guide/migration-v22.md)
+    - [Upgrade Notes 22.x](guide/upgrade-notes-22.md)
 
 - **Architecture**
 
-    - [How the Scanner Works](architecture/scanner.md)
-    - [Canvas State](architecture/canvas-state.md)
     - [Build Pipeline](architecture/pipeline.md)
-    - [Plugin Hooks](architecture/plugin-hooks.md)
+    - [Scanner](architecture/scanner.md)
+    - [Canvas State](architecture/canvas-state.md)

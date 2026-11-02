@@ -1,4 +1,4 @@
-# Figma Plugin
+# Figma
 
 `@ng-prism/plugin-figma` brings your Figma designs into ng-prism with two complementary panels:
 
