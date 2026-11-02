@@ -181,10 +181,11 @@ const CODE_CSS = (fs, lh) => `
 /**
  * A code card on the left over a veil, the styleguide behind it: the card types one line, the window behind fades into
  * the state that line makes (cause and effect in one picture). Without a veil where the window behind is light.
- * Lines stay verbatim and never wrap; a long line runs out under the fade on the right.
- * spec: { id, dur, file, src: string[], typedLine, t0, cap, win?: { states: [before, after], after, cam? },
- *   veil = true, width = 832 }. A state is 'build/state' or [ref, alt] like an app beat's window: the styleguide always
- * shows the component, so `before` is usually the after state with what the line adds hidden (`opacity:0`).
+ * Lines stay verbatim and never wrap; a line too long for the card runs out under a fade on the right.
+ * spec: { id, dur, file, src: string[], typedLine, t0, cap, win?: { states: [before, after], hide?, after?, cam? },
+ *   veil = true, width = 832 }. A state is 'build/state' or [ref, alt] like an app beat's window. The styleguide always
+ * shows the component, so `before` is usually the after state itself with `hide`: selectors (a lift mark,
+ * '[data-v=field]') hidden in it. The window fades at `after`, by default 0.1 s after the line is typed.
  */
 export function code(spec, ctx) {
     const { id, dur, file, src, typedLine, t0 = 1.4, cap, win, veil = true, width = 832 } = spec;
@@ -199,12 +200,15 @@ export function code(spec, ctx) {
     const indent = line.length - line.trimStart().length;
     const typed = line.length - indent;
     const typeS = typed / 34;
+    const overflow = Math.max(...src.map((l) => l.length)) * cw > width - 60;
+    const hidden = (win?.hide ?? []).map((sel) => `#${id}-w0 ${sel}{opacity:0!important}`).join('\n');
     const style = `${CODE_CSS(FS, LH)}
 .k-veil{position:absolute;inset:0;background:linear-gradient(90deg,rgb(8 13 25 / 97%) 0%,rgb(8 13 25 / 90%) 44%,transparent 60%)}
 .k-glow{position:absolute;left:${84 + width / 2 - 560}px;top:${TOP + H / 2 - 340}px;width:1120px;height:680px;border-radius:50%;background:radial-gradient(closest-side,rgb(36 75 255 / 34%),rgb(162 12 240 / 18%) 55%,transparent);filter:blur(40px)}
 .k-card{position:absolute;left:84px;top:${TOP}px;width:${width}px;padding:22px 30px 26px;box-sizing:border-box;border-radius:16px;overflow:hidden;background:rgb(13 19 42);
  box-shadow:0 30px 80px rgb(0 0 0 / 45%),0 0 0 1px rgb(241 245 249 / 12%),0 0 70px rgb(36 75 255 / 22%);font-family:'JBM Prism',monospace;transform-origin:0 50%}
 .k-fade{position:absolute;right:0;top:0;bottom:0;width:110px;background:linear-gradient(90deg,transparent,rgb(13 19 42))}
+${hidden}
 `;
     const lines = src.map((l, i) => `<span class="k-ln" id="${id}-l${i}"><span class="k-in" id="${id}-i${i}">${hl(l)}</span></span>`).join('');
     const cam = win?.cam ?? [{ t: 0, cx: 960, cy: 540, z: 1 }];
@@ -226,7 +230,7 @@ ${cursorHtml(id)}
       <div class="k-glow" id="${id}-glow"></div>
       <div class="k-card" id="${id}-card" data-layout-allow-overflow>
         <p class="k-file">${esc(file)}</p>
-        <div class="k-code">${lines}<span class="k-caret" id="${id}-caret" style="opacity:0"></span><span class="k-fade"></span></div>
+        <div class="k-code">${lines}<span class="k-caret" id="${id}-caret" style="opacity:0"></span>${overflow ? '<span class="k-fade"></span>' : ''}</div>
       </div>
     </div></div>
     ${capHtml(id, cap)}`;
@@ -244,7 +248,7 @@ ${cursorHtml(id)}
     for (let k = 0; k < 4; k++) tl.set(`#${id}-caret`, { opacity: k % 2 ? 1 : 0 }, end + 0.3 + k * 0.5);
     tl.set(`#${id}-caret`, { opacity: 0 }, end + 2.3);
     s.add('typing', t0, 0.32, typeS + 0.05);
-    if (win) fadeWin(tl, id, 1, win.after - 0.04);
+    if (win) fadeWin(tl, id, 1, (win.after ?? n2(end + 0.1)) - 0.04);
     whips(tl, s, `#${id}-enter`, id, dur);
     caption(tl, id, 0.3);
     return { html: composition({ id, dur, style, body, tl }), sfx: s.list };

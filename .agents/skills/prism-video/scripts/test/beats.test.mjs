@@ -135,3 +135,23 @@ test('a code card can hide what its line adds in the state before', () => {
     assert.match(html, /id="c-w0" class="win"[^>]*><div class="ngv"><span style="opacity:0" id="c-w0-x">/);
     assert.match(html, /id="c-w1" class="win"[^>]*><div class="ngv"><span id="c-w1-x">/);
 });
+
+const card = (extra) => code({ id: 'c', dur: 8, file: 'f.ts', t0: 1.4, cap: 'x', typedLine: 0, ...extra }, ctx);
+
+test('a code card fades its window when the line is typed', () => {
+    const typed = 'x'.repeat(34);
+    const { html } = card({ src: [typed], win: { states: ['video/a', 'video/a'] } });
+    // typed from 1.4 s for 1 s, the window follows 0.1 s later
+    assert.match(html, /tl\.fromTo\("#c-w1", \{"opacity":0\}, \{"opacity":1,[^}]*\}, 2\.5\);/);
+});
+
+test('a code card hides what its line adds in the window before', () => {
+    const { html } = card({ src: ['a'], win: { states: ['video/a', 'video/a'], hide: ['[data-v=field]'] } });
+    assert.match(html, /#c-w0 \[data-v=field\]\{opacity:0!important\}/);
+    assert.doesNotMatch(html, /#c-w1 \[data-v=field\]/);
+});
+
+test('the fade on the right only comes with a line too long for the card', () => {
+    assert.doesNotMatch(card({ src: ['short line'] }).html, /class="k-fade"/);
+    assert.match(card({ src: ['x'.repeat(80)] }).html, /class="k-fade"/);
+});

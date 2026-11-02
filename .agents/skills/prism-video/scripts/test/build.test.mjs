@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -64,7 +64,9 @@ test('remoteRefs finds loads, not links', () => {
 });
 
 test('no music without music', () => {
-    assert.doesNotMatch(fixture().index, /data-timeline-role="music"/);
+    const { index, out } = fixture();
+    assert.doesNotMatch(index, /data-timeline-role="music"/);
+    assert.ok(!existsSync(join(out, 'assets/music')));
     assert.match(fixture({ music: { file: 'track.mp3', from: 15.485 } }).index, /data-timeline-role="music"[^>]*/);
 });
 

@@ -306,7 +306,7 @@ async function capture(name, marks) {
 async function step(s) {
     if (s.goto !== undefined) {
         await page.goto(config.base + s.goto, { waitUntil: 'networkidle' });
-        await page.waitForTimeout(1200);
+        await page.waitForTimeout(s.wait ?? 1200);
     }
     if (s.click) {
         await page.locator(s.click).first().click();

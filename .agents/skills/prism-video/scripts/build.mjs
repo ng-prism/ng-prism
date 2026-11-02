@@ -57,7 +57,8 @@ export function build({ film, coords, voice, words, out, liftDir, voiceDir, musi
     const lifted = { builds: film.builds, liftDir };
     const c = { film, words, ctx: { state: (ref, wid) => loadState(lifted, ref, wid) } };
     for (const d of ['compositions', 'assets']) rmSync(join(out, d), { recursive: true, force: true });
-    for (const d of ['compositions', 'assets/fonts', 'assets/img', 'assets/voice', 'assets/sfx', 'assets/music']) mkdirSync(join(out, d), { recursive: true });
+    for (const d of ['compositions', 'assets/fonts', 'assets/img', 'assets/voice', 'assets/sfx', ...(film.music ? ['assets/music'] : [])])
+        mkdirSync(join(out, d), { recursive: true });
     const files = [];
     const write = (rel, text) => {
         const f = join(out, rel);
