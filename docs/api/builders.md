@@ -27,8 +27,8 @@ npx nx run my-lib:prism        # the same in an Nx workspace
 ```
 
 1. Loads the config, scans the library and writes the manifest. An error here stops the builder before the dev server starts, see [Build Warnings](api/build-warnings.md#how-messages-look).
-2. Runs the `serve` target of [`prismProject`](#prismproject) with [`port`](#port).
-3. Watches the library and rescans after a change, see [Watching and reloading](#watching-and-reloading).
+2. Starts watching the library, and rescans after a change, see [Watching and reloading](#watching-and-reloading).
+3. Runs the `serve` target of [`prismProject`](#prismproject) with [`port`](#port).
 
 It stops when the dev server stops. A report that breaks [`a11y.gate`](api/ng-prism-config.md#a11y) only prints a warning here, so that a stale local report cannot keep the dev server from starting.
 
@@ -64,7 +64,7 @@ The library to scan: its directory or its barrel file, such as `projects/my-lib`
 
 The scan reads the secondary entry points first, then the primary one:
 
-- **Secondary entry points:** every `ng-package.json` without `dest` below the library root. Each names its entry file as `lib.entryFile`, `public-api.ts` when the field is missing, and its import path is [`libraryImportPath`](#libraryimportpath) plus its directory, such as `my-lib/atoms`.
+- **Secondary entry points:** every `ng-package.json` without `dest` at or below the library root. Each names its entry file as `lib.entryFile`, `public-api.ts` when the field is missing, and its import path is [`libraryImportPath`](#libraryimportpath) plus its directory, such as `my-lib/atoms`.
 - **Primary entry point:** a file `entryPoint` is the primary entry file itself. A directory names it as `lib.entryFile` in its `ng-package.json`, ng-packagr's default `src/public_api.ts` when the field is missing.
 - **Library root:** a directory `entryPoint` is the root. A file is first resolved upward to the nearest `ng-package.json`, whose directory is the root. Without one above it, the file is the only entry point.
 
@@ -185,6 +185,8 @@ Where the production build goes. It replaces the app target's `outputPath` with 
 | The a11y report                                          | Rescan                                          | Rebuild when the manifest changed |
 
 A rescan writes the manifest only when its content changed. The `main.ts` that `ng add` writes then swaps the new manifest into the running app with `enablePrismHmr()`, without a page reload. Any other change reloads the page as the dev server decides, and ng-prism restores the component, variant, view and control values, see [Links & State](guide/url-state.md).
+
+Keep `liveReload: true` on the styleguide app's `serve` target, as `ng add` writes it, so the dev server reloads the page by itself after a rebuild. With `liveReload: false` you reload by hand, which only helps when you want to look at something between two edits.
 
 A rescan that fails, such as one stopped by [`strictShowcase`](api/ng-prism-config.md#strictshowcase), logs the error, and the previous manifest stays in place, see [A re-scan failed](api/build-warnings.md#a-re-scan-failed). A problem in a variant's template is no such failure: the variant loses its composition with a warning, and the rest of the manifest is updated. An error that only Angular finds in the generated manifest shows in the dev server's overlay, see [An Angular error in the generated manifest](api/build-warnings.md#an-angular-error-in-the-generated-manifest).
 

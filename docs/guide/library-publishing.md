@@ -9,13 +9,11 @@ import { Showcase } from '@ng-prism/core';
 Showcase({ title: 'Pill', category: 'Atoms' })(PillComponent);
 ```
 
-Downstream consumers of your library will see: `Module not found: Error: Can't resolve '@ng-prism/core'`
-
-Tree-shaking cannot remove the decorator because the top-level call is a side effect.
+An app that installs your library without `@ng-prism/core` then fails with `Module not found: Error: Can't resolve '@ng-prism/core'`. Tree-shaking cannot remove the decorator because the top-level call is a side effect.
 
 ## The Solution
 
-ng-prism ships a TypeScript AST transformer that strips all `@Showcase` references from compiled output. After stripping, your published library has zero dependency on `@ng-prism/core`.
+ng-prism ships a TypeScript AST transformer that strips all `@Showcase` references from compiled output, and the `ng-prism-strip` command that runs it over a build directory. After stripping, your published library no longer depends on `@ng-prism/core`, as long as `Showcase` is the only value it imports from there.
 
 ## Automatic Setup
 
@@ -29,7 +27,7 @@ If you installed ng-prism via `ng add @ng-prism/core`, a `strip-showcase` npm sc
 }
 ```
 
-Run it after your library build:
+Run it after your library build, on the directory ng-packagr writes to:
 
 ```bash
 ng build my-lib
@@ -86,23 +84,38 @@ const output = printer.printFile(result.transformed[0]);
 result.dispose();
 ```
 
-Or use the convenience function:
+Or use the convenience functions, for one source text or for a whole directory as `ng-prism-strip` does:
 
 ```typescript
-import { stripShowcaseDecorators } from '@ng-prism/core/transformer';
+import { stripShowcaseDecorators, stripShowcaseFromDirectory } from '@ng-prism/core/transformer';
 
 const output = stripShowcaseDecorators(source);
+const { strippedFiles, totalFiles } = await stripShowcaseFromDirectory('dist/my-lib');
 ```
 
 ## Verification
 
-After stripping, verify that no `@ng-prism/core` references remain:
+`ng-prism-strip` reports what it changed:
+
+```
+Stripped @Showcase from 3 of 12 files.
+```
+
+Then verify that no `@ng-prism/core` references remain:
 
 ```bash
 grep -r "@ng-prism/core" dist/my-lib/
 ```
 
-This should return no results. If it does, check that `ng-prism-strip` ran on the correct directory.
+This should return no results. If it does, check that `ng-prism-strip` ran on the correct directory. Only the `Showcase` import is removed: anything else the library imports from `@ng-prism/core` at runtime stays, and so does the dependency.
+
+If a reference to `Showcase` would be left behind after stripping, the command stops with an error and exit code 1 instead of writing a file that would throw a `ReferenceError` at runtime:
+
+```
+Error: [ng-prism] Showcase reference 'Showcase' left in output after stripping at dist/my-lib/fesm2022/my-lib.mjs:42. The Showcase import was removed but a reference remains, which would cause a ReferenceError at runtime. This is a transformer bug; please report the input source.
+```
+
+Report it with the source of that file in the [issue tracker](https://github.com/ng-prism/ng-prism/issues).
 
 ## How It Works
 
@@ -114,7 +127,7 @@ The transformer handles three decorator forms that TypeScript/ng-packagr can emi
 | `__decorate`     | `__decorate([Showcase({...})], MyComp)` | Legacy tsc          |
 | Native decorator | `@Showcase({...}) class MyComp`         | TC39 decorators     |
 
-It removes the decorator calls and cleans up the corresponding import statements. Files without `@Showcase` are left untouched.
+It removes the decorator calls and the `Showcase` import, and keeps the rest of the import statement. `ng-prism-strip` reads every `.js` and `.mjs` file in the directory and below it; a file that does not import `Showcase` from `@ng-prism/core` is left untouched.
 
 ## FAQ
 

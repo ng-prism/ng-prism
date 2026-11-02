@@ -108,18 +108,20 @@ export default defineConfig({
 
 **Type** `Provider[]` · **Default** none
 
-Angular providers for the root injector of the styleguide app, added at bootstrap. Every rendered component can inject them: a mock backend, a router for `routerLink`, a translation service or a library-wide configuration token. For a provider that only one component may see, render that component through a [component page](guide/component-pages.md) that declares the provider.
-
-The type is Angular's `Provider[]`, so a function that returns `EnvironmentProviders`, such as `provideHttpClient()` or `provideRouter()`, does not type-check in this list.
+Angular providers for the root injector of the styleguide app, added at bootstrap. Every rendered component can inject them. For a provider that only one component may see, render that component through a [component page](guide/component-pages.md) that declares the provider.
 
 ```typescript
+import { DEFAULT_CURRENCY_CODE } from '@angular/core';
+
 export default defineConfig({
-    appProviders: [
-        { provide: API_BASE_URL, useValue: 'http://localhost:3000' },
-        { provide: UserService, useClass: MockUserService }
-    ]
+    appProviders: [{ provide: DEFAULT_CURRENCY_CODE, useValue: 'EUR' }]
 });
 ```
+
+Two limits send a provider to the `providers` of the styleguide app's `main.ts` instead, next to `providePrism(…)`, where it reaches the same root injector, see [Adding Global Providers](guide/configuration.md#adding-global-providers):
+
+- **Only installed packages.** The builders import the config in Node.js as well, without your path mappings and without Angular's compiler, so a provider made of your library, such as a mock of one of its services or one of its tokens, cannot be imported here.
+- **Only `Provider`.** The type is Angular's `Provider[]`, so a function that returns `EnvironmentProviders` does not type-check in this list: `provideHttpClient()`, or `provideRouter()` for a component with `routerLink`.
 
 **Guide:** [Configuration](guide/configuration.md)
 
@@ -235,7 +237,7 @@ What the styleguide keeps across reloads and in its links.
 
 **Type** `boolean` · **Default** `true`
 
-Whether the styleguide keeps its selection in the URL: the component, variant, state, view, part and panel as query parameters. With `false` it neither writes them nor restores the selection from them.
+Whether the styleguide keeps its selection in the URL: the component, service, pipe or page, and the variant, state, view, part and panel, as query parameters. With `false` it neither writes them nor restores the selection from them.
 
 ```typescript
 export default defineConfig({ urlState: false });
@@ -296,7 +298,7 @@ export default defineConfig({
 
 **Type** `boolean` · **Default** `false`
 
-Fails the build when the scan had to drop a `@Showcase` value, instead of only warning. Every message of the kind _diagnostic_ under [Build Warnings](api/build-warnings.md#how-messages-look) counts: a value it cannot evaluate, an invalid field, a `@Showcase` without `title`, a composition it cannot build, a `partOf` that does not resolve, the deprecated `providers`. Notices and hints never count. The diagnostics of a service or a pipe only come up when a plugin shows services or pipes.
+Fails the build when the scan had to drop a `@Showcase` value, instead of only warning. Every message of the kind _diagnostic_ under [Build Warnings](api/build-warnings.md#how-messages-look) counts: a value it cannot evaluate, an invalid field, a `@Showcase` without `title`, a composition it cannot build, a `partOf` that does not resolve, the deprecated `providers`. Notices and hints never count. Most diagnostics of a service or a pipe only come up when a plugin shows services or pipes, see [Services and pipes](api/build-warnings.md#services-and-pipes).
 
 With `strictShowcase` on, the build stops after the scan, before the plugin hooks run and before a manifest is written:
 
@@ -314,7 +316,7 @@ ng-prism: strictShowcase is enabled and 2 @Showcase value(s) were dropped; see t
 
 ## Deprecated options
 
-Four options have been on `NgPrismConfig` since the first release, but nothing has ever read them, so setting one never had an effect. Each is deprecated since 22.6.0, removed in 23.0.0. While one is set, the build prints a notice, see [Build Warnings](api/build-warnings.md#a-config-option-that-never-had-an-effect); remove it. [Upgrade Notes 22.x](guide/upgrade-notes-22.md#removed-in-2300) lists everything that is removed in 23.0.0.
+Four options of `NgPrismConfig` are never read by anything, so setting one has no effect. Each is deprecated since 22.6.0, removed in 23.0.0. While one is set, the build prints a notice, see [Build Warnings](api/build-warnings.md#a-config-option-that-never-had-an-effect); remove it. [Upgrade Notes 22.x](guide/upgrade-notes-22.md#removed-in-2300) lists everything that is removed in 23.0.0.
 
 ### `themeStylesheet`
 

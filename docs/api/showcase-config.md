@@ -587,7 +587,7 @@ Deprecated values and uses are marked where they apply: `bg: 'checker'` under [`
 
 Never reaches the styleguide: a provider is a class, a factory or an instance, which the static manifest cannot hold. The build drops the field with one warning per component, which counts for `strictShowcase`, and the component renders without it. On an `@Injectable`, `@Service` or `@Pipe` class it still keeps the class a component until 23.0.0.
 
-A component that injects something the styleguide app does not provide, such as a `Router` for `routerLink`, `HttpClient`, a translation service or a library config token, gets it from [`defineConfig({ appProviders })`](api/ng-prism-config.md#appproviders), which feeds the app's root injector. For a provider that only one component may see, render the component through a [component page](guide/component-pages.md) with [`renderPage`](#renderpage) and declare the provider on the page component.
+A component that injects something the styleguide app does not provide, such as a `Router` for `routerLink`, `HttpClient`, a translation service or a library config token, gets it from the app's root injector: [`appProviders`](api/ng-prism-config.md#appproviders) in the config, or the `providers` of the app's `main.ts` for `provideRouter()`, `provideHttpClient()` and providers from your library, see [Adding Global Providers](guide/configuration.md#adding-global-providers). For a provider that only one component may see, render the component through a [component page](guide/component-pages.md) with [`renderPage`](#renderpage) and declare the provider on the page component.
 
 **Warnings:** [Build Warnings](api/build-warnings.md#showcase-values)
 
