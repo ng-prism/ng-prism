@@ -117,3 +117,21 @@ test('sceneCtx finds measured marks and names a missing one', () => {
     assert.throws(() => c.box('btn.nope'), /btn\.nope/);
     assert.deepEqual(sceneCtx(null).box('btn.nope'), { x: 0, y: 0, w: 0, h: 0 });
 });
+
+test('a code card can hide what its line adds in the state before', () => {
+    const { html } = code(
+        {
+            id: 'c',
+            dur: 7,
+            file: 'f.ts',
+            src: ['a'],
+            typedLine: 0,
+            t0: 1,
+            cap: 'x',
+            win: { states: [['video/compose', (h) => h.replace('<span', '<span style="opacity:0"')], 'video/compose'], after: 3 }
+        },
+        ctx
+    );
+    assert.match(html, /id="c-w0" class="win"[^>]*><div class="ngv"><span style="opacity:0" id="c-w0-x">/);
+    assert.match(html, /id="c-w1" class="win"[^>]*><div class="ngv"><span id="c-w1-x">/);
+});

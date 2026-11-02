@@ -183,7 +183,8 @@ const CODE_CSS = (fs, lh) => `
  * the state that line makes (cause and effect in one picture). Without a veil where the window behind is light.
  * Lines stay verbatim and never wrap; a long line runs out under the fade on the right.
  * spec: { id, dur, file, src: string[], typedLine, t0, cap, win?: { states: [before, after], after, cam? },
- *   veil = true, width = 832 }
+ *   veil = true, width = 832 }. A state is 'build/state' or [ref, alt] like an app beat's window: the styleguide always
+ * shows the component, so `before` is usually the after state with what the line adds hidden (`opacity:0`).
  */
 export function code(spec, ctx) {
     const { id, dur, file, src, typedLine, t0 = 1.4, cap, win, veil = true, width = 832 } = spec;
@@ -214,7 +215,7 @@ ${
     win
         ? windows(
               id,
-              win.states.map((ref) => [ref]),
+              win.states.map((st) => (Array.isArray(st) ? st : [st])),
               ctx
           )
         : ''
