@@ -505,7 +505,7 @@ The label of the tab in the variant ribbon, the caption in the Overview and the 
 
 Values for the inputs of the class, keyed by the member name, also for an input with an `alias`; ng-prism binds each by its public name. With `@Showcase<T>`, the keys and the values are type-checked against the class's signal inputs, see [`InputsOf`](api/types.md#inputsof). Inputs from base classes count as inputs of the class.
 
-- **Only the listed keys are set.** Every other input starts at its default, or `undefined` without one. Within the variant, the values the user changes in the Controls panel stay, and selecting the variant again resets them. `undefined` sets an input to `undefined` on purpose.
+- **Only the listed keys are set.** Every other input starts at its default, or `undefined` without one. Within the variant, the values the user changes in the Controls panel stay until another variant is selected or the panel's **Reset** button sets them back. `undefined` sets an input to `undefined` on purpose.
 - **A key that is no input of the class** is ignored, with a warning in the browser console.
 - **A value for an input that the variant's host template sets on the subject** is dropped with a warning: the template owns that input, and its control reads `Not editable`.
 - A value that cannot be evaluated statically is dropped with a warning, and the rest of `inputs` stays.

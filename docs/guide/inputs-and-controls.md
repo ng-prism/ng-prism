@@ -153,7 +153,7 @@ What works:
 
 The limits:
 
-- **A build notice per class.** Every class that declares an `@Input()`, or inherits one, prints `<Class> uses @Input() decorators which are not fully supported. Migrate to input() signals for full ng-prism support.` It is a notice, so [`strictShowcase`](api/ng-prism-config.md#strictshowcase) does not fail the build over it, see [Inputs declared with @Input()](api/build-warnings.md#inputs-declared-with-input).
+- **A build notice per class.** Every class that declares an `@Input()` prints `<Class> uses @Input() decorators which are not fully supported. Migrate to input() signals for full ng-prism support.`, and one that inherits them `<Class> inherits @Input() decorators from <Base>, which are not fully supported. …`. It is a notice, so [`strictShowcase`](api/ng-prism-config.md#strictshowcase) does not fail the build over it, see [Decorator inputs](api/build-warnings.md#decorator-inputs).
 - **No typing through `@Showcase<T>`.** [`InputsOf<T>`](api/types.md#inputsof) only knows signal inputs. On a class that also has signal inputs, a key for a decorator input does not compile; on a class with decorator inputs only, `inputs` takes any key and checks nothing. Leave the type argument out for such a class.
 - **No setter inputs.** `@Input() set value(v) { … }` is not read: the input has no control, and a variant that sets it gets a warning in the browser console and is ignored for that key.
 - **No metadata arrays.** The `inputs` and `outputs` arrays of `@Component()` and `@Directive()` are not read.

@@ -42,7 +42,7 @@ The part has no entry in the sidebar. The head of the parent's page lists its pa
 - the part's title, its `<selector>` and its status badge, if it has a `status`
 - its description
 - **Inputs**: the name a template binds (the alias, where there is one), a `required` badge, the type, the default and the JSDoc line
-- **Outputs**: the name a template binds and the JSDoc line, then the change output Angular adds for each `model()`, `<name>Change`
+- **Outputs**: the name a template binds and the JSDoc line, then the change output Angular adds for each `model()`, `<name>Change`, with the line `Emits when <name> changes; bind both ways with [(<name>)].`
 
 A section without entries is left out. Everything on the card comes from what the scan reads from the part's class, so it works without a plugin.
 

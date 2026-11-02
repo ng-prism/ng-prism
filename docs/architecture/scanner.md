@@ -20,7 +20,7 @@ Each `scan()` call creates a `ts.Program` with every entry file as a root and re
 - **`componentApi`**: [`ScannedComponent.api`](#api-of-a-component-or-directive). Without it the components come without `api` and `extractComponentApi()` never runs.
 - **`services`** and **`pipes`**: without them `scanServices()` or `scanPipes()` does not run. The scan only counts the showcased classes of that kind, once each however many entry points export them, in `ScanResult.unread`. Nothing of them is read, so none of their warnings or [diagnostics](#diagnostics) appear.
 
-The pipeline passes what the plugins in the config use: `componentApi` when a plugin sets [`componentApi`](api/ng-prism-plugin.md#componentapi), `services` and `pipes` when a plugin has a view panel that applies to them, see [The Build Pipeline](architecture/pipeline.md).
+The pipeline passes what the plugins in the config use: `componentApi` when a plugin sets [`componentApi`](api/ng-prism-plugin.md#componentapi), `services` and `pipes` when a plugin has a view panel that applies to them, see [Build Pipeline](architecture/pipeline.md).
 
 ## Incremental Builds: the `createScanner()` Factory
 

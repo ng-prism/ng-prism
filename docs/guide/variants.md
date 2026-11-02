@@ -39,7 +39,7 @@ variants: [
 ];
 ```
 
-What you change in the Controls panel stays while you look at that variant. Selecting a variant, the same one included, starts it again from its own values, and the **Reset** button of the Controls panel does the same without leaving it.
+What you change in the Controls panel stays while you look at that variant. Selecting another variant starts it from its own values. The **Reset** button of the Controls panel sets the inputs back to the active variant's own values without leaving it.
 
 To make a variant set an input to `undefined` on purpose, for example to show the component without an icon its default would give it, write it out:
 
