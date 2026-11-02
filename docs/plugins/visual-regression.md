@@ -2,23 +2,24 @@
 
 `@ng-prism/plugin-visual-regression` renders a visual regression report inside the styleguide, so per-variant screenshot diffs live next to the component they belong to instead of in a CI log.
 
-## What It Does
+## What it does
 
-- Adds a **Visual Regression** panel to the addon tab bar, shown only for components that have results
+- Adds a **Visual Regression** tab (id `visual-regression`) to the addons panel below the canvas, shown only for components that have results
 - Puts a **count on that tab** of the variants waiting on a decision: red once something changed, amber while the only open items are ones that could not be compared, and absent entirely when the component is clean
-- Shows a **library-wide VRT pill** in the header ("VRT 96%", the share of unchanged variants), graded against your thresholds: ok at the target, warn from 75% of it, danger below
-- Adds a **VRT diff** row to the component head's gauge readout: the worst diff among that component's variants. The gauge chip in the head only names it while it deviates, and only when nothing else deviates more
-- Carries a **per-component summary** in the tooltip of the list headings: every status present with its count, plus the worst diff (`1 changed · 2 new · 7 unchanged · max diff 10.26%`). There is no summary strip, so the list and the comparison keep the whole height of the dock
-- **Groups the variant list by what needs you**, with the clean variants collapsed out of the way (see below)
+- Shows a **library-wide VRT pill** in the header ("VRT 96%", the share of unchanged variants), graded against your thresholds: ok at the target, warn from 75% of it, danger below. Its tooltip has the counts per status
+- Adds a **VRT diff** row to the metrics card of the component head: the worst diff among that component's variants. The metrics chip in the head only names it while it deviates, and only when nothing else deviates more
+- Adds a **sidebar marker** to a component with open items, in the same tone as the tab count
+- Carries a **per-component summary** in the tooltip of the list headings: every status present with its count, plus the worst diff (`1 changed · 2 new · 7 unchanged · max diff 10.26%`). There is no summary strip, so the list and the comparison keep the whole height of the panel
+- **Groups the variant list by what needs you**, with the clean variants collapsed out of the way, see [The variant list](#the-variant-list)
 - Per variant, and per variant and state when the component declares [`states`](guide/states.md#states): status, diff percentage, and a baseline / current / diff comparison. The list and the comparison scroll independently, so choosing a variant never scrolls the image you chose it for out of view
 - Three comparison modes: **Wipe**, **Side by side**, and **Diff** (the last only when the report records a distinct diff mask alongside a current capture)
 - **Zoom** at `Fit`, `1×`, `2×`, `4×`, with pixels kept as pixels. A diff is never drawn below 1:1, because a downscaled diff is unreliable
 - Treats a variant with no baseline yet (`new`) as a neutral state, never as a failure
 - A `size-mismatch` variant opens in side-by-side, since wiping between two differently sized images overlays pixels that do not correspond
 
-The plugin only renders a report produced elsewhere and does no image comparison of its own. Comparison belongs to the runner, which has the baselines and the pinned container. See [Visual Regression Testing](guide/visual-regression.md) for how to capture and compare.
+The plugin only renders a report produced elsewhere and does no image comparison of its own. Comparison belongs to the runner, which has the baselines and the pinned container. The guide [Visual Regression](guide/visual-regression.md) shows how to capture and compare.
 
-> Not to be confused with the [Figma plugin](plugins/figma.md)'s Design Diff, which compares a live component against a Figma design in the browser. That is a separate feature with a similar presentation.
+> Not to be confused with the [Figma](plugins/figma.md) plugin's Design Diff, which compares a live component against a Figma design in the browser. That is a separate feature with a similar presentation.
 
 ## Install
 
@@ -26,11 +27,13 @@ The plugin only renders a report produced elsewhere and does no image comparison
 ng add @ng-prism/plugin-visual-regression
 ```
 
+This installs the package and registers `visualRegressionPlugin()` in `ng-prism.config.ts`. To install it by hand, see [Installing Plugins](plugins/overview.md#installing-plugins).
+
 ## Configuration
 
 ```typescript
 // ng-prism.config.ts
-import { defineConfig } from '@ng-prism/core';
+import { defineConfig } from '@ng-prism/core/config';
 import { visualRegressionPlugin } from '@ng-prism/plugin-visual-regression';
 
 export default defineConfig({
@@ -45,11 +48,11 @@ export default defineConfig({
 
 ## Options
 
-| Option         | Default             | Description                                                                                                                         |
-| -------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `reportPath`   | `'vrt-report.json'` | Path to the report JSON, relative to the workspace root. Read at build time.                                                        |
-| `assetBaseUrl` | `''`                | Prefix applied to the image paths in the report to resolve them against the served styleguide. Empty means paths are used as given. |
-| `thresholds`   | `{ score: 100 }`    | Target for the share of unchanged variants: below it the header pill is warn, below 75% of it danger.                               |
+| Option         | Type                               | Default             | Description                                                                                                                            |
+| -------------- | ---------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `reportPath`   | `string`                           | `'vrt-report.json'` | Path to the report JSON, relative to the workspace root. Read at build time.                                                           |
+| `assetBaseUrl` | `string`                           | `''`                | Prefix applied to the image paths in the report to resolve them against the served styleguide. Empty means paths are used as given.    |
+| `thresholds`   | `number \| Partial<VrtThresholds>` | `{ score: 100 }`    | Target for the share of unchanged variants (`score`): below it the header pill is warn, below 75% of it danger. A number sets `score`. |
 
 ### Serving the images
 
@@ -71,11 +74,11 @@ It is prepended to the recorded path instead of replacing it, so the three value
 | `vrt/baseline/x.png`   | `assets/`      | `assets/vrt/baseline/x.png`                     |
 | `vrt/baseline/x.png`   | `vrt/`         | `vrt/vrt/baseline/x.png` (broken: path doubled) |
 
-The first pairing is what this repository's test workspace uses. The report records workspace-relative paths instead of URLs so the runner does not have to know where the styleguide will serve them from.
+The first pairing is the one the examples above use. The report records workspace-relative paths instead of URLs so the runner does not have to know where the styleguide will serve them from. A path that carries its own origin (`https:`, `data:` or `//`) is used as it is; a path that starts with `/` is joined to `assetBaseUrl` like any other.
 
 ## The variant list
 
-Most of a library's variants are usually unchanged, and a flat list gives all of them equal weight, so the list is grouped instead. A [part](guide/parts.md) is skipped entirely; its parent's variants render and cover it.
+Most of a library's variants are usually unchanged, and a flat list gives all of them equal weight, so the list is grouped instead.
 
 ```
 Needs review · 1
@@ -112,7 +115,7 @@ The state part is the entry's `stateName`. An entry that carries a `stateIndex` 
 
 Each row is its own entry in the report and counts on its own: in the headings' summary, in the group counts and in the tab badge. A state that does not fit a variant (the render marker says [why](guide/external-tooling.md#a-state-that-does-not-apply)) is reported as `excluded` with the runner's `reason`, like any other capture the runner skipped.
 
-Rows of the same status are ordered by `variantIndex`, then the variant's own entry before its states, then the states by `stateIndex`. An entry without a `stateIndex` behaves as it always did, so a report from before states renders unchanged.
+Rows of the same status are ordered by `variantIndex`, then the variant's own entry before its states, then the states by `stateIndex`. An entry without a `stateIndex` is the variant's own row.
 
 ## Report Format
 
@@ -127,6 +130,7 @@ Your runner writes this file; the plugin reads it.
         "changed": 1,
         "sizeMismatch": 0,
         "new": 0,
+        "excluded": 0, // optional
         "maxDiffRatio": 0.5,
         "score": 99 // percent of comparable variants that are unchanged
     },
@@ -154,7 +158,7 @@ Your runner writes this file; the plugin reads it.
 }
 ```
 
-`total` is required and drives the header pill. `byVariant` is matched to components by `className`.
+`total` drives the header pill; without it there is no pill. `byVariant` is matched to components by `className`. An entry needs `className`, `variantIndex` and `status`; every other field is optional, and `reason` says why the runner excluded a variant. A report that is missing or cannot be parsed counts as no results.
 
 ### States
 
@@ -163,7 +167,7 @@ Your runner writes this file; the plugin reads it.
 | `stateIndex` | no       | The `?state=` value the capture was taken with: the position of the state in `@Showcase({ states })` |
 | `stateName`  | no       | The state's `name`, shown in the row label. Without it the row reads `State <stateIndex + 1>`        |
 
-A runner that captures component-level states (`@Showcase({ states })`, listed in `__PRISM_MANIFEST__`, see [A worked example](guide/visual-regression.md#a-worked-example)) writes one entry per variant and state, with the `variantIndex` of the variant and the `stateIndex` of the state. Leave both fields out for the variant on its own: `variantIndex` alone identifies it, and every report written before states existed stays valid. `stateIndex` counts from 0, like `variantIndex`, and `0` is a real state.
+A runner that captures component-level states (`@Showcase({ states })`, listed in `__PRISM_MANIFEST__`, see [A worked example](guide/visual-regression.md#a-worked-example)) writes one entry per variant and state, with the `variantIndex` of the variant and the `stateIndex` of the state. Leave both fields out for the variant on its own: `variantIndex` alone identifies it. `stateIndex` counts from 0, like `variantIndex`, and `0` is a real state.
 
 A row is identified by `className`, `variantIndex` and `stateIndex`. Two entries with the same three values are indistinguishable in the list, so a state capture written without its `stateIndex` would collide with the variant's own entry.
 
@@ -179,7 +183,7 @@ A row is identified by `className`, `variantIndex` and `stateIndex`. Two entries
 
 `new` is neutral. A newly added variant has nothing to regress against, and a runner that does not fail its build on it should not be contradicted by a red panel.
 
-The list is closed. A variant carrying anything else (a typo, a status from a newer runner) is left out of the panel and out of the figures, and the build prints one warning per unrecognised value naming the first component it appeared on. Unknown statuses used to be counted in the totals while appearing in no group; dropping them keeps the count and the list consistent.
+The list is closed. A variant carrying anything else (a typo, a status from a newer runner) is left out of the panel and out of the figures, so the count and the list stay consistent, and the build prints [one notice per unrecognised value](api/build-warnings.md#an-unknown-status-in-the-visual-regression-report) naming the first component it appeared on.
 
 A diff percentage is only read off `unchanged` and `changed` rows. `size-mismatch` and `new` were never compared, so a `diffRatio` recorded on one of them is ignored instead of folded into the component's headline figure.
 
@@ -195,7 +199,8 @@ All three are optional and the panel degrades gracefully:
 
 - **`baselinePath` + `currentPath`:** a before/after comparison, with the diff available as a toggle. This is the most useful view.
 - **`baselinePath` + `diffPath` only:** comparison falls back to baseline against the diff mask.
-- **`new` status:** shows `currentPath` alone, or a "no baseline yet" note.
+- **`new` status:** shows `currentPath` alone, labelled **Current**, with the note that there is no baseline yet.
+- **One image on any other status:** shown alone, with the note that the report recorded only one image. With no path at all, the panel says **No images recorded.**
 - **`excluded` status:** for variants a runner skipped because they cannot be captured meaningfully (a tooltip that only renders on hover would be screenshotted as its trigger). Shown as a neutral row with the runner's `reason`, and no comparison modes, since nothing was captured. Reported instead of dropped so the skipped set stays visible and coverage does not shrink unnoticed. Neither `new` nor `excluded` is framed as a fault.
 
 ### Backgrounds
@@ -210,12 +215,27 @@ Both take a `CanvasBg` value (`light`, `dark`, `dots`, `plain`, `checker`, `tran
 The panel uses them for two things:
 
 - **The frame under a capture** is painted in the recorded colour instead of the transparency checkerboard. This matters for the diff mask, whose unchanged pixels a comparator typically leaves transparent, and on a checkerboard a dark variant's diff is unreadable. Only `light` and `dark` produce a colour; `dots`, `plain` and `checker` resolve to the themed surface, which the panel cannot know the runner's value for, so those keep the checkerboard. For `checker` that is correct anyway. `transparent`, which is also what a variant with no declared background resolves to, keeps it because its capture has a real alpha channel, and the checkerboard makes that visible without inventing a surface.
-- **A named cause for a 100% diff.** With both fields present and different, the panel says the background moved from one surface to the other instead of leaving a reviewer to hunt a regression in an untouched component.
+- **A named cause for a 100% diff.** With both fields present and different, the panel says **Background changed.**, naming both surfaces, instead of leaving a reviewer to hunt a regression in an untouched component.
 
-Both are optional throughout. A report without them renders as before.
+Both are optional throughout. A report without them keeps the checkerboard and names no background change.
+
+## Parts and compositions
+
+- **Parts:** a [part](guide/parts.md) is skipped entirely: it gets no results and no tab, since its parent's variants render it and their captures cover it.
+- **Compositions:** a variant with a [`template` or a host template](guide/compositions.md) is captured as the whole composition, see [The capture target](guide/visual-regression.md#the-capture-target). The panel shows what the runner recorded and treats the entry like any other.
+
+## Troubleshooting
+
+- **No Visual Regression tab:** the report has no entry with the component's `className`, the report is missing at `reportPath`, or it cannot be parsed. The tab only appears for components with results.
+- **No header pill:** the report has no `total`.
+- **Broken images:** the requested URL does not match where the files are served; compare the path in the report, `assetBaseUrl` and the `assets` entry, see [Serving the images](#serving-the-images).
+- **A variant is missing from the list, and the build printed a notice about an unknown status:** the runner wrote a status that is not in [the list](#status-values).
+- **A 100% diff on a component nobody touched:** the variant's background changed; record `bg` and `baselineBg` to have the panel name it, see [Backgrounds](#backgrounds), and re-record the baseline.
+- **Old results under `serve`:** the report is read on a rebuild only. `serve` does not watch it, so a new run shows after the next rebuild, which a change to a `.ts` file of the library or to the config starts.
 
 ## Related
 
-- [Visual Regression Testing](guide/visual-regression.md): capturing screenshots that do not flake
+- [Visual Regression](guide/visual-regression.md): capturing screenshots that do not flake
 - [External Tooling API](guide/external-tooling.md): the contract for driving the app
-- [Coverage Plugin](plugins/coverage.md): the same build-time-report pattern for test coverage
+- [Audits in CI](guide/ci.md): where the runner and the report fit into a pipeline
+- [Coverage](plugins/coverage.md): the same build-time report pattern for test coverage

@@ -17,7 +17,7 @@ A composition keeps everything another showcase has: the variant tabs, the Overv
 
 - **`states` and `pseudo` resolve against the whole composition.** `{ hover: '.lib-form-field__box' }` finds an element of the frame, `{ 'focus-visible': '.lib-input' }` the input, and `true` means every element of the composition, see [Selectors reach the whole composition](guide/states.md#selectors-reach-the-whole-composition).
 - **a11y, Box Model, measuring, Figma and visual regression work on the whole composition,** since that is what the canvas renders. The a11y audit sees the label that belongs to the frame instead of an unlabelled input. The wrapper is a block element: in `fit` the canvas shrinks around its content, in `stretch` it fills the width.
-- **Perf measures the whole composition,** see [Perf](plugins/perf.md#metrics).
+- **Perf measures the whole composition,** see [Perf](plugins/perf.md#parts-and-compositions).
 - **The Events panel lists the outputs of the subject,** not those of other parts.
 - **The usage snippet of the [JSDoc](plugins/jsdoc.md#components-and-directives) plugin** shows the subject inside the host template of the showcase.
 - **`PrismRendererService`** has both elements: `renderedElement` is the root of the whole composition, `subjectElement` the subject, see [Runtime Services](api/services.md#prismrendererservice).
