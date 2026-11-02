@@ -16,11 +16,11 @@ ng add @ng-prism/core
 
 The schematic prompts for the library project unless you pass `--project`. The other two options are flags only:
 
-| Option       | Default                | Description                                                                                          |
-| ------------ | ---------------------- | ---------------------------------------------------------------------------------------------------- |
-| `--project`  | _(prompted, required)_ | The library whose components you want to showcase. The styleguide app is named `<project>-prism`.    |
-| `--port`     | `4400`                 | Dev server port, written to the library's `prism` target and to the styleguide app's `serve` target. |
-| `--zoneless` | `false`                | Bootstraps the styleguide app with `provideZonelessChangeDetection()` and without `zone.js`.         |
+| Option       | Default                | Description                                                                                                                                            |
+| ------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--project`  | _(prompted, required)_ | The library whose components you want to showcase. The styleguide app is named `<project>-prism`.                                                      |
+| `--port`     | `4400`                 | Dev server port, written to the library's `prism` target and to the styleguide app's `serve` target.                                                   |
+| `--zoneless` | `false`                | Leaves the `zone.js` polyfill out and names `provideZonelessChangeDetection()` in `main.ts`, see [Zoneless Mode](#zoneless-mode-optional-recommended). |
 
 It installs `@ng-prism/core` as a dev dependency and sets up:
 
@@ -88,17 +88,17 @@ Plugins are added through Nx as well, see [Installing Plugins](plugins/overview.
 
 ## Zoneless Mode (optional, recommended)
 
-ng-prism runs with Angular's zoneless change detection. Pass `--zoneless` during setup, and the styleguide app bootstraps with `provideZonelessChangeDetection()` and leaves the `zone.js` polyfill out of its bundle:
+The styleguide runs with Angular's zoneless change detection in any case: in Angular 22 an application is zoneless unless it provides `provideZoneChangeDetection()`, and the `main.ts` that `ng add` writes does not. Without `--zoneless` the styleguide app still loads the `zone.js` polyfill, which then has nothing to do. `--zoneless` leaves the polyfill out of the bundle and names `provideZonelessChangeDetection()` in `main.ts`:
 
 ```bash
 ng add @ng-prism/core --zoneless
 ```
 
-The styleguide itself is built on signals and works either way. Whether zoneless suits your library depends on your components: they render inside the styleguide app, so a component that relies on `zone.js` to notice a change does not update there.
+Your components render inside the styleguide app, so they run zoneless in both setups. If they still need `zone.js` to notice a change, add `provideZoneChangeDetection()` to the `providers` in `main.ts` and keep the polyfill.
 
-### Migrating an existing setup to zoneless
+### Dropping zone.js from an existing setup
 
-Three manual edits are needed:
+An existing setup already runs zoneless. These edits do what `--zoneless` does. The first only makes the default explicit; the second removes the polyfill from the bundle. Make both together: with `zone.js` still loaded, `provideZonelessChangeDetection()` logs a warning in development.
 
 **1. `projects/<lib>-prism/src/main.ts`**: add `provideZonelessChangeDetection()`:
 
@@ -128,7 +128,7 @@ Three manual edits are needed:
 +          "polyfills": [],
 ```
 
-**3. `ng-prism.config.ts`**: if your `appProviders` contains zone-dependent providers (e.g. older animation modules, `provideZoneChangeDetection`), remove them or swap for zoneless-compatible alternatives.
+**3. `projects/<lib>-prism/src/main.ts`** again: if its `providers` contain `provideZoneChangeDetection()`, remove it. It needs `zone.js`, and next to `provideZonelessChangeDetection()` Angular warns that both are provided.
 
 **Verify:** run `ng run <lib>:prism`. The app should boot without errors and all showcases should render.
 
@@ -167,7 +167,7 @@ export default defineConfig({
 });
 ```
 
-**4. Write `src/main.ts`** of the styleguide app. The `hot` part swaps a rescanned manifest into the running app, see [Watching and reloading](api/builders.md#watching-and-reloading):
+**4. Write `src/main.ts`** of the styleguide app, as `ng add` writes it. The `hot` part would swap a rescanned manifest into the running app, but Angular 22's dev server reloads the page instead, see [Watching and reloading](api/builders.md#watching-and-reloading):
 
 ```typescript
 import { bootstrapApplication } from '@angular/platform-browser';

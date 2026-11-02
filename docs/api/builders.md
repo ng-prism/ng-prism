@@ -163,7 +163,7 @@ Where the production build goes. It replaces the app target's `outputPath` with 
 - **`outputHashing`** is only in the `production` configuration. Hashed file names are for cache-busting in production and do not work with HMR; the dev server says `Hot Module Replacement (HMR) is disabled because the 'outputHashing' option is set to 'all'.` when hashing is on.
 - **`development`** turns hashing and optimization off and source maps on, and the `serve` target builds with it.
 - **`polyfills`** is `[]` for a workspace set up with `--zoneless`, see [Installation](guide/installation.md#zoneless-mode-optional-recommended).
-- **`main.ts`** passes the manifest and the config to `providePrism()` and accepts a new manifest without a page reload, see [Watching and reloading](#watching-and-reloading).
+- **`main.ts`** passes the manifest and the config to `providePrism()`. Its `import.meta.hot` hook for the manifest only runs where a dev server delivers a module update, which Angular 22's does not do for the manifest, see [Watching and reloading](#watching-and-reloading).
 
 ## Watching and reloading
 
@@ -184,9 +184,11 @@ Where the production build goes. It replaces the app target's `outputPath` with 
 | `ng-prism.config.ts`                                     | Rescan                                          | Rebuild                           |
 | The a11y report                                          | Rescan                                          | Rebuild when the manifest changed |
 
-A rescan writes the manifest only when its content changed. The `main.ts` that `ng add` writes then swaps the new manifest into the running app with `enablePrismHmr()`, without a page reload. Any other change reloads the page as the dev server decides, and ng-prism restores the component, variant, view and control values, see [Links & State](guide/url-state.md).
+A rescan writes the manifest only when its content changed. The dev server then rebuilds the app and, with `liveReload` on, reloads the page, and ng-prism restores the component, variant, view and control values, see [Links & State](guide/url-state.md). Any other change reloads the page or updates it in place, as the dev server decides.
 
-Keep `liveReload: true` on the styleguide app's `serve` target, as `ng add` writes it, so the dev server reloads the page by itself after a rebuild. With `liveReload: false` you reload by hand, which only helps when you want to look at something between two edits.
+The `main.ts` that `ng add` writes also has an `import.meta.hot` hook that would swap a new manifest into the running app with [`enablePrismHmr()`](api/services.md#enableprismhmr), without a reload. It only runs where the dev server delivers a module update for the manifest. Angular 22's dev server sends a module update only when nothing but stylesheets changed, and a full reload otherwise, so under `ng run my-lib:prism` the page reloads.
+
+Keep `liveReload: true` on the styleguide app's `serve` target, as `ng add` writes it, so the dev server reloads the page by itself after a rebuild, the new manifest included. With `liveReload: false` nothing reloads and you reload by hand, which only helps when you want to look at something between two edits.
 
 A rescan that fails, such as one stopped by [`strictShowcase`](api/ng-prism-config.md#strictshowcase), logs the error, and the previous manifest stays in place, see [A re-scan failed](api/build-warnings.md#a-re-scan-failed). A problem in a variant's template is no such failure: the variant loses its composition with a warning, and the rest of the manifest is updated. An error that only Angular finds in the generated manifest shows in the dev server's overlay, see [An Angular error in the generated manifest](api/build-warnings.md#an-angular-error-in-the-generated-manifest).
 

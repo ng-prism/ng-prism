@@ -118,7 +118,7 @@ The build reads the flag from the plugin's Node entry; a browser entry needs no 
 
 ### `wrapComponent`
 
-> **Deprecated since 22.6.0, removed in 23.0.0.** Nothing has ever read it, so setting it never had an effect. While a plugin sets it, the build prints [a notice](api/build-warnings.md#a-plugin-that-sets-wrapcomponent); remove it. A component that needs providers gets them from [`appProviders`](api/ng-prism-config.md#appproviders) or a [component page](guide/component-pages.md).
+> **Deprecated since 22.6.0, removed in 23.0.0.** Nothing has ever read it, so setting it never had an effect. While a plugin sets it, the build prints [a notice](api/build-warnings.md#a-plugin-that-sets-wrapcomponent); remove it. A component that needs providers gets them from the root injector of the styleguide app, through [`appProviders`](api/ng-prism-config.md#appproviders) or the `providers` of its `main.ts` (see [Adding Global Providers](guide/configuration.md#adding-global-providers)), or from a [component page](guide/component-pages.md).
 
 ## PanelDefinition
 

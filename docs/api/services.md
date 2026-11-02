@@ -16,16 +16,16 @@ A member typed `WritableSignal` can be set, but most have a method that does mor
 
 The runtime manifest: every component, service, pipe and page of the styleguide.
 
-| Member                     | Type                                      | Description                                                                                                                                              |
-| -------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `manifest`                 | `Signal<RuntimeManifest>`                 | The [runtime manifest](api/types.md#runtimemanifest). It follows a rescan of `serve`, see `enablePrismHmr` below                                         |
-| `components`               | `Signal<RuntimeComponent[]>`              | Every component and directive. A part is not in the list but in the `parts` of its parent                                                                |
-| `services`                 | `Signal<RuntimeService[]>`                | Every showcased [service](guide/services-and-pipes.md#services), `[]` when no plugin shows services                                                      |
-| `pipes`                    | `Signal<RuntimePipe[]>`                   | Every showcased [pipe](guide/services-and-pipes.md#pipes), `[]` when no plugin shows pipes                                                               |
-| `pages`                    | `Signal<StyleguidePage[]>`                | The custom pages of the config and the component pages registered with `providePrism()`                                                                  |
-| `categories`               | `Signal<string[]>`                        | The categories of the components and pages, `'Uncategorized'` for none, sorted by the lowest `categoryOrder` of a component in them, then alphabetically |
-| `groupedByCategory`        | `Signal<Map<string, RuntimeComponent[]>>` | The components by category, `'Uncategorized'` for none                                                                                                   |
-| `updateManifest(manifest)` | `void`                                    | Replaces the manifest                                                                                                                                    |
+| Member                     | Type                                      | Description                                                                                                                                                |
+| -------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `manifest`                 | `Signal<RuntimeManifest>`                 | The [runtime manifest](api/types.md#runtimemanifest). After a rescan of `serve` the page reloads with the new one; `updateManifest()` replaces it in place |
+| `components`               | `Signal<RuntimeComponent[]>`              | Every component and directive. A part is not in the list but in the `parts` of its parent                                                                  |
+| `services`                 | `Signal<RuntimeService[]>`                | Every showcased [service](guide/services-and-pipes.md#services), `[]` when no plugin shows services                                                        |
+| `pipes`                    | `Signal<RuntimePipe[]>`                   | Every showcased [pipe](guide/services-and-pipes.md#pipes), `[]` when no plugin shows pipes                                                                 |
+| `pages`                    | `Signal<StyleguidePage[]>`                | The custom pages of the config and the component pages registered with `providePrism()`                                                                    |
+| `categories`               | `Signal<string[]>`                        | The categories of the components and pages, `'Uncategorized'` for none, sorted by the lowest `categoryOrder` of a component in them, then alphabetically   |
+| `groupedByCategory`        | `Signal<Map<string, RuntimeComponent[]>>` | The components by category, `'Uncategorized'` for none                                                                                                     |
+| `updateManifest(manifest)` | `void`                                    | Replaces the manifest                                                                                                                                      |
 
 ### enablePrismHmr
 
@@ -33,7 +33,7 @@ The runtime manifest: every component, service, pipe and page of the styleguide.
 function enablePrismHmr(appRef: ApplicationRef, newManifest: RuntimeManifest): void;
 ```
 
-A function, not a service: it hands a new manifest to `PrismManifestService.updateManifest()` through the root injector of `appRef`. The `main.ts` that `ng add` writes calls it when the dev server replaces the manifest module after a rescan, so the styleguide shows the new manifest without a page reload and keeps the open component, see [Watching and reloading](api/builders.md#watching-and-reloading).
+A function, not a service: it hands a new manifest to `PrismManifestService.updateManifest()` through the root injector of `appRef`, so the styleguide shows it without a page reload and keeps the open component. The `main.ts` that `ng add` writes calls it from an `import.meta.hot` hook for the manifest module. That hook only runs where the dev server delivers a module update for the manifest; Angular 22's dev server reloads the page after a rescan instead, so under `serve` it does not run, see [Watching and reloading](api/builders.md#watching-and-reloading).
 
 ```typescript
 import { enablePrismHmr } from '@ng-prism/core';

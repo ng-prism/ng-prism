@@ -36,7 +36,7 @@ A lightweight, Angular-native component showcase tool. Annotate your components 
 - **Component pages:** free-form Angular components as pages of the styleguide, see [Component Pages](guide/component-pages.md)
 - **Links:** every component, variant, state and view has a URL to share, see [Links & State](guide/url-state.md)
 - **On a phone:** a shared link opens properly on a phone, and a component can be checked on a real device, see [Tour of the UI](guide/styleguide-ui.md#on-a-phone)
-- **Zoneless ready:** `ng add @ng-prism/core --zoneless` sets the styleguide up without `zone.js`, see [Installation](guide/installation.md#zoneless-mode-optional-recommended)
+- **Zoneless:** the styleguide runs with Angular's zoneless change detection, and `ng add @ng-prism/core --zoneless` leaves `zone.js` out of its bundle, see [Installation](guide/installation.md#zoneless-mode-optional-recommended)
 
 ## Quick Example
 
