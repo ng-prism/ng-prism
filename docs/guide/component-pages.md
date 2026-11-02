@@ -117,7 +117,10 @@ The sidebar search finds a page by its title and its category. A link to a page 
     variants: [{ name: 'Empty' }, { name: '10 rows', inputs: { rowCount: 10 } }]
 })
 @Component({ selector: 'lib-data-table' /* ... */ })
-export class DataTableComponent {}
+export class DataTableComponent {
+    readonly rowCount = input(0);
+    readonly loading = input(false);
+}
 ```
 
 The variant tabs and the Controls panel stay. Their values only reach the page when it reads them, see [Reacting to Controls Panel Changes](#reacting-to-controls-panel-changes). A title that matches no registered component page renders the component itself.

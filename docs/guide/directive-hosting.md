@@ -24,7 +24,9 @@ A directive often needs more than its own element: a button to hover, a componen
     host: '<button class="btn">Hover me</button>'
 })
 @Directive({ selector: '[appTooltip]' })
-export class TooltipDirective {}
+export class TooltipDirective {
+    readonly appTooltip = input('');
+}
 ```
 
 For a frame around the directive, or other components next to it, write a [host template](guide/compositions.md#host-template).
@@ -53,7 +55,9 @@ The host may be a void element: `area`, `base`, `br`, `col`, `embed`, `hr`, `img
     variants: [{ name: 'Phone', inputs: { libMask: '(000) 000-0000' } }]
 })
 @Directive({ selector: '[libMask]' })
-export class MaskDirective {}
+export class MaskDirective {
+    readonly libMask = input('');
+}
 ```
 
 A void element takes no content, so `content` on such a variant cannot render. The build says so once per directive:
@@ -80,7 +84,9 @@ When the directive is designed to be applied to a specific Angular component, us
     ]
 })
 @Directive({ selector: '[libRipple]' })
-export class RippleDirective {}
+export class RippleDirective {
+    readonly libRippleColor = input('currentColor');
+}
 ```
 
 | Field         | Description                                                                                   |

@@ -71,7 +71,9 @@ A directive gets the template as the content of the element it renders on. With 
     ]
 })
 @Directive({ selector: '[libTooltip]' })
-export class TooltipDirective {}
+export class TooltipDirective {
+    readonly libTooltip = input('');
+}
 ```
 
 `Text` renders `<button class="btn" libTooltip>Save</button>`. `With icon` renders the same button with the compiled `<lib-icon name="save" /> Save` inside. The host has to be one element for a template to render in; a string host of another form, or an object host without `selector` or `import`, leaves the variants without their template, with a warning.
@@ -96,7 +98,9 @@ A void element takes no content: a directive that renders on `<input>` or `<img>
     ]
 })
 @Directive({ selector: 'input[libInput], textarea[libInput]' })
-export class InputDirective {}
+export class InputDirective {
+    readonly required = input(false);
+}
 ```
 
 The classes the template uses are found as for a variant template, see [imports](#imports), and its expressions have the same limits, see [template](#template). A showcase without variants renders its host template as its one variant.
@@ -120,7 +124,9 @@ When several elements match, such as three `lib-radio` in a group, mark the one 
     }
 })
 @Component({ selector: 'lib-radio' /* ... */ })
-export class RadioComponent {}
+export class RadioComponent {
+    readonly value = input('');
+}
 ```
 
 The template writes `value` on the subject itself, which makes `value` the template's input, see [What the Controls panel can edit](#what-the-controls-panel-can-edit). `prism-subject` is removed from the compiled template and from the **Angular template** popover.
@@ -218,13 +224,14 @@ ng-prism checks each composed template with Angular's own parser before it write
 ⚠ ng-prism: FormFieldComponent › variants[2] "Typo" › template — <lib-icn> matches no imported component (src/lib/form-field.component.ts:15:25)
 ```
 
-These are warnings that [`strictShowcase`](api/ng-prism-config.md#strictshowcase) turns into a build error:
+These are warnings, and [`strictShowcase`](api/ng-prism-config.md#strictshowcase) turns them into a build error. The main ones:
 
 - Syntax errors: unclosed tags, an end tag on a void element, broken bindings. An element left open at the end of a template or a host template counts too: Angular closes it on its own at the top of a template, but not inside the generated wrapper.
 - An element that is neither standard HTML nor matched by an imported component or directive, and a pipe nothing declares.
 - Two library components on one element.
 - A host template whose subject cannot be found, see [Where the subject is](#where-the-subject-is).
 - A value in `inputs` for an input that the host template sets on the subject.
+- A directive with a variant `template` whose string host is not one element, or whose object host has no `selector` or no `import`: its variants render without their template.
 - A `template` or `host` that is not a string or `{ template }`, and an `imports` entry that is not `{ name, from }` or whose `name` is not the name a class is exported under (`default` included).
 - A showcased component or directive that is not standalone: the generated wrapper can only import a standalone class, so none of its variants is composed.
 
@@ -232,7 +239,7 @@ Where an import that ng-prism cannot read may declare what is missing, an unknow
 
 What only Angular finds, such as a binding to an input the subject does not have, fails the styleguide build with an error in `ng-prism-cache/<lib>-prism/prism-manifest.ts`. The wrapper there has a comment above each case that names the showcase file, the line and the variants it renders, so look for the comment above the line Angular reports. In `serve`, the error overlay goes away with the next save.
 
-Every message, with its cause and fix, is under [Build Warnings › Compositions and hosts](api/build-warnings.md#compositions-and-hosts).
+This list is not complete. Every message, with its cause and fix, is under [Build Warnings › Compositions and hosts](api/build-warnings.md#compositions-and-hosts).
 
 ## Related
 

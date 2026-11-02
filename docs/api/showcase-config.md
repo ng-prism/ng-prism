@@ -522,11 +522,13 @@ Values for the inputs of the class, keyed by the member name, also for an input 
 
 **Type** `string | Record<string, string>` · **Default** none
 
-HTML projected into the subject's `<ng-content>`. A string goes into the default slot. A record maps slot selectors, such as `'[card-header]'`, to HTML, with `default` for the unnamed slot. On a directive, the content renders inside its host element. It is HTML, not an Angular template, so components in it are not created; use [`template`](#template) for that.
+HTML projected into the component's `<ng-content>`. A string goes into the default slot. A record maps slot selectors, such as `'[card-header]'`, to HTML, with `default` for the unnamed slot. It is HTML, not an Angular template, so components in it are not created; use [`template`](#template) for that.
+
+On a directive, `content` is a string that becomes the text of the host element: markup in it shows as written, as text, and a record has no effect. Use `template` for markup inside the host element.
 
 - Set together with `template`, `content` is dropped with a warning, and `template` wins.
 - A key that matches no `<ng-content>` of the component is skipped, with a warning in the browser console.
-- A host template takes no HTML content, which is a warning; use `template`.
+- A component that renders in a host template takes no HTML content, which is a warning; use `template`. A directive keeps its text there.
 
 ```typescript
 { name: 'With icon', content: '<svg>...</svg> Save' }
