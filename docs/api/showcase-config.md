@@ -56,6 +56,8 @@ A `@Showcase` without `title` leaves the class out of the styleguide, with a war
 @Showcase({ title: 'Alert Banner' })
 ```
 
+**Warnings:** [Build Warnings](api/build-warnings.md#showcase-values)
+
 **Guide:** [@Showcase](guide/showcase-decorator.md)
 
 ### `description`
@@ -171,6 +173,8 @@ A value other than the four is dropped with a warning that counts for `strictSho
 @Showcase({ title: 'Dialog', status: 'deprecated' })
 ```
 
+**Warnings:** [Build Warnings](api/build-warnings.md#showcase-values)
+
 **Guide:** [@Showcase](guide/showcase-decorator.md)
 
 ### `meta`
@@ -226,6 +230,8 @@ Variant values are read from the source like every other value, see [What the Sc
 })
 ```
 
+**Warnings:** [Build Warnings](api/build-warnings.md#showcase-values)
+
 **Guide:** [Variants](guide/variants.md)
 
 ### `states`
@@ -273,7 +279,7 @@ The recommended canvas background. A variant's own `bg` wins over the component'
 
 Where it applies:
 
-- **Playground:** opening a variant applies the background it declares. The user can pick another one from the **Canvas** group of the tools menu. That override is transient and resets on the next variant or component, and while it differs from the recommendation, a `Recommended: <bg>` pill with a `Reset` button sits in the canvas. A variant that declares nothing keeps the canvas's own background: `dots` at first, then whatever the user last picked, remembered across visits.
+- **Playground:** opening a variant applies the background it declares. The user can pick another one from the **Canvas** group of the tools menu. That override is transient and resets on the next variant or component, and while it differs from the recommendation, a `Recommended: <bg>` pill with a `Reset` button sits in the canvas. When neither the variant nor the component declares one, the canvas keeps its own background: `dots` at first, then whatever the user last picked, remembered across visits.
 - **Overview, capture mode and `__PRISM_MANIFEST__`:** the declared background, and `transparent` where nothing declares one (`DEFAULT_VARIANT_BG`). The Overview draws `transparent` as a checkerboard. Capture mode ignores the user's override and paints the declared background, and `transparent` gives a screenshot with a real alpha channel, for which a runner has to pass `omitBackground: true`. See [Capturing transparency](guide/visual-regression.md#capturing-transparency).
 
 `light` and `dark` are absolute colours (`--prism-void-light`, `--prism-void-dark`), while `dots`, `plain` and `checker` follow the active theme. A baseline under visual regression is only as stable as its background, so declare `light` or `dark` for a component designed against a surface, and `transparent` when its own transparency is under test.
@@ -320,6 +326,8 @@ A variant's own `canvasLayout` wins over the component's. A value other than the
 })
 ```
 
+**Warnings:** [Build Warnings](api/build-warnings.md#showcase-values)
+
 **Guide:** [Tour of the UI](guide/styleguide-ui.md#viewport-width)
 
 ### `renderPage`
@@ -338,6 +346,8 @@ A page is for a demo that needs providers of its own, state of its own or more t
     renderPage: 'Data Table Demo' // the title of the ComponentPage
 })
 ```
+
+**Warnings:** [Build Warnings](api/build-warnings.md#showcase-values)
 
 **Guide:** [Component Pages](guide/component-pages.md)
 
@@ -521,6 +531,8 @@ HTML projected into the subject's `<ng-content>`. A string goes into the default
 ```typescript
 { name: 'With icon', content: '<svg>...</svg> Save' }
 ```
+
+**Warnings:** [Build Warnings](api/build-warnings.md#compositions-and-hosts)
 
 **Guide:** [Content Projection](guide/content-projection.md)
 

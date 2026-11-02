@@ -1,25 +1,43 @@
 # NgPrismConfig
 
-Configuration object returned by `defineConfig()` and exported as the default export of `ng-prism.config.ts`.
+The object that `ng-prism.config.ts` exports as its default, created with `defineConfig()`. This page is the reference for every field: its type, its default and its rules. [Configuration](guide/configuration.md) shows how to use them, and the builder option [`configFile`](api/builders.md#configfile) points the builders at another file.
 
 ```typescript
-import type { Provider, Type } from '@angular/core';
-import type { NgPrismPlugin } from './plugin.types.js';
-import type { StyleguidePage } from './page.types.js';
+import { defineConfig } from '@ng-prism/core/config';
+import { jsDocPlugin } from '@ng-prism/plugin-jsdoc';
 
+export default defineConfig({
+    title: 'Acme UI',
+    plugins: [jsDocPlugin()]
+});
+```
+
+`defineConfig()` returns the object as it is, typed as `NgPrismConfig`, and warns when two plugins have the same `name`.
+
+```typescript
 interface NgPrismConfig {
-    title?: string;
-    subtitle?: string;
-    logo?: { light?: string; dark?: string };
     plugins?: NgPrismPlugin[];
     pages?: StyleguidePage[];
     appProviders?: Provider[];
+    title?: string;
+    subtitle?: string;
+    logo?: { light?: string; dark?: string };
+    buildInfo?: { version?: string; gitHash?: string };
     theme?: Record<string, string>;
     darkTheme?: Record<string, string>;
     lightTheme?: Record<string, string>;
-    themeStylesheet?: string; // deprecated, no effect
+    urlState?: boolean;
+    persistState?: boolean;
+    a11y?: {
+        thresholds?: { score?: number; critical?: number; serious?: number; moderate?: number };
+        gate?: { score?: number; critical?: number; serious?: number; moderate?: number } | false;
+        reportPath?: string;
+    };
+    strictShowcase?: boolean;
+    /** @deprecated */
+    themeStylesheet?: string;
+    /** @deprecated */
     ui?: {
-        // deprecated, no effect
         header?: Type<unknown>;
         sidebar?: Type<unknown>;
         componentHeader?: Type<unknown>;
@@ -28,42 +46,48 @@ interface NgPrismConfig {
         eventsPanel?: Type<unknown>;
         footer?: Type<unknown>;
     };
-    headless?: boolean; // deprecated, no effect
-    appComponent?: Type<unknown>; // deprecated, no effect
-    urlState?: boolean;
-    persistState?: boolean;
-    buildInfo?: { version?: string; gitHash?: string };
-    a11y?: {
-        thresholds?: {
-            score?: number;
-            critical?: number;
-            serious?: number;
-            moderate?: number;
-        };
-        gate?: { score?: number; critical?: number; serious?: number; moderate?: number } | false; // since 22.7.0
-        reportPath?: string;
-    };
-    strictShowcase?: boolean;
+    /** @deprecated */
+    headless?: boolean;
+    /** @deprecated */
+    appComponent?: Type<unknown>;
 }
 ```
 
-## Fields
+`NgPrismConfig` is exported from `@ng-prism/core/config`, next to `defineConfig()`.
+
+## Plugins, pages and providers
+
+What the styleguide shows beyond the showcases, and what its components get injected.
 
 ### `plugins`
 
-Array of `NgPrismPlugin` objects to activate. Plugins run in registration order during both the build pipeline and at runtime.
+**Type** [`NgPrismPlugin[]`](api/ng-prism-plugin.md) · **Default** none
+
+The plugins to activate, in this order. At build time their hooks run in this order on every component, service, pipe and page, see [Plugin Hooks](architecture/plugin-hooks.md). In the styleguide they add panels, input controls, header widgets and sidebar markers.
+
+The plugins also decide whether services and pipes get pages: the build reads them only when a plugin has a view panel that applies to them, such as `jsDocPlugin()`, see [Services & Pipes](guide/services-and-pipes.md).
+
+Two plugins with the same `name` make `defineConfig()` warn, since the later hooks may overwrite what the earlier ones wrote.
 
 ```typescript
+import { defineConfig } from '@ng-prism/core/config';
+import { figmaPlugin } from '@ng-prism/plugin-figma';
+import { jsDocPlugin } from '@ng-prism/plugin-jsdoc';
+
 export default defineConfig({
     plugins: [jsDocPlugin(), figmaPlugin()]
 });
 ```
 
----
+**Warnings:** [Build Warnings](api/build-warnings.md#plugins)
+
+**Guide:** [Overview](plugins/overview.md) of the official plugins and how to add one, [Writing a Plugin](plugins/writing-plugins.md)
 
 ### `pages`
 
-Array of `StyleguidePage` entries declared in config. Supports `CustomPage` (type-safe data object) and is processed through the pipeline's `onPageScanned` hooks.
+**Type** [`StyleguidePage[]`](api/types.md#styleguidepage) · **Default** none
+
+Pages of data for the _Pages_ section of the sidebar. Only a [`CustomPage`](api/types.md#custompage) works here: the build passes each page through the plugins' `onPageScanned` and writes it into the manifest as JSON, where the class of a [`ComponentPage`](api/types.md#componentpage) does not survive. Register a component page with `providePrism(manifest, config, { componentPages })` in `main.ts` instead.
 
 ```typescript
 export default defineConfig({
@@ -78,139 +102,203 @@ export default defineConfig({
 });
 ```
 
-For `ComponentPage` entries (Angular class references), use `providePrism(manifest, config, { componentPages: [...] })` in `main.ts` instead, because Angular classes cannot be serialized through the build pipeline.
-
----
+**Guide:** [Component Pages](guide/component-pages.md)
 
 ### `appProviders`
 
-Angular providers added to the Prism app's root injector at bootstrap. Use for library-wide services, mock backends, or global configuration that every component needs.
+**Type** `Provider[]` · **Default** none
+
+Angular providers for the root injector of the styleguide app, added at bootstrap. Every rendered component can inject them: a mock backend, a router for `routerLink`, a translation service or a library-wide configuration token. For a provider that only one component may see, render that component through a [component page](guide/component-pages.md) that declares the provider.
+
+The type is Angular's `Provider[]`, so a function that returns `EnvironmentProviders`, such as `provideHttpClient()` or `provideRouter()`, does not type-check in this list.
 
 ```typescript
 export default defineConfig({
-    appProviders: [provideHttpClient(), { provide: API_BASE_URL, useValue: 'http://localhost:3000' }]
+    appProviders: [
+        { provide: API_BASE_URL, useValue: 'http://localhost:3000' },
+        { provide: UserService, useClass: MockUserService }
+    ]
 });
 ```
 
----
+**Guide:** [Configuration](guide/configuration.md)
+
+## Header
+
+The brand in the header of the styleguide. On a phone the header gets narrower, see [Tour of the UI](guide/styleguide-ui.md#on-a-phone).
+
+### `title`
+
+**Type** `string` · **Default** none: the ng-prism wordmark
+
+The name in the header, in plain text and the regular text colour. Without it, the header shows the ng-prism wordmark in the brand gradient. "Powered by ng-prism" stays at the foot of the sidebar either way. On a phone, a long title is cut short when the header runs out of room.
+
+**Guide:** [Configuration](guide/configuration.md)
+
+### `subtitle`
+
+**Type** `string` · **Default** none
+
+Smaller text under the title or the wordmark, monospace and muted. Not shown on a phone.
+
+**Guide:** [Configuration](guide/configuration.md)
+
+### `logo`
+
+**Type** `{ light?: string; dark?: string }` · **Default** none: the ng-prism symbol
+
+Image URLs for the logo in front of the title, `light` for light backgrounds and `dark` for dark ones. The header is a navy band in both themes, so `dark` is shown whenever it is set, in both themes, and `light` only when it is the only one. On a phone, a wide logo is capped at 40% of the screen width.
+
+```typescript
+export default defineConfig({
+    title: 'Acme UI',
+    subtitle: 'acme/design-system',
+    logo: {
+        light: 'assets/logo-on-light.svg',
+        dark: 'assets/logo-on-dark.svg'
+    }
+});
+```
+
+**Guide:** [Configuration](guide/configuration.md)
+
+### `buildInfo`
+
+**Type** `{ version?: string; gitHash?: string }` · **Default** none
+
+A pill in the header, left of the action buttons, with the deployed version and commit: `v1.2.3 · a1b2c3d`. `version` is shown with a `v` in front, `gitHash` cut to its first 7 characters, and the pill shows whichever of the two is set. Without either, there is no pill. On a phone it moves into the ⋮ menu.
+
+```typescript
+export default defineConfig({
+    buildInfo: {
+        version: '1.2.3',
+        gitHash: 'a1b2c3d4e5f6'
+    }
+});
+```
+
+**Guide:** [Configuration](guide/configuration.md)
+
+## Theme tokens
+
+Overrides of the CSS custom properties the styleguide is drawn with. The tokens and what they colour are listed under [Theming](guide/theming.md).
 
 ### `theme`
 
-Map of CSS custom property overrides. Applied on top of the built-in default theme.
+**Type** `Record<string, string>` · **Default** none
+
+Token overrides for both themes, applied over the built-in values. For a token that `darkTheme` or `lightTheme` sets as well, `theme` wins.
 
 ```typescript
 export default defineConfig({
     theme: {
         '--prism-primary': '#0ea5e9',
-        '--prism-bg': '#0f172a',
         '--prism-font-sans': '"Inter", system-ui, sans-serif'
     }
 });
 ```
 
-See [Theming](guide/theming.md) for the full list of available properties.
+Six tokens are deprecated since 22.7.0, removed in 23.0.0: `--prism-mark-nominal`, `--prism-mark-attention` and `--prism-mark-critical`, whose value still reaches `--prism-success`, `--prism-warn` and `--prism-danger` until then, and `--prism-spectrum`, `--prism-primary-from` and `--prism-primary-to`, which nothing reads any more (`--prism-brand-gradient` replaces them). An override of one in `theme`, `darkTheme` or `lightTheme` prints a warning at build time, and the styleguide warns once per token in the browser console.
 
-An override of a token deprecated in 22.7.0 (`--prism-mark-nominal`, `--prism-mark-attention`, `--prism-mark-critical`, `--prism-spectrum`, `--prism-primary-from`, `--prism-primary-to`) in `theme`, `darkTheme` or `lightTheme` prints `⚠ ng-prism: ng-prism.config.ts sets <token> in "<option>": <token> is deprecated since 22.7.0 and will be removed in 23.0.0. <effect>; override <successor> instead.` at build time, and the styleguide warns once per token in the browser console. A mark's override still reaches its successor until 23.0.0; the others have no effect. See [Migration: mark, spectrum and primary gradient tokens](guide/migration-v22.md#deprecation-mark-spectrum-and-primary-gradient-tokens).
+**Warnings:** [Build Warnings](api/build-warnings.md#a-deprecated-theme-token)
 
----
+**Guide:** [Theming](guide/theming.md)
 
-### Deprecated: `themeStylesheet`, `ui`, `headless`, `appComponent`
+### `darkTheme`
 
-> **Deprecated since 22.6.0, removed in 23.0.0.** These four options have been on `NgPrismConfig` since the first release, but nothing has ever read them, so setting them never had an effect. While one is set, the build prints `⚠ ng-prism: ng-prism.config.ts sets "<option>", which is deprecated and will be removed in 23.0.0. It has never had an effect; remove it.` Remove them.
+**Type** `Record<string, string>` · **Default** none
 
-- `themeStylesheet` was meant to load a stylesheet into the styleguide app. Colours, fonts and density go through [`theme`](#theme), `darkTheme` and `lightTheme`.
-- `ui` and `appComponent` were meant to replace regions of the styleguide or its whole shell. For your own content inside the styleguide, use a [component page](guide/component-pages.md); for panels, header widgets and sidebar markers, a [plugin](plugins/writing-plugins.md).
-- `headless` was meant to strip the styleguide down to the canvas. For screenshots, [capture isolation mode](guide/external-tooling.md#capture-isolation-mode) does that.
+Token overrides for the dark theme only. The header renders with the dark tokens in both themes, so a value here also reaches the header while the styleguide is light.
 
----
+**Guide:** [Theming](guide/theming.md)
+
+### `lightTheme`
+
+**Type** `Record<string, string>` · **Default** none
+
+Token overrides for the light theme only. They do not reach the header, which renders with the dark tokens in both themes.
+
+```typescript
+export default defineConfig({
+    darkTheme: { '--prism-bg': '#0b1120' },
+    lightTheme: { '--prism-bg': '#f8fafc' }
+});
+```
+
+**Guide:** [Theming](guide/theming.md)
+
+## Styleguide state
+
+What the styleguide keeps across reloads and in its links.
 
 ### `urlState`
 
-When `false`, disables URL query parameter synchronization. Default: `true`.
+**Type** `boolean` · **Default** `true`
+
+Whether the styleguide keeps its selection in the URL: the component, variant, state, view, part and panel as query parameters. With `false` it neither writes them nor restores the selection from them.
 
 ```typescript
 export default defineConfig({ urlState: false });
 ```
 
-See [State Preservation](guide/url-state.md).
-
----
+**Guide:** [Links & State](guide/url-state.md)
 
 ### `persistState`
 
-When `false`, disables `sessionStorage` persistence for control panel input overrides and a11y sub-state (active tab, perspective). Default: `true`.
+**Type** `boolean` · **Default** `true`
+
+Whether the styleguide keeps the values changed in the Controls panel, per component and variant, and the active tab and perspective of the accessibility panel in `sessionStorage`, so that a reload keeps them. Capture mode never restores them. The layout, the theme and the canvas settings are kept in `localStorage` either way.
 
 ```typescript
 export default defineConfig({ persistState: false });
 ```
 
-Layout, theme, and canvas settings are persisted independently to `localStorage` and are not affected by this flag.
+**Guide:** [Links & State](guide/url-state.md)
 
-See [State Preservation](guide/url-state.md).
+## Checks
 
----
-
-### `buildInfo`
-
-Display the deployed package version and/or git commit hash as a subtle pill in the header (left of the action buttons).
-
-Both fields are optional. The pill shows whichever values are provided, separated by `·`. When neither is set, nothing is rendered.
-
-```typescript
-export default defineConfig({
-    buildInfo: {
-        version: packageJson.version,
-        gitHash: environment.gitHash
-    }
-});
-```
-
-| Key       | Type     | Description                                      |
-| --------- | -------- | ------------------------------------------------ |
-| `version` | `string` | Package version, displayed as `v1.2.3`           |
-| `gitHash` | `string` | Git commit hash, truncated to 7 characters in UI |
-
----
+What the build checks: the library-wide a11y report, and the `@Showcase` values it reads.
 
 ### `a11y`
 
-Configuration for the library-wide accessibility audit. Drives:
+**Type** `{ thresholds?, gate?, reportPath? }` · **Default** see the table
 
-1. The **grading** of every a11y figure against `thresholds`: the header pill, the navigation marker, the gauge in the component head and the score card.
-2. The **build gate**: when an `a11y-report.json` exists and its total breaks the gate's limits, `nx run my-lib-prism:build` fails. The gate is `gate`, or `thresholds` while `gate` is left out (as before 22.7.0); `gate: false` never fails the build. The dev server only warns.
+The settings for the library-wide [a11y report](guide/a11y-reports.md), a JSON file that you write with an audit of your own and the build reads.
+
+| Key                   | Type                                 | Default              | Description                                   |
+| --------------------- | ------------------------------------ | -------------------- | --------------------------------------------- |
+| `thresholds.score`    | `number`                             | `80`                 | Lowest average score of the library, 0 to 100 |
+| `thresholds.critical` | `number`                             | `0`                  | Most critical violations                      |
+| `thresholds.serious`  | `number`                             | `0`                  | Most serious violations                       |
+| `thresholds.moderate` | `number`                             | no limit             | Most moderate violations                      |
+| `gate`                | the keys of `thresholds`, or `false` | `thresholds`         | The limits `build` fails on. Since 22.7.0     |
+| `reportPath`          | `string`                             | `'a11y-report.json'` | The report, relative to the workspace root    |
+
+- **`thresholds`** grades every a11y figure of the styleguide: the header pill, the marker in the sidebar, the gauge in the component head and the score card.
+- **`gate`** is what the [`build`](api/builders.md#build) builder fails on when the report's total breaks it. A key left out of `gate` takes the default above, not the value of `thresholds`. Without `gate`, the build fails on `thresholds`. `gate: false` never fails the build, so that the styleguide can show a report that breaks the limits while CI gates on its own. `serve` only warns.
+- **`reportPath`**: without a report there, the styleguide shows no pill and the build checks no gate. `serve` watches the file and rescans when an audit rewrites it.
 
 ```typescript
 export default defineConfig({
     a11y: {
-        thresholds: {
-            score: 85,
-            critical: 0,
-            serious: 0,
-            moderate: 5
-        },
+        thresholds: { score: 85, moderate: 5 },
+        gate: false,
         reportPath: 'reports/a11y.json'
     }
 });
 ```
 
-| Key                   | Default              | Description                                                                                                                                                           |
-| --------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `thresholds.score`    | `80`                 | Minimum avg library score (0–100)                                                                                                                                     |
-| `thresholds.critical` | `0`                  | Maximum allowed critical violations                                                                                                                                   |
-| `thresholds.serious`  | `0`                  | Maximum allowed serious violations                                                                                                                                    |
-| `thresholds.moderate` | unlimited            | Maximum allowed moderate violations                                                                                                                                   |
-| `gate`                | `thresholds`         | Limits the build fails on, with the same keys and defaults as `thresholds`, or `false` to never fail. Since 22.7.0.                                                   |
-| `reportPath`          | `'a11y-report.json'` | Path (relative to workspace root) where the build pipeline reads the library-wide a11y report. Generating it is up to the consumer; see the guide for the JSON shape. |
+**Warnings:** [Build Warnings](api/build-warnings.md#the-a11y-gate-failed)
 
-See [Accessibility: Library-Wide A11y Score](guide/accessibility.md#library-wide-a11y-score--header-badge) for the report shape and integration workflow.
-
----
+**Guide:** [A11y Reports](guide/a11y-reports.md#report-schema) for the report's shape, [A11y Reports › Gating](guide/a11y-reports.md#gating), [Audits in CI](guide/ci.md#accessibility)
 
 ### `strictShowcase`
 
-Fail the build when a `@Showcase` value is lost, instead of warning about it. Default: `false`.
+**Type** `boolean` · **Default** `false`
 
-The scanner reads `@Showcase` from the source and drops what it cannot use: a value it [cannot evaluate statically](guide/showcase-decorator.md#what-the-scanner-can-read), an invalid `bg`, `status` or `canvasLayout`, a [`pseudo`](guide/variants.md#per-variant-pseudo-states) state or target it cannot use, a [`states`](guide/variants.md#declaring-a-state) entry it cannot use (not an object, a repeated name, no usable `pseudo`; it keeps its place as an empty state, and an entry without a name is reported but kept under a generated name), `states` next to `renderPage`, a variant's `states` other than `false`, a [`template`](guide/content-projection.md#errors), `host: { template }` or `imports` value of the wrong type, an `imports` entry or an object host's `import` whose `name` is not an identifier, `content` set together with `template`, a composition that cannot be built (a syntax error in a template, an element left open, an unknown element or pipe, two library components on one element, a host template without a subject or with several, a value in `inputs` for an input the template sets on the subject, HTML `content` in a host template, a string or object host a variant `template` cannot render in, a subject that is not standalone, a failure of `@angular/compiler`, or the library's components, directives and pipes that could not be read), a config without a `title`, which costs the whole component, the deprecated `providers`, which never reach the styleguide, a [`partOf`](guide/showcase-decorator.md#partof) that matches no single other showcased component (none, several, a part or the class itself; the class keeps a page of its own), a service's or pipe's [`setup`](guide/showcasing-services.md#setup) that cannot be read or has an entry that is not a provider function or token, is not exported, or sits on a component, or a [pipe](guide/showcasing-pipes.md#warnings) that is declared with `standalone: false` or whose `name` cannot be evaluated. The losses of a service or a pipe only come up when a plugin shows services or pipes (`jsDocPlugin()`): without one the build does not read them, it only counts them. Each loss prints a warning. With `strictShowcase` on, the build stops after the scan, before a manifest is written:
+Fails the build when the scan had to drop a `@Showcase` value, instead of only warning. Every message of the kind _diagnostic_ under [Build Warnings](api/build-warnings.md#how-messages-look) counts: a value it cannot evaluate, an invalid field, a `@Showcase` without `title`, a composition it cannot build, a `partOf` that does not resolve, the deprecated `providers`. Notices and hints never count. The diagnostics of a service or a pipe only come up when a plugin shows services or pipes.
+
+With `strictShowcase` on, the build stops after the scan, before the plugin hooks run and before a manifest is written:
 
 ```typescript
 export default defineConfig({ strictShowcase: true });
@@ -220,4 +308,38 @@ export default defineConfig({ strictShowcase: true });
 ng-prism: strictShowcase is enabled and 2 @Showcase value(s) were dropped; see the warnings above.
 ```
 
-`build` exits with an error, and `serve` does not start. When a watch-mode rebuild fails this way, the error is logged and the previous manifest stays in place. Deprecations that lose nothing, such as `bg: 'checker'`, remain warnings either way, and so do the notices about [services](guide/showcasing-services.md) and [pipes](guide/showcasing-pipes.md): the one for a class with component-only fields that is still treated as a component (deprecated since 22.7.0, removed in 23.0.0), the hint that no plugin shows services or pipes, and the notice for a class whose API the scanner could not read. The notices about [compositions](guide/content-projection.md#errors) are no diagnostics either: an `imports` entry ng-prism cannot read (Angular checks the template then, and an unknown element or pipe is a notice too), a library class that matches only by standard attributes, a library class that is not standalone, and a library selector Angular cannot parse, and so is the warning for a string or object `host` on a component, which a component has always ignored. So are the warnings the manifest generator prints for a host it cannot render as written, such as an object host without `import`, a selector that fits no host tag, or `content` on a void host.
+`build` exits with this error, and `serve` does not start. A rescan of `serve` that fails this way logs the error, and the previous manifest stays in place.
+
+**Warnings:** [Build Warnings](api/build-warnings.md#strictshowcase-stopped-the-build)
+
+## Deprecated options
+
+Four options have been on `NgPrismConfig` since the first release, but nothing has ever read them, so setting one never had an effect. Each is deprecated since 22.6.0, removed in 23.0.0. While one is set, the build prints a notice, see [Build Warnings](api/build-warnings.md#a-config-option-that-never-had-an-effect); remove it. [Upgrade Notes 22.x](guide/upgrade-notes-22.md#removed-in-2300) lists everything that is removed in 23.0.0.
+
+### `themeStylesheet`
+
+**Type** `string` · **Deprecated** since 22.6.0, removed in 23.0.0
+
+Was meant to load a stylesheet into the styleguide. Colours, fonts and density go through [`theme`](#theme), [`darkTheme`](#darktheme) and [`lightTheme`](#lighttheme).
+
+### `ui`
+
+**Type** `{ header?, sidebar?, componentHeader?, renderer?, controlsPanel?, eventsPanel?, footer? }`, each a `Type<unknown>` · **Deprecated** since 22.6.0, removed in 23.0.0
+
+Was meant to replace regions of the styleguide with components of your own. What works instead:
+
+- **Branding:** [`title`](#title), [`subtitle`](#subtitle), [`logo`](#logo) and [`buildInfo`](#buildinfo) for the header, and the [theme tokens](#theme) for the colours.
+- **Your own content inside the styleguide:** a [component page](guide/component-pages.md), which renders your Angular component with the services ng-prism provides.
+- **More panels, header widgets, input controls or sidebar markers:** a [plugin](plugins/writing-plugins.md).
+
+### `headless`
+
+**Type** `boolean` · **Deprecated** since 22.6.0, removed in 23.0.0
+
+Was meant to strip the styleguide down to the canvas. For screenshots, capture mode renders the component without the styleguide around it, see [External Tooling API](guide/external-tooling.md#capture-isolation-mode).
+
+### `appComponent`
+
+**Type** `Type<unknown>` · **Deprecated** since 22.6.0, removed in 23.0.0
+
+Was meant to replace the whole shell of the styleguide. Use a [component page](guide/component-pages.md) for your own content and a [plugin](plugins/writing-plugins.md) for panels and widgets, as under [`ui`](#ui).
