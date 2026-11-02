@@ -1,4 +1,4 @@
-// Prism config of video-lib, the demo library of the product films (skill prism-motion-video). Committed, unlike
+// Prism config of video-lib, the demo library of the product films (skill prism-video). Committed, unlike
 // ng-prism.config.ts, so every film lifts the same plugins and fixtures.
 import { defineConfig } from '@ng-prism/core/config';
 import { boxModelPlugin } from '@ng-prism/plugin-box-model';

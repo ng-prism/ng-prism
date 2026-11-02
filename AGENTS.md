@@ -182,7 +182,7 @@ name: a personal skill with the same name silently overrides the project one.
 | `prism-scanner-module`     | Creating or extending a module under `packages/ng-prism/src/builder/scanner/`        |
 | `prism-plugin`             | Creating a plugin against the `NgPrismPlugin` interface                              |
 | `prism-test-workspace`     | Running the demo styleguide on the local packages and checking a change in it        |
-| `prism-motion-video`       | Making the tour or a release clip with Claude Motion, keeping the films' house style |
+| `prism-video`              | Making the tour or a release clip with Claude Motion, keeping the films' house style |
 
 # Subagents
 
