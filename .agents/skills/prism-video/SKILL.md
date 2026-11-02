@@ -1,18 +1,18 @@
 ---
 name: prism-video
-description: Use when making or changing an ng-prism product film - a release clip or the tour on the docs start page - with HyperFrames (HTML + GSAP rendered to MP4 on this machine), or when such a film needs ng-prism's light title, light end card, captions, code or terminal cards, interstitials, music, sound, narration, voice-over, sonic logo, or its YouTube version, thumbnail and subtitles.
+description: Use when making or changing an ng-prism product film - a release clip or the tour on the docs start page - with HyperFrames (HTML + GSAP rendered to MP4 on this machine), or when such a film needs ng-prism's title, end card, captions, code or terminal cards, interstitials, music, sound, narration, voice-over, sonic logo, or its YouTube version, thumbnail and subtitles.
 ---
 
 # Product films with HyperFrames
 
 A film is a [HyperFrames](https://github.com/heygen-com/hyperframes) project that this skill generates and renders on
-this machine: one composition per scene, HTML and GSAP, with a WebGL shader for the light. The picture is the **real
+this machine: one composition per scene, HTML and GSAP. The picture is the **real
 styleguide**: its DOM and used CSS, lifted from a build, animated with a camera and a cursor, sharp at any zoom and
 pixel for pixel the product. Each film is described in one file, `.videos/reference/<film>/film.mjs`; the scripts measure,
 voice, build, render and deliver it. The films are public and meant to catch people: fancy is welcome, kitsch is not.
 
 There are two kinds of film, a **release clip** for every minor and the **tour** on the docs start page. They look and
-sound the same, open on the same light title and close on the same light end card. Only this differs:
+sound the same, open on the same title and close on the same end card. Only this differs:
 
 |                    | Release clip                                                           | Tour                                                                        |
 | ------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------- |
@@ -44,17 +44,18 @@ sound the same, open on the same light title and close on the same light end car
 | end                  | `end`                       | 5.5 s    | `command` (table above); voice "Try it out!"    |
 | music, sound effects | `film.music`, automatic     | the film | the track and where it comes in                 |
 
-Never change the title, the end card, the light or the sonic logo unasked; a film only sets their text.
+Never change the title, the end card or the sonic logo unasked; a film only sets their text.
 
 ## House style (the maintainer's decisions)
 
 - **Palette and type:** ground `#080d19`, the brand gradient cyan `#00cfea` → `#078bfa` → `#244bff` → violet `#a20cf0`,
   text `#f1f5f9`; Inter for words, JetBrains Mono for code (both local: `assets/fonts/`, OFL). 1920×1080; the master
   has 60 fps, the web version 30.
-- **Light:** the title and the end card are real light from a shader: a white beam with dust in it hits the prism, the
-  prism draws itself in light edges and fills, the spectrum fans out with filaments, gathers into a band and sets the
-  name alight letter by letter; one sheen through prism and name. The end card runs it the other way. Beam and
-  spectrum come from the shader, never from flat CSS gradients. Stills: `reference/`.
+- **Title and end card, plain:** on the brand's ground the flat mark and the name come in, the letters one after
+  another out of a soft blur; one shine runs in a single sweep from the mark's left edge to the end of the name; then
+  the title's line under a hairline of the spectrum, or the end card's command. Nothing moves on once it has landed.
+  No light beam, no prism effect, no 3D: the maintainer tried a WebGL light and a glass prism in three.js and chose
+  this ("less is more"). Stills: `reference/`.
 - **The window:** the lifted styleguide at 1440×900, placed at (240, 90), radius 12 px, soft shadow and hairline.
 - **Captions:** one line, at most ~45 characters not counting the `**` markers, a full stop, one `**…**` part in the
   brand gradient that closes the line, full stop included. Lower third on a scrim, word by word with a blur, in at
@@ -84,14 +85,14 @@ Never change the title, the end card, the light or the sonic logo unasked; a fil
   needs one adds it to `scripts/lib/beats.mjs`, built from `code`. A feature with nothing to show gets no beat.
 - **Interstitials:** 1–2 per film, 1.5–3 s, between two beats whose content they bridge, without a voice line. Claude
   proposes them and their place with the beats; the maintainer approves them with the voice lines. A `kinetic` line
-  holds about 20 characters on one line. New patterns in the same light and
+  holds about 20 characters on one line. New patterns in the same
   brand look are welcome (`scripts/lib/interstitials.mjs`).
 - **Sound:** CC0 music under the voice (step 9), ducked while it speaks; sound effects from HyperFrames' library
   (clicks, keys, whooshes, bass impacts) come with the beats.
 - **Narration:** it opens with the sonic logo, `templates/sonic-logo.flac` (the ElevenLabs voice Lily whispering "N G
   prism" in a hall), 0.45 s into the title, added automatically. Everything after it is the ElevenLabs voice Chris, an
   advertising read: the title's line, one line per beat, "Try it out!" on the end card, which never speaks the logo.
-- **Never:** twinkling stars, ray bursts, the macOS system voices. Effects without a link to light, spectrum or the
+- **Never:** twinkling stars, ray bursts, the macOS system voices. Effects without a link to the brand or the
   product, and effects that push the feature out of the picture, are kitsch too.
 
 ## HyperFrames, privately
@@ -218,8 +219,8 @@ tour_ first.
     tour, first frame swapped for the title's lockup at 3.4 s, so a player without a poster shows the name), the
     YouTube version (2560×1440, 60 fps, CRF 18), the thumbnail (1280×720 from the lockup), the subtitles and the
     contact sheet `.videos/work/<film>/sheet.jpg`. It also measures every frame of the master and names any frame
-    where the light drops out or flashes up for a moment; look at those frames. Read the sheet: a scene with missing
-    light or a black frame shows there. It overwrites nothing without `--force`; `--skip-render` encodes the existing master again. Every MP4 is
+    where the picture drops out or flashes up for a moment; look at those frames. Read the sheet: a missing scene or
+    a black frame shows there. It overwrites nothing without `--force`; `--skip-render` encodes the existing master again. Every MP4 is
     titled `ng-prism <film> · voice: elevenlabs.io`. Play the film to the maintainer
     (`open -a "QuickTime Player" .videos/ng-prism-<film>.mp4`) before it goes anywhere.
 14. **Publish:**
@@ -244,14 +245,14 @@ gets longer moves the later scenes by itself. After the maintainer's OK the docs
 
 ## Reference
 
-`reference/` holds stills of the light title and end card, 960×540. They are the same in every film, except that a
+`reference/` holds stills of the title and the end card, 960×540. They are the same in every film, except that a
 release's title shows its minor and the tour's its slogan:
 
-| Stills                                                   | What they show                                                          |
-| -------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `title-1-beam.jpg`, `title-2-fan.jpg`                    | 0.62 s: the beam hits the prism; 1.4 s: the spectrum fans out           |
-| `title-3-ignite.jpg`, `title-4-lockup.jpg`               | 2.3 s: the band sets the name alight; 3.4 s: the lockup (poster, thumb) |
-| `end-1-inflow.jpg`, `end-2-ignite.jpg`, `end-3-card.jpg` | 0.45 s: the spectrum flows in; 1.2 s: white light out; 5.2 s: the card  |
+| Stills                                    | What they show                                                     |
+| ----------------------------------------- | ------------------------------------------------------------------ |
+| `title-1-arrive.jpg`, `title-2-shine.jpg` | 0.5 s: mark and name come in; 1.85 s: the shine runs over the name |
+| `title-3-lockup.jpg`                      | 3.4 s: the lockup with the line (poster, thumbnail)                |
+| `end-1-shine.jpg`, `end-2-card.jpg`       | 1.45 s: the shine over the name; 5.2 s: the card as it ends        |
 
 `templates/film.example.mjs` is the tour as a worked example: every kind of beat but `code`, both interstitial
 patterns it uses, marks, music. Every film's sources are in `.videos/reference/<film>/`; the 22.7 clip and the tour
@@ -278,7 +279,6 @@ first film that needs it brings into `scripts/lib/`.
 | `dead_stretch` in app beats                              | Windows carry `data-layout-ignore`, so `check` doesn't see them move: the snapshots decide.                                                                                                                        |
 | `text_occluded` on the name                              | The sheen is a layer over the name on purpose: both carry `data-layout-allow-occlusion`. Anything else covering text is a real finding.                                                                            |
 | The cursor sits at (0, 0)                                | A scene without a cursor: it stays hidden unless `cur` is set.                                                                                                                                                     |
-| The light freezes or is missing in single frames         | The shader was drawn from outside the scene's time: it may only draw in the `onUpdate` of the tween over the whole scene (`lib/light.mjs`).                                                                        |
 | A gradient word shows the whole gradient in every letter | Split letters need `background-size` = word width and `background-position` = −the letter's left edge (the title does this from the measured name).                                                                |
 | A dark band over a light canvas under the caption        | The caption's scrim. Frame the light part above the bottom 200 px of the frame.                                                                                                                                    |
 | A dark smear over a light canvas beside a code card      | The veil behind the card: `veil: false` where the window behind is light, and frame the dark panel instead.                                                                                                        |

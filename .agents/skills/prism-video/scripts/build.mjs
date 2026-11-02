@@ -13,7 +13,7 @@ import { basename, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { app, code, sceneCtx, tourCode } from './lib/beats.mjs';
 import { kinetic, slash, split } from './lib/interstitials.mjs';
-import { end, title } from './lib/light.mjs';
+import { end, title } from './lib/cards.mjs';
 import { FONTS, n2 } from './lib/look.mjs';
 import { LEVELS, duck, layout } from './lib/mix.mjs';
 import { ROOT, SKILL, loadFilm, paths } from './lib/paths.mjs';

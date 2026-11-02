@@ -1,4 +1,4 @@
-// Short interstitials between beats (1.5–3 s, no voice line), in the light and brand look. Each returns { html, sfx }
+// Short interstitials between beats (1.5–3 s, no voice line), in the brand look. Each returns { html, sfx }
 // like a beat. New patterns in the same style are welcome; these three come with the skill.
 import { GRAD, SPECTRUM, capHtml, esc, n2, words } from './look.mjs';
 import { sounds } from './beats.mjs';

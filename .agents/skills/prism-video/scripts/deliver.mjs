@@ -13,7 +13,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, statSy
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sceneCtx } from './lib/beats.mjs';
-import { TITLE_LOCKUP } from './lib/light.mjs';
+import { TITLE_LOCKUP } from './lib/cards.mjs';
 import { layout } from './lib/mix.mjs';
 import { ROOT, SKILL, loadFilm, paths } from './lib/paths.mjs';
 import { srt } from './lib/srt.mjs';
@@ -66,7 +66,7 @@ export const webArgs = ({ master, out, crf, title, loudnorm }) => [
     out
 ];
 
-// 1440p60 from the 60 fps master: YouTube gives 1440p uploads more bitrate (the shader still renders at 1080p).
+// 1440p60 from the 60 fps master: YouTube gives 1440p uploads more bitrate (the picture itself is 1080p).
 export const youtubeArgs = ({ master, out, title, loudnorm }) => [
     '-v',
     'error',
@@ -107,13 +107,13 @@ export const posterArgs = ({ master, out, width, height }) => [
     '1',
     '-vf',
     `scale=${width}:${height}:flags=lanczos`,
-    // a JPEG (the docs poster): the shader's grain makes a PNG of the lockup over 1 MB
+    // a JPEG for the docs poster: a fraction of the PNG's size for the same frame
     ...(/\.jpe?g$/.test(out) ? ['-q:v', '3'] : []),
     out
 ];
 
 /**
- * Frames that leave the picture's brightness and come back within `span` frames: a light that drops out (or flashes up)
+ * Frames that leave the picture's brightness and come back within `span` frames: a picture that drops out (or flashes up)
  * in single frames, which a contact sheet at one frame per 1.5 s never shows. Cuts (a step that stays), ramps and flashes
  * that fade over several frames are not dropouts. `y` is the mean luma per frame; returns the times in seconds.
  */
@@ -205,8 +205,8 @@ async function main(name, { force, skipRender, docs }) {
     console.log(`master: ${len.toFixed(2)} s, ${loud.I} LUFS, true peak ${loud.TP} dBFS${off ? ' → corrected in the encodes' : ''}`);
     const luma = lumaPerFrame(p.master);
     const drops = dropouts(luma, luma.length / len);
-    if (drops.length) console.warn(`possible light dropouts in the master at ${drops.join(', ')} s: look at those frames before the film goes anywhere`);
-    else console.log(`no light dropouts in ${luma.length} frames`);
+    if (drops.length) console.warn(`possible dropouts in the master at ${drops.join(', ')} s: look at those frames before the film goes anywhere`);
+    else console.log(`no dropouts in ${luma.length} frames`);
     const loudnorm = off ? loudnormFor(p.master) : undefined;
     const title = titleOf(name);
 

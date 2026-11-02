@@ -37,8 +37,8 @@ This repo is an Nx monorepo on npm workspaces:
   packages. Its `test-lib` is the demo styleguide and the scanner's real-world
   input (skill `prism-test-workspace`).
 - Product films (the tour on the docs start page, a clip per release) are
-  rendered locally with HyperFrames (HTML, GSAP and a WebGL shader for the
-  light) from the styleguide's lifted DOM and CSS. `test-workspace`'s
+  rendered locally with HyperFrames (HTML and GSAP) from the styleguide's
+  lifted DOM and CSS. `test-workspace`'s
   `video-lib` holds showcases written to fit their code cards (skill
   `prism-video`).
 - `docs/` is the published docsify site, `scripts/` holds the release and
