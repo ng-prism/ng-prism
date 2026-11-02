@@ -35,3 +35,25 @@ test('refuses options that send frames away', () => {
     assert.match(plan(['snapshot', '--at', '1', '--describe'], {}).refused, /--describe/);
     assert.match(plan(['snapshot', '--describe=Is the logo visible?'], {}).refused, /--describe/);
 });
+
+test('refuses audio analysis, which can upload to HeyGen', () => {
+    assert.ok(plan(['audio', 'a.wav', '--quality', 'best'], {}).refused);
+    assert.ok(plan(['audio', 'a.wav'], {}).refused);
+});
+
+test('keeps outside services keys away from HyperFrames and turns optional installs off', () => {
+    const keys = [
+        'HEYGEN_API_KEY',
+        'HYPERFRAMES_API_KEY',
+        'HYPERFRAMES_AUDIO_API_KEY',
+        'GEMINI_API_KEY',
+        'GOOGLE_API_KEY',
+        'OPENROUTER_API_KEY',
+        'ELEVENLABS_API_KEY',
+        'HYPERFRAMES_VERTEX_PROJECT'
+    ];
+    const { env } = plan(['render'], { PATH: '/x', ...Object.fromEntries(keys.map((k) => [k, 'secret'])) });
+    for (const k of keys) assert.equal(env[k], undefined, k);
+    assert.equal(env.HYPERFRAMES_NO_OPTIONAL_INSTALL, '1');
+    assert.equal(env.PATH, '/x');
+});

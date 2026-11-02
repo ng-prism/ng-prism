@@ -1,6 +1,7 @@
 // The only way the film skill runs HyperFrames: telemetry, update checks and auto installs off, and only the commands
 // that work on local files. Commands that upload a project, sign in, or read credentials (`usage` reads Claude Code's)
-// are refused, and so are options that send frames to an outside service (`snapshot --describe` asks Gemini).
+// are refused, and so are options that send frames to an outside service (`snapshot --describe` asks Gemini). `audio`
+// stays out: its `--quality best` uploads the audio to HeyGen. Keys of outside services never reach HyperFrames.
 //   node hf.mjs <command> [...args]      e.g. node hf.mjs lint, node hf.mjs render --quality delivery --fps 60 -o out.mp4
 // Runs in the current directory with inherited stdio and exits with HyperFrames' code; a refused command exits 2.
 import { spawnSync } from 'node:child_process';
@@ -18,7 +19,6 @@ const ALLOWED = new Set([
     'render',
     'preview',
     'beats',
-    'audio',
     'browser',
     'doctor',
     'timeline',
@@ -27,14 +27,16 @@ const ALLOWED = new Set([
     'keyframes'
 ]);
 const OFF_MACHINE = ['--describe'];
-const PRIVATE = { HYPERFRAMES_NO_TELEMETRY: '1', HYPERFRAMES_NO_UPDATE_CHECK: '1', HYPERFRAMES_NO_AUTO_INSTALL: '1' };
+const PRIVATE = { HYPERFRAMES_NO_TELEMETRY: '1', HYPERFRAMES_NO_UPDATE_CHECK: '1', HYPERFRAMES_NO_AUTO_INSTALL: '1', HYPERFRAMES_NO_OPTIONAL_INSTALL: '1' };
+const KEYS = /^(HEYGEN_|HYPERFRAMES_(API_KEY|AUDIO_API_KEY|VERTEX_)|(GEMINI|GOOGLE|OPENROUTER|ELEVENLABS)_API_KEY$)/;
 
 export function plan(argv, env = process.env) {
     const [cmd] = argv;
     if (!ALLOWED.has(cmd)) return { refused: `hf.mjs: '${cmd ?? ''}' is not run through the film skill (allowed: ${[...ALLOWED].join(', ')})` };
     const away = argv.find((a) => OFF_MACHINE.includes(a.split('=')[0]));
     if (away) return { refused: `hf.mjs: ${away.split('=')[0]} sends frames to an outside service; the film skill keeps them on this machine` };
-    return { bin: resolve(ROOT, 'node_modules/.bin/hyperframes'), args: argv, env: { ...env, ...PRIVATE } };
+    const own = Object.fromEntries(Object.entries(env).filter(([k]) => !KEYS.test(k)));
+    return { bin: resolve(ROOT, 'node_modules/.bin/hyperframes'), args: argv, env: { ...own, ...PRIVATE } };
 }
 
 if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -17,7 +17,7 @@ import { end, title } from './lib/light.mjs';
 import { FONTS, n2 } from './lib/look.mjs';
 import { LEVELS, duck, layout } from './lib/mix.mjs';
 import { ROOT, SKILL, loadFilm, paths } from './lib/paths.mjs';
-import { loadCss, loadState } from './lib/states.mjs';
+import { loadCss, loadState, missingCss } from './lib/states.mjs';
 
 const SFX = join(ROOT, 'node_modules/hyperframes/dist/skills/media-use/audio/assets/sfx');
 // The music comes in on a beat at the title's impact (0.6 s): `from` is that beat's time in the track.
@@ -55,6 +55,8 @@ export function build({ film, coords, voice, words, out, liftDir, voiceDir, musi
     const scenes = film.scenes(sceneCtx(coords));
     const { total, scenes: placed, lines } = layout(scenes, voice);
     const lifted = { builds: film.builds, liftDir };
+    const noCss = missingCss(lifted);
+    if (noCss.length) throw new Error(noCss.join('\n'));
     const c = { film, words, ctx: { state: (ref, wid) => loadState(lifted, ref, wid) } };
     for (const d of ['compositions', 'assets']) rmSync(join(out, d), { recursive: true, force: true });
     for (const d of ['compositions', 'assets/fonts', 'assets/img', 'assets/voice', 'assets/sfx', ...(film.music ? ['assets/music'] : [])])
@@ -85,7 +87,7 @@ export function build({ film, coords, voice, words, out, liftDir, voiceDir, musi
     copy(join(ROOT, 'node_modules/gsap/dist/gsap.min.js'), 'assets/gsap.min.js');
     for (const f of ['inter-var.woff2', 'jbmono-var.woff2']) copy(join(SKILL, 'assets/fonts', f), `assets/fonts/${f}`);
     copy(join(ROOT, 'docs/logo_only_big.png'), 'assets/img/symbol.png');
-    const sheets = Object.keys(film.builds).filter((b) => existsSync(join(liftDir(b), film.builds[b].css)));
+    const sheets = Object.keys(film.builds);
     for (const b of sheets) write(`assets/ui-${b}.css`, loadCss(lifted, b));
     for (const l of lines) copy(join(voiceDir, `${l.id}.wav`), `assets/voice/${l.id}.wav`);
     const used = [...new Set(sfx.map((s) => s[0]))];

@@ -125,3 +125,25 @@ test('credit records source and licence', () => {
         }
     );
 });
+
+test('refuses what would turn into NaN', () => {
+    assert.throws(() => layout([{ id: 'a', kind: 'app' }], {}), /scene 'a'.*dur/);
+    assert.throws(() => layout([{ id: 'a', kind: 'app', dur: 5, vo: { t: 1, text: 'x' } }], { a: 9 }), /scene 'a'.*vo\.at/);
+    assert.throws(() => layout([{ id: 'a', kind: 'app', dur: 5, vo: { at: -0.5, text: 'x' } }], { a: 1 }), /scene 'a'.*vo\.at/);
+    assert.throws(() => layout([{ id: 'a', kind: 'app', dur: 5, vo: { at: 0.5, text: 'x' } }], { a: null }), /scene 'a'.*narrate/);
+});
+
+test('refuses duplicate and reserved scene ids', () => {
+    assert.throws(
+        () =>
+            layout(
+                [
+                    { id: 'a', kind: 'app', dur: 5 },
+                    { id: 'a', kind: 'app', dur: 5 }
+                ],
+                {}
+            ),
+        /'a'.*twice/
+    );
+    for (const id of ['logo', 'main', 'music']) assert.throws(() => layout([{ id, kind: 'app', dur: 5 }], {}), new RegExp(`'${id}'`));
+});

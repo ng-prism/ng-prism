@@ -112,9 +112,41 @@ export const posterArgs = ({ master, out, width, height }) => [
     out
 ];
 
+/**
+ * Frames that leave the picture's brightness and come back within `span` frames: a light that drops out (or flashes up)
+ * in single frames, which a contact sheet at one frame per 1.5 s never shows. Cuts (a step that stays), ramps and flashes
+ * that fade over several frames are not dropouts. `y` is the mean luma per frame; returns the times in seconds.
+ */
+export function dropouts(y, fps, threshold = 8, span = 3) {
+    const out = [];
+    for (let i = 1; i < y.length - 1; i++) {
+        const base = y[i - 1],
+            d = y[i] - base;
+        if (Math.abs(d) <= threshold) continue;
+        for (let j = i + 1; j <= Math.min(i + span, y.length - 1); j++) {
+            if (Math.abs(y[j] - base) <= threshold / 2) {
+                out.push(Math.round((i / fps) * 100) / 100);
+                i = j;
+                break;
+            }
+            if (Math.sign(y[j] - base) !== Math.sign(d) || Math.abs(y[j] - base) <= threshold) break;
+        }
+    }
+    return out;
+}
+
 const ff = (args) => execFileSync('ffmpeg', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 const duration = (f) => Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f], { encoding: 'utf8' }));
 const mb = (f) => statSync(f).size / 1e6;
+
+// the mean luma of every frame, from a small copy of the picture
+function lumaPerFrame(file) {
+    const r = spawnSync('ffmpeg', ['-v', 'error', '-i', file, '-vf', 'scale=320:-1,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-', '-f', 'null', '-'], {
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024
+    });
+    return [...r.stdout.matchAll(/YAVG=([\d.]+)/g)].map((m) => Number(m[1]));
+}
 
 function loudness(file) {
     const r = spawnSync('ffmpeg', ['-hide_banner', '-nostats', '-i', file, '-af', 'ebur128=peak=true', '-f', 'null', '-'], { encoding: 'utf8' });
@@ -171,6 +203,10 @@ async function main(name, { force, skipRender, docs }) {
     const loud = loudness(p.master);
     const off = Math.abs(loud.I - LOUD.I) > 1 || loud.TP > LOUD.TP;
     console.log(`master: ${len.toFixed(2)} s, ${loud.I} LUFS, true peak ${loud.TP} dBFS${off ? ' → corrected in the encodes' : ''}`);
+    const luma = lumaPerFrame(p.master);
+    const drops = dropouts(luma, luma.length / len);
+    if (drops.length) console.warn(`possible light dropouts in the master at ${drops.join(', ')} s: look at those frames before the film goes anywhere`);
+    else console.log(`no light dropouts in ${luma.length} frames`);
     const loudnorm = off ? loudnormFor(p.master) : undefined;
     const title = titleOf(name);
 

@@ -7,11 +7,11 @@ import { build, remoteRefs } from '../build.mjs';
 
 const word = { w: 860, h: 235, xs: [0, 118, 236, 300, 420, 500, 560, 660] };
 
-function fixture({ music = null, css = '.ngv .x{color:red;transition:color .2s}' } = {}) {
+function fixture({ music = null, css = '.ngv .x{color:red;transition:color .2s}', cssName = 'ui-video.css' } = {}) {
     const dir = mkdtempSync(join(tmpdir(), 'build-'));
     mkdirSync(join(dir, 'lift/video'), { recursive: true });
     writeFileSync(join(dir, 'lift/video/mini.html'), '<div class="ngp"><a href="https://ng-prism.github.io/ng-prism/#/">docs</a><button id="b">Save</button></div>');
-    writeFileSync(join(dir, 'lift/video/ui-video.css'), css);
+    writeFileSync(join(dir, 'lift/video', cssName), css);
     mkdirSync(join(dir, 'voice'));
     for (const f of ['logo.wav', 'beat.wav']) writeFileSync(join(dir, 'voice', f), 'RIFF');
     mkdirSync(join(dir, 'music'));
@@ -84,4 +84,8 @@ test('writes only under out', () => {
 test('lifted CSS is scoped and still', () => {
     const { out } = fixture();
     assert.equal(readFileSync(join(out, 'assets/ui-video.css'), 'utf8'), '.ngv .x{color:red;}');
+});
+
+test('stops when a build has no lifted CSS', () => {
+    assert.throws(() => fixture({ cssName: 'ui-other.css' }), /build 'video' has no lifted CSS at .*ui-video\.css/);
 });

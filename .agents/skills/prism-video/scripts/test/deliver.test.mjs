@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { clobbered, posterArgs, targets, titleOf, webArgs, youtubeArgs } from '../deliver.mjs';
+import { clobbered, dropouts, posterArgs, targets, titleOf, webArgs, youtubeArgs } from '../deliver.mjs';
 
 const has = (args, ...seq) => args.some((_, i) => seq.every((s, k) => args[i + k] === s));
 
@@ -60,4 +60,15 @@ test('the docs poster is a JPEG', () => {
     const a = posterArgs({ master: 'm.mp4', out: 'tour-poster.jpg', width: 1920, height: 1080 });
     assert.ok(has(a, '-q:v', '3'));
     assert.ok(!posterArgs({ master: 'm.mp4', out: 't.png', width: 1280, height: 720 }).includes('-q:v'));
+});
+
+test('dropouts finds frames that leave the light and come back', () => {
+    // one frame dark, two frames bright: both are dropouts; times in seconds at 10 fps
+    assert.deepEqual(dropouts([100, 100, 40, 100, 100, 100, 160, 160, 100, 100], 10), [0.2, 0.6]);
+});
+
+test('dropouts leaves cuts, ramps and flashes that fade alone', () => {
+    assert.deepEqual(dropouts([100, 100, 40, 40, 40, 40], 10), []);
+    assert.deepEqual(dropouts([10, 20, 30, 40, 50, 60], 10), []);
+    assert.deepEqual(dropouts([60, 60, 200, 170, 140, 110, 80, 60], 10), []);
 });

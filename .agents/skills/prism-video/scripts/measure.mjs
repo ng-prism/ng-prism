@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { BASE, FONTS } from './lib/look.mjs';
 import { ROOT, SKILL, loadFilm, paths } from './lib/paths.mjs';
-import { loadCss, loadState } from './lib/states.mjs';
+import { loadCss, loadState, missingCss } from './lib/states.mjs';
 
 export const missingMarks = (coords) =>
     Object.entries(coords).flatMap(([state, marks]) => Object.entries(marks).flatMap(([mark, box]) => (box ? [] : [`${state}.${mark}`])));
@@ -38,6 +38,11 @@ async function main(name) {
         for (const ref of unlifted) console.error(`no lifted state '${ref}' in ${film.liftDir(ref.split('/')[0])}`);
         process.exit(1);
     }
+    const noCss = missingCss(film);
+    if (noCss.length) {
+        for (const m of noCss) console.error(m);
+        process.exit(1);
+    }
     const names = Object.keys(marks).map((ref) => ref.split('/')[1]);
     const twice = names.filter((s, i) => names.indexOf(s) !== i);
     if (twice.length) {
@@ -49,7 +54,7 @@ async function main(name) {
     const { chromium } = require('playwright');
     const browser = await chromium.launch();
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
-    const css = Object.fromEntries(Object.keys(film.builds).map((b) => [b, existsSync(join(film.liftDir(b), film.builds[b].css)) ? loadCss(film, b) : '']));
+    const css = Object.fromEntries(Object.keys(film.builds).map((b) => [b, loadCss(film, b)]));
     const coords = {};
     for (const [ref, want] of Object.entries(marks)) {
         const [build, state] = ref.split('/');

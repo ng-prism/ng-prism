@@ -97,9 +97,11 @@ Never change the title, the end card, the light or the sonic logo unasked; a fil
 ## HyperFrames, privately
 
 - Run HyperFrames **only** through `node .agents/skills/prism-video/scripts/hf.mjs <command>`: it switches telemetry,
-  update checks and auto installs off and refuses everything that uploads, signs in or reads credentials. Never run
-  `hyperframes usage` (it reads Claude Code's credentials), `publish`, `cloud`, `lambda`, `auth`, nor
-  `snapshot --describe` (it sends frames to Gemini). No HeyGen account is needed.
+  update checks and auto and optional installs off, keeps the keys of outside services (HeyGen, Gemini, ElevenLabs, …)
+  out of its environment and refuses everything that uploads, signs in or reads credentials. Never run
+  `hyperframes usage` (it reads Claude Code's credentials), `publish`, `cloud`, `lambda`, `auth`, `audio` (its best
+  quality uploads the sound to HeyGen), nor `snapshot --describe` (it sends frames to Gemini). No HeyGen account is
+  needed.
 - HyperFrames is a root devDependency, pinned exactly like Playwright. Chrome for it comes once:
   `node .agents/skills/prism-video/scripts/hf.mjs browser ensure`. `hf.mjs doctor` reports `ok: false` without Docker,
   whisper, Kokoro and MusicGen, which no film needs; Node, FFmpeg, FFprobe and Chrome must be ok.
@@ -215,8 +217,9 @@ tour_ first.
     a two-pass loudnorm in the encodes), and writes the web version (30 fps, x264, CRF 22 for a release, 20 for the
     tour, first frame swapped for the title's lockup at 3.4 s, so a player without a poster shows the name), the
     YouTube version (2560×1440, 60 fps, CRF 18), the thumbnail (1280×720 from the lockup), the subtitles and the
-    contact sheet `.videos/work/<film>/sheet.jpg`. Read the sheet: a scene with missing light or a black frame shows
-    there. It overwrites nothing without `--force`; `--skip-render` encodes the existing master again. Every MP4 is
+    contact sheet `.videos/work/<film>/sheet.jpg`. It also measures every frame of the master and names any frame
+    where the light drops out or flashes up for a moment; look at those frames. Read the sheet: a scene with missing
+    light or a black frame shows there. It overwrites nothing without `--force`; `--skip-render` encodes the existing master again. Every MP4 is
     titled `ng-prism <film> · voice: elevenlabs.io`. Play the film to the maintainer
     (`open -a "QuickTime Player" .videos/ng-prism-<film>.mp4`) before it goes anywhere.
 14. **Publish:**
