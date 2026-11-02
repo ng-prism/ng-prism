@@ -193,7 +193,7 @@ An alpha channel, unlike a pattern, has no phase that moves when the component r
 Add `capture=1` to the URL to render in an isolated mode built for screenshotting:
 
 ```
-http://localhost:4200/?component=ButtonComponent&variant=2&capture=1
+http://localhost:4400/?component=ButtonComponent&variant=2&capture=1
 ```
 
 Accepted as "on": `?capture`, `?capture=1`, `?capture=true`. Anything else, including `?capture=0` and `?capture=false`, is off.

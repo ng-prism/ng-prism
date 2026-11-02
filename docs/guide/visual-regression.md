@@ -102,7 +102,7 @@ Two things to know before you record baselines this way:
 - **The comparator already handles it.** pixelmatch v7 blends semi-transparent pixels against a deterministic pattern before comparing (its `checkerboard` option, on by default), so no runner change is needed beyond the flag. The [visual-regression panel](plugins/visual-regression.md) likewise frames a transparent capture on a checkerboard rather than inventing a surface for it.
 
 ```
-http://localhost:4200/?component=ButtonComponent&variant=2&capture=1
+http://localhost:4400/?component=ButtonComponent&variant=2&capture=1
 ```
 
 No config change is required, so a CI job can drive a styleguide that was built without screenshots in mind.
@@ -132,7 +132,7 @@ A component that declares [`states`](guide/states.md#states) gets the same witho
 ```
 
 ```
-http://localhost:4200/?component=ButtonComponent&variant=1&state=0&capture=1
+http://localhost:4400/?component=ButtonComponent&variant=1&state=0&capture=1
 ```
 
 That is six captures to take instead of two: each of `Filled` and `Outlined`, on its own, in `Hover` and in `Focus visible`. The state is the index into `states`, the same one `__PRISM_MANIFEST__` lists. A runner that already walks the variants needs a loop over the states and nothing else, see [A worked example](#a-worked-example).
