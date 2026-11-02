@@ -33,5 +33,5 @@ export function paths(film) {
 export async function loadFilm(film) {
     const p = paths(film);
     const { default: f } = await import(pathToFileURL(join(p.ref, 'film.mjs')).href);
-    return { ...f, liftDir: p.lift };
+    return { ...f, id: film, liftDir: p.lift };
 }
