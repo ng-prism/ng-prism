@@ -61,7 +61,7 @@ The panel colours its values against these built-in thresholds:
 
 Shows timing for the last N renders as metric cards and a trace. The initial render is graded against the built-in budget (warning above 5 ms, critical above 16 ms) and carries an "OK", "Warning" or "Critical" badge in that colour; the other figures are plain quantities. **Profile** and **Pause** start and stop recording, **Clear** drops the samples; the number of samples and change-detection runs is in the Profile button's tooltip.
 
-For a variant with a [`template` or a host template](guide/content-projection.md#compiled-content-template), the render marks wrap the creation of the whole composition: the frame and every other part in it count, not only the showcased component. Compare such a variant with another composed variant, not with a plain one.
+For a variant with a [`template` or a host template](guide/compositions.md), the render marks wrap the creation of the whole composition: the frame and every other part in it count, not only the showcased component. Compare such a variant with another composed variant, not with a plain one.
 
 A [part](guide/parts.md) is skipped entirely; its parent's variants render and cover it.
 
