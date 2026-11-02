@@ -9,7 +9,7 @@ This page walks through the styleguide that `ng run my-lib:prism` serves on `htt
 - **Canvas:** the component itself, with the canvas rail floating at its top right.
 - **Addons panel:** Controls, Events, A11y and the panels of your plugins.
 
-The styleguide opens on the component, service, pipe or page the URL names. When it names none, it opens the first page, or the first component if there are no pages. What the URL carries is under [Links & State](guide/url-state.md).
+The styleguide opens on the component, service, pipe or page the URL names. When it names none, it opens the first page; without pages the first component, then the first service, then the first pipe. What the URL carries is under [Links & State](guide/url-state.md).
 
 ## Sidebar
 
@@ -19,7 +19,7 @@ The sidebar lists every showcased component, directive, service and pipe, in sec
 - **Groups:** a click on a category head folds it. Folded groups stay folded across visits, in the browser's `localStorage`.
 - **Entries:** the icon tells the kind, a box for a component, a plug for a service, a pipette for a pipe. A [`status`](api/showcase-config.md#status) of `'wip'` turns it into a dashed circle, and `'deprecated'` strikes the name through and dims it.
 - **Markers:** an entry can carry markers on the right, such as the a11y marker that the library-wide report sets (see [A11y Reports](guide/a11y-reports.md)) or those of the coverage and visual regression plugins. A plugin adds its own with [`navigationDecorations`](api/ng-prism-plugin.md#navigationdecorationdefinition). The tooltip of the entry names them. A category head adds a chip with the number of its entries that carry one, in the tone of the worst, for example `2 of 5 entries need review` in its tooltip.
-- **The open entry stays in sight.** After a link, a reload or a step back or forward, the sidebar scrolls the open entry into the middle of the list and opens its group if it was folded. An entry already in sight stays where it is, so a click in the list never moves it.
+- **The open entry stays in sight** (since 22.7.0). After a link, a reload or a step back or forward, the sidebar scrolls the open entry into the middle of the list and opens its group if it was folded. An entry already in sight stays where it is, so a click in the list never moves it.
 
 Drag the sidebar's right edge to change its width, between 200 and 360 pixels. ⌥S hides and shows it, see [Small touches](#small-touches). On a phone it becomes a full-screen navigation, see [On a phone](#on-a-phone).
 
@@ -103,7 +103,7 @@ The **tools menu** holds what you set once rather than flip all the time:
 - **Zoom:** 75%, 100%, 150% or 200%. Zoom scales the component, the rulers follow it, and the measuring tool still reports CSS pixels.
 - **Width:** `Auto` or a preset width, see [Viewport width](#viewport-width).
 
-The background pill sits at the top left of the canvas, the dimension line of the viewport width in the middle and the rail at the right. Turning the rulers on moves all three down below the top ruler. They take their colours from the canvas ground, not from the theme, so the rail stays light on a `light` canvas under the dark theme, see [Canvas overlays](guide/theming.md#canvas-overlays). Measurements you keep sit in a row below the canvas, see [Keeping measurements](guide/measuring.md#keeping-measurements).
+The background pill sits at the top left of the canvas, the dimension line of the viewport width in the middle and the rail at the right. Turning the rulers on moves all three down below the top ruler. On the `light` and `dark` grounds they take fixed light or dark colours, so the rail stays light on a `light` canvas under the dark theme; on the other grounds they follow the theme, see [Canvas overlays](guide/theming.md#canvas-overlays). Measurements you keep sit in a row below the canvas, see [Keeping measurements](guide/measuring.md#keeping-measurements).
 
 Capture mode, which screenshot tools use, hides the rail, the menu and everything else the canvas draws around the component, see [Capture Isolation Mode](guide/external-tooling.md#capture-isolation-mode).
 
@@ -111,7 +111,7 @@ Capture mode, which screenshot tools use, hides the rail, the menu and everythin
 
 The viewport width narrows the box the component renders in, so you can check a layout at a given width without resizing the browser. It is one number rather than a list of devices, because it is for finding where a layout breaks, and it simulates nothing: the presets are plain widths, without device names.
 
-- **On and off:** the **Viewport width** button on the rail. The first time it starts at 390 pixels, afterwards at the last width you used.
+- **On and off:** the **Viewport width** button on the rail. It comes back at the last width of the session, or at 390 pixels when the session has none yet. A width that is on when you leave is kept across visits, see below.
 - **Presets:** the **Width** group of the tools menu offers `Auto` (off), 320, 390, 480, 640, 768 and 1024, without aiming at a grip.
 - **Dragging:** a grip sits on either edge of the narrowed box, on a faint line down the canvas. Drag either one; the box stays centred, so both edges move. A drag rests on a preset when it comes within 8 pixels of it, and goes no narrower than 100 and no wider than 1600 pixels, well below any real device, so you can find where a layout gives up. The grips work at any zoom and stay under the pointer.
 - **Keyboard:** Tab to a grip, then ArrowRight widens by 10 pixels and ArrowLeft narrows, on either grip, resting on a preset like a drag; Home and End jump to 100 and 1600. Both grips announce the width as their value.
@@ -132,7 +132,7 @@ The **Canvas** group of the tools menu has a button for each background: **Dots*
 - **Without a recommendation** your pick is the canvas background for every component and variant that declares none. It starts as Dots and is kept across visits, in the browser's `localStorage`.
 - **Transparent and Checker** look the same on the canvas, a checkerboard. Their tooltips say the difference: `Checkerboard here, a real alpha channel in a capture` for Transparent, and that Checker is deprecated and keeps the themed colour in a capture.
 
-The Overview and capture mode do not use your pick: they paint the declared background, or the checkerboard where nothing is declared, see [`bg`](api/showcase-config.md#bg).
+The Overview does not use your pick: it paints the declared background, or a checkerboard where nothing is declared. Capture mode ignores your pick as well and paints the declared background; where nothing is declared, the capture is transparent, with a real alpha channel. See [`bg`](api/showcase-config.md#bg).
 
 ## State switch
 

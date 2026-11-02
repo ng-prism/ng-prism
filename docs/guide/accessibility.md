@@ -1,6 +1,6 @@
 # Accessibility Panel
 
-The **A11y** tab of the addons panel audits the component on the canvas with [axe-core](https://github.com/dequelabs/axe-core) and shows how the component reads to assistive technology. It is part of the core, so no plugin is required. axe-core ships as a dependency of `@ng-prism/core` and is loaded lazily, with the first audit; a styleguide app set up by hand lists it in `allowedCommonJsDependencies`, see [The styleguide app target](api/builders.md#the-styleguide-app-target).
+The **A11y** tab of the addons panel audits the component on the canvas with [axe-core](https://github.com/dequelabs/axe-core) and shows how the component reads to assistive technology. It is part of the core, so no plugin is required. axe-core ships as a dependency of `@ng-prism/core` and is loaded lazily, with the first audit; a styleguide app set up by hand lists it in `allowedCommonJsDependencies`, since axe-core ships as UMD and would otherwise cause the CommonJS optimization-bailout warning, see [The styleguide app target](api/builders.md#the-styleguide-app-target).
 
 ## Features
 
