@@ -63,7 +63,7 @@ Shows timing for the last N renders as metric cards and a trace. The initial ren
 
 For a variant with a [`template` or a host template](guide/content-projection.md#compiled-content-template), the render marks wrap the creation of the whole composition: the frame and every other part in it count, not only the showcased component. Compare such a variant with another composed variant, not with a plain one.
 
-A [part](guide/showcase-decorator.md#partof) is skipped entirely; its parent's variants render and cover it.
+A [part](guide/parts.md) is skipped entirely; its parent's variants render and cover it.
 
 ### Bundle Panel
 

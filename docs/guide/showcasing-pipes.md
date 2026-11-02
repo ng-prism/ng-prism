@@ -136,7 +136,7 @@ A pipe is only listed when you mark it. Two things about the pipe itself decide 
 
 ## Which `@Showcase` fields apply
 
-The same ones as for a service: `title`, `description`, `category`, `categoryOrder`, `componentOrder`, `section`, `sectionOrder`, `tags`, `meta`, `status` and [`setup`](guide/showcasing-services.md#setup), which works exactly as it does there. `section` defaults to `'Pipes'`, whose default `sectionOrder` is `30`, after Components, Directives and Services. `variants`, `states`, `providers`, `bg`, `canvasLayout`, `host`, `imports` and `renderPage` do not apply, since a pipe has no canvas, with a consequence until 23.0.0, see [Compatibility until 23.0.0](#compatibility-until-2300). [`partOf`](guide/showcase-decorator.md#partof) does not apply either, since only a component or directive can be part of another: a warning drops it, and [`strictShowcase`](api/ng-prism-config.md#strictshowcase) fails the build over it.
+The same ones as for a service: `title`, `description`, `category`, `categoryOrder`, `componentOrder`, `section`, `sectionOrder`, `tags`, `meta`, `status` and [`setup`](guide/showcasing-services.md#setup), which works exactly as it does there. `section` defaults to `'Pipes'`, whose default `sectionOrder` is `30`, after Components, Directives and Services. `variants`, `states`, `providers`, `bg`, `canvasLayout`, `host`, `imports` and `renderPage` do not apply, since a pipe has no canvas, with a consequence until 23.0.0, see [Compatibility until 23.0.0](#compatibility-until-2300). [`partOf`](guide/parts.md) does not apply either, since only a component or directive can be part of another: a warning drops it, and [`strictShowcase`](api/ng-prism-config.md#strictshowcase) fails the build over it.
 
 ## What the page shows
 

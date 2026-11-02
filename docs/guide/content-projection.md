@@ -104,7 +104,7 @@ The first variant renders as `<lib-form-field label="E-Mail"><input libInput typ
 - **Angular picks the slot.** `<lib-icon libPrefix>` lands in `<ng-content select="[libPrefix]">` the way it does in an application, so a template needs no record of slots like `content` does. A directive gets the template as the content of its host element.
 - **Any template syntax works,** bindings with literals, control flow (`@if`, `@for`), template reference variables and event bindings included.
 - **Expressions have no context.** Literals work (`[options]="['a', 'b']"`), and so do template reference variables (`#picker` and `[for]="picker"`). A member such as `[value]="size"` does not: there is no component class behind the template. The generated wrapper has members of its own, but they are not API and change between releases.
-- **A template is read from the source,** like every other value, see [What the scanner can read](guide/showcase-decorator.md#what-the-scanner-can-read). A string, a template literal with constants as placeholders and a `const` all work. A call or a `let` is dropped with a warning.
+- **A template is read from the source,** like every other value, see [What the Scanner Reads](guide/scanner-reads.md). A string, a template literal with constants as placeholders and a `const` all work. A call or a `let` is dropped with a warning.
 - **`template` wins over `content`.** A variant with both keeps the template and drops `content` with a warning.
 - **Void elements take no content.** A directive that renders on `<input>` or `<img>` cannot have a variant `template`, see [Directive Hosting](guide/directive-hosting.md#void-elements).
 

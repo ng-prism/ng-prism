@@ -123,7 +123,7 @@ The plugin matches coverage data to components using the file path from the scan
 
 This ensures coverage data is found even when the test runner and the ng-prism scanner report different absolute paths (e.g. in monorepo setups).
 
-A [part](guide/showcase-decorator.md#partof) gets its coverage computed like any component, from its own file, but the styleguide does not show it yet: a part has no page, and its card in the parent's head has no coverage. The parent's panel, gauge and sidebar marker cover the parent's file only.
+A [part](guide/parts.md) gets its coverage computed like any component, from its own file, but the styleguide does not show it yet: a part has no page, and its card in the parent's head has no coverage. The parent's panel, gauge and sidebar marker cover the parent's file only.
 
 ## No Coverage Data
 

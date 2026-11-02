@@ -109,7 +109,7 @@ No config change is required, so a CI job can drive a styleguide that was built 
 
 ## Forced pseudo states
 
-A variant that declares [`pseudo`](guide/variants.md#per-variant-pseudo-states) is captured in that state. Focus rings and hover colours get a baseline like any other variant:
+A variant that declares [`pseudo`](guide/states.md#per-variant-pseudo-states) is captured in that state. Focus rings and hover colours get a baseline like any other variant:
 
 ```typescript
 variants: [
@@ -118,7 +118,7 @@ variants: [
 ],
 ```
 
-A component that declares [`states`](guide/variants.md#states) gets the same without a variant per state. Each state is combined with every variant, and every combination the state fits is a capture of its own, addressed with `state=` next to `variant=`. A combination it does not fit is reported as `excluded`, see [A state that does not fit](#a-state-that-does-not-fit):
+A component that declares [`states`](guide/states.md#states) gets the same without a variant per state. Each state is combined with every variant, and every combination the state fits is a capture of its own, addressed with `state=` next to `variant=`. A combination it does not fit is reported as `excluded`, see [A state that does not fit](#a-state-that-does-not-fit):
 
 ```typescript
 @Showcase({
@@ -150,7 +150,7 @@ The toggle in the canvas tools menu is session state and is ignored in capture m
 
 ### A state that does not fit
 
-A state fits a variant only where the browser could put the component in it: `Remove hovered` has nothing to hover on a chip without a remove button, and `Focus visible` has nothing to focus on a disabled button. See [When a state fits](guide/variants.md#when-a-state-fits) for the rule. For such a combination nothing is forced, so what renders is the plain variant.
+A state fits a variant only where the browser could put the component in it: `Remove hovered` has nothing to hover on a chip without a remove button, and `Focus visible` has nothing to focus on a disabled button. See [When a state does not fit](guide/states.md#when-a-state-does-not-fit) for the rule. For such a combination nothing is forced, so what renders is the plain variant.
 
 Do not capture that image. It is the variant's own baseline under the name of a state it is not in, so it can never fail for the state, and a selector that quietly stopped matching would go on passing. The combination still renders and still sets the marker. `.demo-wrap` also carries `data-prism-excluded` with the reason, and the runner reports the cell as `excluded` with that reason instead of taking a screenshot:
 

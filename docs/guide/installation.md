@@ -227,7 +227,7 @@ The configuration split is intentional:
 Angular's `@angular/build:application` builds the entire app into a single bundle (`main.js`). True module-level HMR, where individual modules get hot-swapped, is not possible against a monolithic bundle. In practice that means **edits trigger a full page refresh**, even with `hmr: true`. ng-prism turns this from a workflow blocker into an acceptable iteration loop through two layers:
 
 1. **The dev configuration skips minification and source-map optimization.** Library and showcase rebuilds typically complete in 300-900ms.
-2. **State preservation across reloads** (built into ng-prism): the active component, variant, [component state](guide/variants.md#states), view tab, addon panel tab, control panel overrides, and a11y sub-state are restored after the page reloads, so iterating on a specific variant doesn't lose context. See [State Preservation](guide/url-state.md).
+2. **State preservation across reloads** (built into ng-prism): the active component, variant, [component state](guide/states.md#states), view tab, addon panel tab, control panel overrides, and a11y sub-state are restored after the page reloads, so iterating on a specific variant doesn't lose context. See [State Preservation](guide/url-state.md).
 
 `liveReload: true` is the recommended default because it triggers the reload automatically. Setting `liveReload: false` is only useful if you want to refresh manually (for example to inspect server-side state between edits).
 

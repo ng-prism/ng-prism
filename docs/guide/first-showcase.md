@@ -113,5 +113,5 @@ The phone layout leaves out guides, rulers, the [measuring tool](guide/measuring
 ## Next Steps
 
 - Learn about all `@Showcase` options in the [@Showcase Decorator](guide/showcase-decorator.md) reference
-- Understand how input types map to controls in [Variants](guide/variants.md)
+- Understand how input types map to controls in [Inputs & Controls](guide/inputs-and-controls.md)
 - Add content projection with the `content` field (see [Content Projection](guide/content-projection.md))

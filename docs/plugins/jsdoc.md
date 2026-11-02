@@ -172,13 +172,13 @@ The page is made of the sections Usage, Setup, Examples, Transform and Types, in
 
 ## Parts
 
-A [part](guide/showcase-decorator.md#partof) (`@Showcase({ partOf })`, since `22.7.0`) has no page of its own, so the API tab of its parent documents it. After the parent's own sections comes **Parts**, with one block per part, in the order of their titles:
+A [part](guide/parts.md) (`@Showcase({ partOf })`, since `22.7.0`) has no page of its own, so the API tab of its parent documents it. After the parent's own sections comes **Parts**, with one block per part, in the order of their titles:
 
 - **The head of a block** names the part by its title and its selector, for example `Option <lib-option>`.
 - **The block is the part's own API page,** read by the same rules as the one of a [component](#components-and-directives): the description and chips, a usage snippet with the import of the part, Examples, Inputs, Outputs, Methods and Types. Its section headings are a level below the title of the part.
 - **"On this page" gets a group Parts:** the title of each part and, under it, the sections of its block. The Types section of a part and its cards stay out of the list to keep it short. They are still in the block, and the signatures and JSDoc of the part link to them.
 - **Links stay in their block.** A type in a part's signatures, a `@see` and a `{@link}` in its JSDoc jump to the card in the part's own block, never to a card of the parent or of another part, even when those have a type of the same name. See [Links to Types](#links-to-types).
-- **A jump to a part** scrolls to its block and lights it up. While the code blocks above it are still filling in, the page keeps the block at the top, until you scroll yourself, with or without reduced motion. **Full API →** on the card of a part in the [component head](guide/showcase-decorator.md#partof) does that, and so does a URL with `part`: `?component=SelectComponent&view=jsdoc&part=OptionComponent`. A link to the part itself, `?component=OptionComponent&view=jsdoc`, is [rewritten](guide/url-state.md#parts) to that URL.
+- **A jump to a part** scrolls to its block and lights it up. While the code blocks above it are still filling in, the page keeps the block at the top, until you scroll yourself, with or without reduced motion. **Full API →** on the card of a part in the [component head](guide/parts.md#how-a-part-shows) does that, and so does a URL with `part`: `?component=SelectComponent&view=jsdoc&part=OptionComponent`. A link to the part itself, `?component=OptionComponent&view=jsdoc`, is [rewritten](guide/url-state.md#parts) to that URL.
 
 The API panel sets [`listsParts`](api/ng-prism-plugin.md#panels-that-list-parts) for this, which is also what makes the core show **Full API →** at all. Services and pipes have no parts.
 

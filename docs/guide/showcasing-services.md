@@ -152,7 +152,7 @@ A service is only listed when you mark it. There is no automatic discovery of ev
 | `meta`                                                                                   | For plugins, see [`onServiceScanned`](api/ng-prism-plugin.md#onservicescanned)                                                                                                  |
 | [`setup`](#setup)                                                                        | The functions and tokens that configure the service. Services and pipes only                                                                                                    |
 | `variants`, `states`, `providers`, `bg`, `canvasLayout`, `host`, `imports`, `renderPage` | Do not apply: a service has no canvas                                                                                                                                           |
-| [`partOf`](guide/showcase-decorator.md#partof)                                           | Does not apply: only a component or directive can be part of another. A warning drops it, and [`strictShowcase`](api/ng-prism-config.md#strictshowcase) fails the build over it |
+| [`partOf`](guide/parts.md)                                                               | Does not apply: only a component or directive can be part of another. A warning drops it, and [`strictShowcase`](api/ng-prism-config.md#strictshowcase) fails the build over it |
 
 The fields that do not apply have a consequence until 23.0.0 (deprecated since 22.7.0, removed in 23.0.0), see [Compatibility until 23.0.0](#compatibility-until-2300).
 

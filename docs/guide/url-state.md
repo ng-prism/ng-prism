@@ -9,18 +9,18 @@ After editing a SCSS file in your library and waiting for the dev-server reload,
 
 ## URL Parameters
 
-| Parameter   | Example                        | Description                                                                                                                                                                                               |
-| ----------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `component` | `?component=ButtonComponent`   | Active component class name                                                                                                                                                                               |
-| `service`   | `?service=NotificationService` | Active [service](guide/showcasing-services.md) class name. Services have their own parameter, so a tool that sets `?component=` never lands on one                                                        |
-| `pipe`      | `?pipe=TimeAgoPipe`            | Active [pipe](guide/showcasing-pipes.md) class name. Pipes have their own parameter as well, so neither `?component=` nor `?service=` lands on one                                                        |
-| `page`      | `?page=Button%20Patterns`      | Active page title (URL-encoded)                                                                                                                                                                           |
-| `variant`   | `?variant=1`                   | Active variant index (0-based)                                                                                                                                                                            |
-| `state`     | `?state=1`                     | Active component-level state: the 0-based index into the component's `states`. Written only while a state is active; a value that is no index into `states` is ignored.                                   |
-| `view`      | `?view=overview`               | Active view tab (e.g. `overview`, `docs`, `a11y`)                                                                                                                                                         |
-| `part`      | `?part=OptionComponent`        | The [part](guide/showcase-decorator.md#partof) of the component that the active view shows, as its class name (since 22.7.0), `~2` appended for a second part of the same class name. See [Parts](#parts) |
-| `panel`     | `?panel=a11y`                  | Active addon panel tab (default: `controls`, omitted when default)                                                                                                                                        |
-| `capture`   | `?capture=1`                   | Read-only input flag. Enables [capture isolation mode](guide/external-tooling.md#capture-isolation-mode) for screenshot tooling. Never written back to the URL.                                           |
+| Parameter   | Example                        | Description                                                                                                                                                                           |
+| ----------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `component` | `?component=ButtonComponent`   | Active component class name                                                                                                                                                           |
+| `service`   | `?service=NotificationService` | Active [service](guide/showcasing-services.md) class name. Services have their own parameter, so a tool that sets `?component=` never lands on one                                    |
+| `pipe`      | `?pipe=TimeAgoPipe`            | Active [pipe](guide/showcasing-pipes.md) class name. Pipes have their own parameter as well, so neither `?component=` nor `?service=` lands on one                                    |
+| `page`      | `?page=Button%20Patterns`      | Active page title (URL-encoded)                                                                                                                                                       |
+| `variant`   | `?variant=1`                   | Active variant index (0-based)                                                                                                                                                        |
+| `state`     | `?state=1`                     | Active component-level state: the 0-based index into the component's `states`. Written only while a state is active; a value that is no index into `states` is ignored.               |
+| `view`      | `?view=overview`               | Active view tab (e.g. `overview`, `docs`, `a11y`)                                                                                                                                     |
+| `part`      | `?part=OptionComponent`        | The [part](guide/parts.md) of the component that the active view shows, as its class name (since 22.7.0), `~2` appended for a second part of the same class name. See [Parts](#parts) |
+| `panel`     | `?panel=a11y`                  | Active addon panel tab (default: `controls`, omitted when default)                                                                                                                    |
+| `capture`   | `?capture=1`                   | Read-only input flag. Enables [capture isolation mode](guide/external-tooling.md#capture-isolation-mode) for screenshot tooling. Never written back to the URL.                       |
 
 Example URL:
 
@@ -39,7 +39,7 @@ http://localhost:4200?pipe=TimeAgoPipe&view=jsdoc
 
 ## Parts
 
-A [part](guide/showcase-decorator.md#partof) (`@Showcase({ partOf })`, since 22.7.0) has no page of its own, so there is no `component` to select for it. Its class name still works as an address, and `part` carries what it shows:
+A [part](guide/parts.md) (`@Showcase({ partOf })`, since 22.7.0) has no page of its own, so there is no `component` to select for it. Its class name still works as an address, and `part` carries what it shows:
 
 - **`?component=<PartClass>` opens the parent.** The app selects the component the part belongs to and rewrites the URL to it. The `view` of the old link is kept, and the part goes into `part`:
 

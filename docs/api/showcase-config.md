@@ -131,10 +131,10 @@ export class AutofocusDirective {}
 
 **Type** `number` · **Default** `Components` 0, `Directives` 10, `Services` 20, `Pipes` 30, any other section 100 · **Since** 22.1.0
 
-The position of this _section_ in the sidebar, lower first. A section's order is the lowest `sectionOrder` among its entries, so one `@Showcase({ section: 'Behavior', sectionOrder: 5 })` moves the whole section above `Components`. Sections with the same order list the four built-in ones first, in the order above, and the others alphabetically.
+The position of this _section_ in the sidebar, lower first. A section's order is the lowest `sectionOrder` among its entries, so one `@Showcase({ section: 'Behavior', sectionOrder: -1 })` moves the whole section above `Components`, and `5` puts it between `Components` and `Directives`. Sections with the same order list the four built-in ones first, in the order above, and the others alphabetically.
 
 ```typescript
-@Showcase({ title: 'Autofocus', section: 'Behavior', sectionOrder: 5 })
+@Showcase({ title: 'Autofocus', section: 'Behavior', sectionOrder: -1 })
 ```
 
 **Guide:** [@Showcase](guide/showcase-decorator.md)

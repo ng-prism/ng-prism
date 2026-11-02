@@ -10,7 +10,7 @@
 - Adds a **VRT diff** row to the component head's gauge readout: the worst diff among that component's variants. The gauge chip in the head only names it while it deviates, and only when nothing else deviates more
 - Carries a **per-component summary** in the tooltip of the list headings: every status present with its count, plus the worst diff (`1 changed · 2 new · 7 unchanged · max diff 10.26%`). There is no summary strip, so the list and the comparison keep the whole height of the dock
 - **Groups the variant list by what needs you**, with the clean variants collapsed out of the way (see below)
-- Per variant, and per variant and state when the component declares [`states`](guide/variants.md#states): status, diff percentage, and a baseline / current / diff comparison. The list and the comparison scroll independently, so choosing a variant never scrolls the image you chose it for out of view
+- Per variant, and per variant and state when the component declares [`states`](guide/states.md#states): status, diff percentage, and a baseline / current / diff comparison. The list and the comparison scroll independently, so choosing a variant never scrolls the image you chose it for out of view
 - Three comparison modes: **Wipe**, **Side by side**, and **Diff** (the last only when the report records a distinct diff mask alongside a current capture)
 - **Zoom** at `Fit`, `1×`, `2×`, `4×`, with pixels kept as pixels. A diff is never drawn below 1:1, because a downscaled diff is unreliable
 - Treats a variant with no baseline yet (`new`) as a neutral state, never as a failure
@@ -75,7 +75,7 @@ The first pairing is what this repository's test workspace uses. The report reco
 
 ## The variant list
 
-Most of a library's variants are usually unchanged, and a flat list gives all of them equal weight, so the list is grouped instead. A [part](guide/showcase-decorator.md#partof) is skipped entirely; its parent's variants render and cover it.
+Most of a library's variants are usually unchanged, and a flat list gives all of them equal weight, so the list is grouped instead. A [part](guide/parts.md) is skipped entirely; its parent's variants render and cover it.
 
 ```
 Needs review · 1
@@ -100,7 +100,7 @@ The rows are the same list rows as the a11y violations: a status badge, the name
 
 ### Variants and states
 
-A component that declares [`states`](guide/variants.md#states) is captured once per variant and state, so a variant can have several rows: its own, and one for each state it was captured in. A state row reads `<variant> × <state>`:
+A component that declares [`states`](guide/states.md#states) is captured once per variant and state, so a variant can have several rows: its own, and one for each state it was captured in. A state row reads `<variant> × <state>`:
 
 ```
 Needs review · 2
