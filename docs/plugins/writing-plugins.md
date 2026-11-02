@@ -288,7 +288,7 @@ export class CoverageHeaderBadgeComponent {
 }
 ```
 
-Registered like any other `headerWidgets` entry; see [`HeaderWidgetDefinition`](api/ng-prism-plugin.md#headerwidgetdefinition). Full field reference: [`PrismMetricBadgeComponent`](api/ng-prism-plugin.md#prismmetricbadgecomponent) and [`PrismIconComponent`](api/ng-prism-plugin.md#prismiconcomponent).
+Registered like any other `headerWidgets` entry; see [`HeaderWidgetDefinition`](api/ng-prism-plugin.md#headerwidgetdefinition). Full field reference: [`PrismMetricBadgeComponent`](api/plugin-ui.md#metric-badge) and [`PrismIconComponent`](api/plugin-ui.md#icons).
 
 ## PanelDefinition Fields
 
@@ -357,7 +357,7 @@ export class NotesPanelComponent {
 
 ## Panel Guidelines
 
-Since `22.7.0` every built-in panel follows the same eight rules. A plugin panel that follows them too looks like part of the styleguide in both themes, and the [UI primitives](api/ng-prism-plugin.md#ui-primitives) from `@ng-prism/core` do most of the work:
+Since `22.7.0` every built-in panel follows the same eight rules. A plugin panel that follows them too looks like part of the styleguide in both themes, and the [UI primitives](api/plugin-ui.md#ui-primitives) from `@ng-prism/core` do most of the work:
 
 - **P1 Toolbar only when there is something to put in it.** `prism-panel-toolbar` is 36 px high, sub-tabs in `[toolbarStart]`, actions in `[toolbarEnd]`. A panel without sub-tabs or actions has no toolbar. No meta text in it: timestamps, thresholds, sizes and counts go into tooltips.
 - **P2 Sub-tabs** are `prism-tabs` with `size="sm"`.
