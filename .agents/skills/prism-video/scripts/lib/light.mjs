@@ -264,8 +264,8 @@ export function title({ id, dur, line, word }) {
         <div class="l-g" id="${id}-g">
           ${mark(id)}
         </div>
-        <p class="l-word" id="${id}-word">${L.letters}</p>
-        <p class="l-word l-sheen" id="${id}-sheen">${WORD}</p>
+        <p class="l-word" id="${id}-word" data-layout-allow-occlusion>${L.letters}</p>
+        <p class="l-word l-sheen" id="${id}-sheen" data-layout-allow-occlusion>${WORD}</p>
         <div class="t-rule" id="${id}-rule"></div>
         <p class="t-line-txt${version ? ' t-ver' : ''}" id="${id}-line">${words(line)}</p>
       </div>
@@ -353,8 +353,8 @@ export function end({ id, dur, command, word }) {
         <div class="l-g" id="${id}-g">
           ${mark(id)}
         </div>
-        <p class="l-word" id="${id}-word">${L.letters}</p>
-        <p class="l-word l-sheen" id="${id}-sheen">${WORD}</p>
+        <p class="l-word" id="${id}-word" data-layout-allow-occlusion>${L.letters}</p>
+        <p class="l-word l-sheen" id="${id}-sheen" data-layout-allow-occlusion>${WORD}</p>
         <div class="e-cmdrow"><p class="e-cmd" id="${id}-cmd">${cmdChars}<span class="e-caret" id="${id}-caret"></span></p></div>
         <p class="e-url" id="${id}-url">github.com/ng-prism/ng-prism</p>
       </div>

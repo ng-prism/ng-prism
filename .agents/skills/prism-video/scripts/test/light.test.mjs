@@ -39,3 +39,10 @@ test('the lockup pose is where poster and thumbnail come from', () => {
     assert.equal(TITLE_LOCKUP, 3.4);
     assert.ok(t('22.8').sfx.some((s) => s[0] === 'impact-bass-1'));
 });
+
+test('the sheen may cover the name', () => {
+    for (const { html } of [t('22.8'), e('ng add @ng-prism/core')]) {
+        assert.match(html, /<p class="l-word" id="(title|end)-word" data-layout-allow-occlusion>/);
+        assert.match(html, /<p class="l-word l-sheen" id="(title|end)-sheen" data-layout-allow-occlusion>/);
+    }
+});

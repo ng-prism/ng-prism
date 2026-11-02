@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { app, code, tourCode } from '../lib/beats.mjs';
+import { app, code, sceneCtx, tourCode } from '../lib/beats.mjs';
 import { kinetic, slash, split } from '../lib/interstitials.mjs';
 import { esc } from '../lib/look.mjs';
 
@@ -108,4 +108,12 @@ test('interstitials register their timeline', () => {
         const id = html.match(/data-composition-id="([^"]+)"/)[1];
         assert.ok(html.includes(`window.__timelines["${id}"] = tl`), id);
     }
+});
+
+test('sceneCtx finds measured marks and names a missing one', () => {
+    const c = sceneCtx({ btn: { b: { x: 10, y: 20, w: 30, h: 40 } } });
+    assert.deepEqual(c.box('btn.b'), { x: 10, y: 20, w: 30, h: 40 });
+    assert.deepEqual(c.mid(c.box('btn.b'), 5), { x: 30, y: 40 });
+    assert.throws(() => c.box('btn.nope'), /btn\.nope/);
+    assert.deepEqual(sceneCtx(null).box('btn.nope'), { x: 0, y: 0, w: 0, h: 0 });
 });

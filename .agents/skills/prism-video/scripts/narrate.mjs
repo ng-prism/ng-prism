@@ -1,144 +1,115 @@
-// Lays a spoken narration over an exported film, with ElevenLabs text to speech and ffmpeg.
-//   node narrate.mjs <film.mp4> <narration.json> <out.mp4> [--title "ng-prism 22.7"] [--voice <voice id>]
-//                    [--model eleven_v4] [--tempo 1.05] [--dry]
-// Needs ELEVENLABS_API_KEY. A free account will do, but its output may only be published with "elevenlabs.io" in the
-// title: the MP4's title becomes "<--title> · voice: elevenlabs.io" (--title defaults to the out file's name).
-// narration.json is a list of lines: { "at": start in s, "until": the end of the line's scene in s, "text": "…",
-// "seed": optional, change it for another take of that line }. A line { "at": …, "logo": true } places the sonic logo
-// instead, ../templates/sonic-logo.flac: Lily whispering "N G prism" in a hall; the next line may start under the hall.
-// The voice is Chris (iP95p4xoKVk53GoZ742B), one of ElevenLabs' default voices: the free plan can't use library voices.
-// Each line is generated once and cached in .videos/narration-cache/ by its text, seed, voice and model, so --dry, the
-// real run and a run after editing one line spend credits only on lines that changed. A line is sped up by --tempo
-// (atempo keeps the pitch), measured against its window and the next line, then placed at its start. The film's own
-// sounds (clicks, keystrokes) duck under the voice, the mix is normalised to -16 LUFS, and the picture is copied, not
-// re-encoded. --dry only generates and measures. Spell what the voice reads wrongly the way it should sound: "N G prism".
+// Voices a film's lines with ElevenLabs text to speech and measures them.
+//   node narrate.mjs <film> [--dry]
+// Reads the `vo` of every scene in .videos/reference/<film>/film.mjs ({ at, text, seed?, sub? }), generates each line
+// once (cached in .videos/narration-cache/ by voice, model, seed and text, so editing one line regenerates only that
+// one), speeds it up by 1.05 (atempo keeps the pitch) and writes .videos/work/<film>/voice/<scene>.wav plus logo.wav (the
+// sonic logo, ../templates/sonic-logo.flac: Lily whispering "N G prism"), and voice.json with their lengths. Then it
+// checks that every line fits its scene and stops with exit 1 if one does not.
+// --dry calls no API: it measures the cached lines, estimates the others from their length, prints the characters a
+// real run would generate, and checks the fit.
+// Needs ELEVENLABS_API_KEY for lines not in the cache. The free plan's output may only be published with
+// "elevenlabs.io" in the title, which the delivery writes into every MP4. The voice is Chris (iP95p4xoKVk53GoZ742B),
+// a default voice: the free plan can't use library voices. Spell what the voice reads wrongly the way it should sound:
+// "N G prism", "J S Doc" (the subtitles spell them right again).
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { basename, join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { sceneCtx } from './lib/beats.mjs';
+import { n2 } from './lib/look.mjs';
+import { layout } from './lib/mix.mjs';
+import { ROOT, SKILL, loadFilm, paths } from './lib/paths.mjs';
 
-const args = process.argv.slice(2);
-const opt = (name, fallback) => {
-    const i = args.indexOf(name);
-    return i < 0 ? fallback : args[i + 1];
-};
-const valued = ['--title', '--voice', '--model', '--tempo'];
-const [film, linesFile, out] = args.filter((a, i) => !a.startsWith('--') && !valued.includes(args[i - 1]));
-const voice = opt('--voice', 'iP95p4xoKVk53GoZ742B');
-const model = opt('--model', 'eleven_v4');
-const tempo = Number(opt('--tempo', '1.05'));
-const dry = args.includes('--dry');
-if (!film || !linesFile || (!out && !dry)) {
-    console.error(
-        'usage: node narrate.mjs <film.mp4> <narration.json> <out.mp4> [--title "ng-prism 22.7"] [--voice <voice id>] [--model eleven_v4] [--tempo 1.05] [--dry]'
-    );
-    process.exit(2);
-}
+export const VOICE = 'iP95p4xoKVk53GoZ742B';
+export const MODEL = 'eleven_v4';
+const TEMPO = 1.05;
+// Chris after the tempo change speaks about 16 characters a second; --dry uses it for lines not yet generated.
+const CPS = 16;
 
-const lines = JSON.parse(readFileSync(linesFile, 'utf8'));
-// The whisper ends 1.4 s into the logo's file, its hall 2 s later.
-const logo = { file: fileURLToPath(new URL('../templates/sonic-logo.flac', import.meta.url)), spoken: 1.4 };
-const cache = fileURLToPath(new URL('../../../../.videos/narration-cache/', import.meta.url));
-mkdirSync(cache, { recursive: true });
-const dir = mkdtempSync(join(tmpdir(), 'narrate-'));
-const run = (cmd, a) => execFileSync(cmd, a, { encoding: 'utf8' });
-const duration = (f) => Number(run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]));
-
-let generated = 0;
-const speak = async (l, i) => {
-    const seed = l.seed ?? 1;
-    const key = createHash('sha256')
-        .update(JSON.stringify([voice, model, seed, l.text]))
+export const cacheKey = (voice, model, seed, text) =>
+    createHash('sha256')
+        .update(JSON.stringify([voice, model, seed ?? 1, text]))
         .digest('hex')
         .slice(0, 16);
-    const mp3 = join(cache, `${key}.mp3`);
-    if (existsSync(mp3)) return mp3;
+
+const CACHE = join(ROOT, '.videos/narration-cache');
+const LOGO = join(SKILL, 'templates/sonic-logo.flac');
+const run = (cmd, a) => execFileSync(cmd, a, { encoding: 'utf8' });
+const duration = (f) => Number(run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]));
+const toWav = (from, to, filter) => run('ffmpeg', ['-v', 'error', '-y', '-i', from, ...(filter ? ['-af', filter] : []), '-ar', '48000', '-ac', '2', to]);
+
+async function speak(text, seed, previous, next) {
     if (!process.env.ELEVENLABS_API_KEY) {
         console.error('ELEVENLABS_API_KEY is not set: create a key at elevenlabs.io → Developers → API keys and export it in ~/.zshrc.');
         process.exit(1);
     }
-    // previous_text and next_text only shape the intonation, so they stay out of the cache key: editing one line
-    // doesn't regenerate its neighbours.
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_128`, {
+    // previous_text and next_text only shape the intonation, so they stay out of the cache key
+    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE}?output_format=mp3_44100_128`, {
         method: 'POST',
         headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY, 'content-type': 'application/json' },
-        body: JSON.stringify({
-            text: l.text,
-            model_id: model,
-            seed,
-            previous_text: lines[i - 1]?.text,
-            next_text: lines[i + 1]?.text
-        })
+        body: JSON.stringify({ text, model_id: MODEL, seed, previous_text: previous, next_text: next })
     });
     if (!res.ok) {
-        console.error(`line ${i + 1}: ElevenLabs answered ${res.status}: ${await res.text()}`);
+        console.error(`ElevenLabs answered ${res.status}: ${await res.text()}`);
         process.exit(1);
     }
-    writeFileSync(mp3, Buffer.from(await res.arrayBuffer()));
-    generated += l.text.length;
-    return mp3;
-};
-
-let problems = 0;
-for (const [i, l] of lines.entries()) {
-    const wav = join(dir, `l${i}.wav`);
-    if (l.logo) run('ffmpeg', ['-v', 'error', '-y', '-i', logo.file, wav]);
-    else run('ffmpeg', ['-v', 'error', '-y', '-i', await speak(l, i), '-af', `atempo=${tempo}`, wav]);
-    l.wav = wav;
-    l.dur = l.logo ? logo.spoken : duration(wav);
-    const end = l.at + l.dur,
-        next = lines[i + 1];
-    const notes = [];
-    if (next && end > next.at - 0.2) notes.push(`runs into line ${i + 2}`);
-    if (l.until !== undefined && end > l.until + 0.6) notes.push(`runs ${(end - l.until).toFixed(2)} s past its scene`);
-    if (notes.length) problems++;
-    console.log(`line ${i + 1}: ${l.at.toFixed(2)} → ${end.toFixed(2)} s (${l.logo ? 'logo' : l.dur.toFixed(2) + ' s'})${notes.length ? '  ✖ ' + notes.join(', ') : ''}`);
+    return Buffer.from(await res.arrayBuffer());
 }
-console.log(`${generated} characters generated, the rest from ${cache}`);
-if (problems) {
-    console.error(`${problems} line(s) do not fit: shorten them, move their start, or raise --tempo a little.`);
-    process.exit(1);
+
+async function main(name, dry) {
+    const film = await loadFilm(name);
+    const p = paths(name);
+    const coords = existsSync(p.coords) ? JSON.parse(readFileSync(p.coords, 'utf8')) : null;
+    const scenes = film.scenes(sceneCtx(coords));
+    const voiced = scenes.filter((s) => s.vo);
+    mkdirSync(CACHE, { recursive: true });
+    if (!dry) mkdirSync(p.voiceDir, { recursive: true });
+    const voice = {};
+    let toGenerate = 0;
+    for (const [i, s] of voiced.entries()) {
+        const seed = s.vo.seed ?? 1;
+        const mp3 = join(CACHE, `${cacheKey(VOICE, MODEL, seed, s.vo.text)}.mp3`);
+        if (!existsSync(mp3)) {
+            toGenerate += s.vo.text.length;
+            if (dry) {
+                voice[s.id] = n2(s.vo.text.length / CPS);
+                console.log(`${s.id}: not generated yet, ~${voice[s.id]} s (estimated)`);
+                continue;
+            }
+            writeFileSync(mp3, await speak(s.vo.text, seed, voiced[i - 1]?.vo.text, voiced[i + 1]?.vo.text));
+        }
+        const wav = dry ? join(p.work, `.dry-${s.id}.wav`) : join(p.voiceDir, `${s.id}.wav`);
+        mkdirSync(p.work, { recursive: true });
+        toWav(mp3, wav, `atempo=${TEMPO}`);
+        voice[s.id] = n2(duration(wav));
+        if (dry) run('rm', ['-f', wav]);
+        console.log(`${s.id}: ${voice[s.id]} s`);
+    }
+    if (scenes.some((s) => s.kind === 'title')) {
+        if (!dry) toWav(LOGO, join(p.voiceDir, 'logo.wav'));
+        voice.logo = n2(duration(LOGO));
+    }
+    console.log(`${dry ? 'would generate' : 'generated'} ${toGenerate} characters; the rest came from ${CACHE}`);
+    try {
+        const { total } = layout(scenes, voice);
+        console.log(`every line fits; the film runs ${total} s`);
+    } catch (e) {
+        console.error(e.message);
+        process.exit(1);
+    }
+    if (!dry) {
+        writeFileSync(p.voiceJson, JSON.stringify(voice));
+        console.log(`${p.voiceJson} written`);
+    }
 }
-if (dry) process.exit(0);
 
-const title = `${opt('--title', basename(out, '.mp4'))} · voice: elevenlabs.io`;
-
-const fmt = 'aformat=sample_rates=48000:channel_layouts=stereo';
-let graph = `[0:a]${fmt}[fx];`;
-lines.forEach((l, i) => {
-    const ms = Math.round(l.at * 1000);
-    graph += `[${i + 1}:a]${fmt},adelay=${ms}|${ms}[v${i}];`;
-});
-graph += `${lines.map((_, i) => `[v${i}]`).join('')}amix=inputs=${lines.length}:normalize=0,asplit=2[vsc][vmix];`;
-graph += '[fx][vsc]sidechaincompress=threshold=0.02:ratio=8:attack=15:release=300[duck];';
-graph += '[duck][vmix]amix=inputs=2:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[out]';
-run('ffmpeg', [
-    '-v',
-    'error',
-    '-y',
-    '-i',
-    film,
-    ...lines.flatMap((l) => ['-i', l.wav]),
-    '-filter_complex',
-    graph,
-    '-map',
-    '0:v',
-    '-c:v',
-    'copy',
-    '-map',
-    '[out]',
-    '-c:a',
-    'aac',
-    '-b:a',
-    '128k',
-    '-t',
-    String(duration(film)),
-    '-metadata',
-    `title=${title}`,
-    '-movflags',
-    '+faststart',
-    out
-]);
-console.log(`${out}: ${duration(out).toFixed(2)} s, picture copied, title "${title}"`);
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    const args = process.argv.slice(2);
+    const name = args.find((a) => !a.startsWith('--'));
+    if (!name) {
+        console.error('usage: node narrate.mjs <film> [--dry]');
+        process.exit(2);
+    }
+    await main(name, args.includes('--dry'));
+}

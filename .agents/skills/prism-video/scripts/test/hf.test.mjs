@@ -30,3 +30,8 @@ test('sets the privacy env', () => {
     assert.equal(env.HYPERFRAMES_NO_AUTO_INSTALL, '1');
     assert.equal(env.PATH, '/x');
 });
+
+test('refuses options that send frames away', () => {
+    assert.match(plan(['snapshot', '--at', '1', '--describe'], {}).refused, /--describe/);
+    assert.match(plan(['snapshot', '--describe=Is the logo visible?'], {}).refused, /--describe/);
+});

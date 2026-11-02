@@ -9,6 +9,19 @@ const CW = (fs) => fs * 0.6;
 
 export const mid = (r, dx = 0, dy = 0) => ({ x: n2(r.x + r.w / 2 + dx), y: n2(r.y + r.h / 2 + dy) });
 
+// What `film.scenes(ctx)` gets: the measured boxes ('state.mark') and `mid`. Without coords (a narration run before
+// measuring) every box is empty, which is enough to read the scenes' lines.
+export const sceneCtx = (coords) => ({
+    box(key) {
+        if (!coords) return { x: 0, y: 0, w: 0, h: 0 };
+        const [state, mark] = key.split('.');
+        const b = coords[state]?.[mark];
+        if (!b) throw new Error(`no measured mark '${key}': add it to the film's marks and run measure.mjs`);
+        return b;
+    },
+    mid
+});
+
 export const sounds = () => {
     const list = [];
     return { list, add: (file, at, vol, dur) => list.push(dur === undefined ? [file, n2(at), vol] : [file, n2(at), vol, n2(dur)]) };
