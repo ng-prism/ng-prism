@@ -3,7 +3,7 @@
 //                                                         then writes .videos/ng-prism-<film>.mp4, -youtube.mp4,
 //                                                         -youtube-thumbnail.png and .en.srt
 //   node deliver.mjs tour --docs [--force]                after the maintainer's OK: copies the tour to
-//                                                         docs/assets/video/tour.mp4 and writes tour-poster.png
+//                                                         docs/assets/video/tour.mp4 and writes tour-poster.jpg
 // Nothing that exists is overwritten without --force; the run stops first and names every such file. --skip-render
 // encodes the existing master again. The master's loudness is measured (target -16 LUFS ±1, true peak ≤ -1.5 dBFS);
 // if it is off, the encodes correct it with a two-pass loudnorm. A release clip's web version must stay under 10 MB
@@ -18,7 +18,7 @@ import { layout } from './lib/mix.mjs';
 import { ROOT, SKILL, loadFilm, paths } from './lib/paths.mjs';
 import { srt } from './lib/srt.mjs';
 
-const DOCS = { video: join(ROOT, 'docs/assets/video/tour.mp4'), poster: join(ROOT, 'docs/assets/video/tour-poster.png') };
+const DOCS = { video: join(ROOT, 'docs/assets/video/tour.mp4'), poster: join(ROOT, 'docs/assets/video/tour-poster.jpg') };
 const LOUD = { I: -16, TP: -1.5, LRA: 11 };
 
 export const titleOf = (film) => `ng-prism ${film} · voice: elevenlabs.io`;
@@ -107,6 +107,8 @@ export const posterArgs = ({ master, out, width, height }) => [
     '1',
     '-vf',
     `scale=${width}:${height}:flags=lanczos`,
+    // a JPEG (the docs poster): the shader's grain makes a PNG of the lockup over 1 MB
+    ...(/\.jpe?g$/.test(out) ? ['-q:v', '3'] : []),
     out
 ];
 

@@ -2,7 +2,7 @@
 
 A lightweight, Angular-native component showcase tool. Annotate your components directly with a `@Showcase` decorator. There are no separate story files and no parallel file tree to maintain.
 
-<video controls preload="metadata" playsinline poster="assets/video/tour-poster.png" width="100%" aria-label="A one-minute tour of ng-prism">
+<video controls preload="metadata" playsinline poster="assets/video/tour-poster.jpg" width="100%" aria-label="A one-minute tour of ng-prism">
   <source src="assets/video/tour.mp4" type="video/mp4" />
 </video>
 

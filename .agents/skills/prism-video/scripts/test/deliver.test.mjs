@@ -14,7 +14,7 @@ test('refuses to overwrite', () => {
 test('tour targets include the docs', () => {
     const tour = targets('tour', 'tour');
     assert.ok(tour.some((p) => p.endsWith('docs/assets/video/tour.mp4')));
-    assert.ok(tour.some((p) => p.endsWith('docs/assets/video/tour-poster.png')));
+    assert.ok(tour.some((p) => p.endsWith('docs/assets/video/tour-poster.jpg')));
     const release = targets('22.8', 'release');
     assert.ok(!release.some((p) => p.includes('/docs/')));
     for (const end of ['.videos/ng-prism-22.8.mp4', '.videos/ng-prism-22.8-youtube.mp4', '.videos/ng-prism-22.8-youtube-thumbnail.png', '.videos/ng-prism-22.8.en.srt'])
@@ -54,4 +54,10 @@ test('thumbnail and poster come from the lockup', () => {
     const t = posterArgs({ master: 'm.mp4', out: 't.png', width: 1280, height: 720 });
     assert.ok(has(t, '-ss', '3.4'));
     assert.ok(t.some((x) => x.includes('scale=1280:720')));
+});
+
+test('the docs poster is a JPEG', () => {
+    const a = posterArgs({ master: 'm.mp4', out: 'tour-poster.jpg', width: 1920, height: 1080 });
+    assert.ok(has(a, '-q:v', '3'));
+    assert.ok(!posterArgs({ master: 'm.mp4', out: 't.png', width: 1280, height: 720 }).includes('-q:v'));
 });

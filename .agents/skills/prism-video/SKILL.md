@@ -224,7 +224,7 @@ tour_ first.
       `github.com/user-attachments/assets/…` URL becomes a player only alone in its paragraph: an empty line between it
       and the credit). It must stay under 10 MB; `deliver.mjs` stops when it does not.
     - **The tour,** after the maintainer's OK: `node $S/deliver.mjs tour --docs --force` copies it to
-      `docs/assets/video/tour.mp4` with a new `tour-poster.png`. Those two files are the only film files in git.
+      `docs/assets/video/tour.mp4` with a new `tour-poster.jpg`. Those two files are the only film files in git.
     - **YouTube:** the `-youtube.mp4`, its thumbnail and the `.en.srt` (the voice lines as spoken, `N G prism` and
       `J S Doc` written properly, the sonic logo as "ng-prism").
     - **The voice credit:** ElevenLabs' free plan is non-commercial and wants "elevenlabs.io" wherever a film is
