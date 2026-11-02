@@ -60,7 +60,7 @@ onServiceScanned?: (service: ScannedService) => ScannedService | void | Promise<
 
 Called once per [service](guide/services-and-pipes.md#services) with `@Showcase` (since 22.7.0), with its [`ScannedService`](api/types.md#scannedservice). Its `api` is the extracted API of the service, experimental. A service never reaches `onComponentScanned` and is not in `PrismManifest.components`: the manifest lists it in `services`.
 
-The hook only runs when a plugin shows services, that is when some plugin has a view panel (`placement: 'view'`) whose `appliesTo` includes `'service'`, in practice `jsDocPlugin()` 22.7.0 or newer. Without one the build only counts the services: it reads neither their API nor their `setup`, so none of their messages appear, leaves them out of the manifest, runs no `onServiceScanned` and prints [a hint](api/build-warnings.md#no-plugin-shows-services). See [the gate](architecture/pipeline.md#_3-services-and-pipes-gate). The build reads `placement` and `appliesTo` from the panels of the plugin's Node entry, so a plugin with a separate browser entry declares both in both entries.
+The hook only runs while some plugin has a view panel whose `appliesTo` includes `'service'`; otherwise the build only counts the services, without reading their API or `setup` (so none of their messages appear), leaves them out of the manifest and prints [a hint](api/build-warnings.md#no-plugin-shows-services), see [Services and Pipes Gate](architecture/pipeline.md#_3-services-and-pipes-gate).
 
 ### `onPipeScanned`
 
@@ -70,7 +70,7 @@ onPipeScanned?: (pipe: ScannedPipe) => ScannedPipe | void | Promise<ScannedPipe 
 
 Called once per [pipe](guide/services-and-pipes.md#pipes) with `@Showcase` (since 22.7.0), with its [`ScannedPipe`](api/types.md#scannedpipe). Its `api.transform` has one entry per overload signature of `transform`, experimental. A pipe never reaches `onComponentScanned` or `onServiceScanned` and is not in `PrismManifest.components`: the manifest lists it in `pipes`.
 
-The hook only runs when a plugin shows pipes, decided apart from services: a view panel whose `appliesTo` includes `'pipe'`. A panel for services alone does not keep the pipes. Without one the build only counts the pipes, reads neither their API, their `setup` nor their `@Pipe` metadata, leaves them out of the manifest and prints [a hint](api/build-warnings.md#no-plugin-shows-pipes). As for services, a plugin with a browser entry declares `placement` and `appliesTo` in both entries.
+The hook only runs while some plugin has a view panel whose `appliesTo` includes `'pipe'`, decided apart from services; otherwise the build only counts the pipes, without reading their API, `setup` or `@Pipe` metadata, leaves them out of the manifest and prints [a hint](api/build-warnings.md#no-plugin-shows-pipes), see [Services and Pipes Gate](architecture/pipeline.md#_3-services-and-pipes-gate).
 
 ### `onPageScanned`
 
@@ -110,11 +110,11 @@ The build reads the flag from the plugin's Node entry; a browser entry needs no 
 
 ### `headerWidgets`
 
-`HeaderWidgetDefinition[]`. Components in the styleguide header for library-wide figures such as total coverage, see [`HeaderWidgetDefinition`](#headerwidgetdefinition). A widget usually shows a value the plugin's `onManifestReady` wrote into `manifest.meta`, drawn with the [metric badge](api/plugin-ui.md#metric-badge).
+`HeaderWidgetDefinition[]`. Components in the styleguide header for library-wide figures such as total coverage, see [`HeaderWidgetDefinition`](#headerwidgetdefinition). A widget usually shows a value the plugin's `onManifestReady` wrote into `manifest.meta`, drawn with the [metric badge](api/plugin-ui.md#metric-badge). Registering one is shown in [Writing a Plugin](plugins/writing-plugins.md#add-a-header-widget).
 
 ### `navigationDecorations`
 
-`NavigationDecorationDefinition[]`. A marker on the sidebar entry of each component, for health signals that should be visible while browsing. Services, pipes and pages get none: `badge` is never called for them. The core's a11y marker and the markers of the coverage and visual regression plugins use the same extension point. See [`NavigationDecorationDefinition`](#navigationdecorationdefinition) and [Example: a complete navigation decoration plugin](#example-a-complete-navigation-decoration-plugin).
+`NavigationDecorationDefinition[]`. A marker on the sidebar entry of each component, for health signals that should be visible while browsing. Services, pipes and pages get none: `badge` is never called for them. The core's a11y marker and the markers of the coverage and visual regression plugins use the same extension point. See [`NavigationDecorationDefinition`](#navigationdecorationdefinition), and a complete example in [Writing a Plugin](plugins/writing-plugins.md#decorate-the-navigation).
 
 ### `wrapComponent`
 
@@ -165,7 +165,7 @@ interface PanelDefinition {
 
 An addon panel receives one input, `activeComponent` (`RuntimeComponent | null`). A view panel receives the inputs of the targets it names in `appliesTo`, see the table below, and `activePart` when it lists parts. A panel receives no other input, so it only declares the ones it asked for.
 
-> **Note:** Prefer `loadComponent` over `component`. The builder loads the config, and every plugin it imports, in Node.js, so a static import of a component that uses `DomSanitizer` or a browser global at import time breaks the build. See [Writing a Plugin](plugins/writing-plugins.md).
+> **Note:** Prefer `loadComponent` over `component`. The builder loads the config, and every plugin it imports, in Node.js, so a static import of a component that uses `DomSanitizer` or a browser global at import time breaks the build. See [Writing a Plugin](plugins/writing-plugins.md#node-and-browser-entry-points).
 
 ### Panels on service and pipe pages
 
@@ -185,7 +185,7 @@ An addon panel (`placement: 'addon'`, the default) only ever appears below the c
 - **Only the inputs of the named targets.** A panel only receives the inputs of the targets it names, so a component panel never logs a warning about an input it does not declare.
 - **`placement: 'view'`** is what a service or pipe page shows: its view switch, without Playground or Overview. A panel for services or pipes with `placement: 'addon'` has no area on those pages and never shows. A component view that is still selected when the reader opens a service or a pipe is not drawn there.
 - **`isVisible` and `badge`** take a component and are only called on component pages. A service or pipe page offers every panel that applies to it.
-- **The build reads this field, once per kind.** A service is read and goes into the manifest only when some plugin has a view panel that applies to services, and a pipe only when one applies to pipes, see [`onServiceScanned`](#onservicescanned) and [`onPipeScanned`](#onpipescanned). `jsDocPlugin()` 22.7.0 or newer has a panel that does both.
+- **The build reads this field.** Services and pipes only go into the manifest while some plugin has a view panel that applies to them, see [Services and Pipes Gate](architecture/pipeline.md#_3-services-and-pipes-gate).
 
 ```typescript
 panels: [
@@ -352,122 +352,3 @@ interface NavigationDecoration {
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `variant` | **Required.** Colour role. Only these two exist, see the rule "return `null` for anything healthy" above                                                                                |
 | `label`   | **Required.** One tooltip line for this source, such as `'A11y: 2 critical, 1 serious'`. The labels of several sources on one component join with a newline in the tooltip of the entry |
-
----
-
-## Example: a complete navigation decoration plugin
-
-A self-contained plugin that flags components with open `// TODO` comments. It follows the same three-file split every shipped plugin with a build-time hook uses. This example mirrors `packages/plugin-coverage/src/coverage-plugin.ts`, `coverage-plugin.browser.ts` and `coverage-contributions.ts`.
-
-The split exists because the generated Prism app imports the config directly (see the schematic that wires it in, `packages/ng-prism/src/schematics/ng-add/index.ts`), so the config module and every plugin it imports also land in the browser bundle, in addition to the Node.js process that runs the builder. A plugin file with a top-level `import { readFileSync } from 'node:fs'` crashes as soon as that bundle loads it, even though `onComponentScanned` never runs in the browser.
-
-Three files close that gap:
-
-- **`todo-marker-contributions.ts`**: no `node:` imports, no Angular. Declares the `navigationDecorations` entry once, so both entries below share the exact same `badge()` and can't drift apart.
-- **`todo-marker-plugin.ts`**: the **Node entry**, resolved when the builder loads the config. Carries `onComponentScanned`. Still no _static_ `node:` import: `readFileSync` is loaded with a dynamic `import()` inside the hook, the same shape `coverage-plugin.ts` uses to load `coverage-reader.js`. A dynamic import only executes when the hook actually runs, which is never in a browser bundle.
-- **`todo-marker-plugin.browser.ts`**: the **browser entry**, resolved when the Prism app itself loads the config. No build-time hooks at all, only the runtime contribution, reading back whatever the Node entry already wrote to `meta` during the last build.
-
-```typescript
-// todo-marker-contributions.ts: shared by both entries, dependency-free
-import type { NavigationDecorationDefinition, RuntimeComponent } from '@ng-prism/core/plugin';
-
-export interface TodoSummary {
-    variant: 'warn' | 'danger';
-    label: string;
-}
-
-export interface TodoMeta {
-    count: number;
-    /** Pre-derived verdict, written by the build-time hook in todo-marker-plugin.ts. */
-    summary?: TodoSummary;
-}
-
-function todoMeta(component: RuntimeComponent): TodoMeta | undefined {
-    return component.meta.showcaseConfig.meta?.['todo'] as TodoMeta | undefined;
-}
-
-export const TODO_NAVIGATION_DECORATION: NavigationDecorationDefinition = {
-    id: 'todo',
-    icon: 'file-text',
-    order: 40,
-    badge: (component) => {
-        const todo = todoMeta(component);
-        return todo?.summary ? { variant: todo.summary.variant, label: todo.summary.label } : null;
-    }
-};
-```
-
-```typescript
-// todo-marker-plugin.ts: Node entry, loaded by the builder
-import type { NgPrismPlugin } from '@ng-prism/core/plugin';
-import { TODO_NAVIGATION_DECORATION, type TodoMeta } from './todo-marker-contributions.js';
-
-export function todoMarkerPlugin(): NgPrismPlugin {
-    return {
-        name: '@my-org/plugin-todo-marker',
-
-        // Build time only: count `// TODO` markers and decide the verdict once,
-        // here and not in `badge()`, which never sees more than one component and
-        // cannot know what "too many" means for the library as a whole.
-        async onComponentScanned(component) {
-            const { readFileSync } = await import('node:fs');
-            const source = readFileSync(component.filePath, 'utf-8');
-            const count = (source.match(/\/\/\s*TODO/g) ?? []).length;
-
-            const todo: TodoMeta = {
-                count,
-                ...(count > 0
-                    ? {
-                          summary: {
-                              variant: count >= 5 ? 'danger' : 'warn',
-                              label: `${count} open TODO${count === 1 ? '' : 's'}`
-                          }
-                      }
-                    : {})
-            };
-
-            return {
-                ...component,
-                showcaseConfig: {
-                    ...component.showcaseConfig,
-                    meta: { ...component.showcaseConfig.meta, todo }
-                }
-            };
-        },
-
-        navigationDecorations: [TODO_NAVIGATION_DECORATION]
-    };
-}
-```
-
-```typescript
-// todo-marker-plugin.browser.ts: browser entry, loaded by the Prism app itself
-import type { NgPrismPlugin } from '@ng-prism/core/plugin';
-import { TODO_NAVIGATION_DECORATION } from './todo-marker-contributions.js';
-
-export function todoMarkerPlugin(): NgPrismPlugin {
-    return {
-        name: '@my-org/plugin-todo-marker',
-        // Runtime only: read the pre-derived verdict back. No file access, no
-        // computation, no build-time hooks. Just the shared contribution.
-        navigationDecorations: [TODO_NAVIGATION_DECORATION]
-    };
-}
-```
-
-The two entries are the same exported function name in two files; a `"browser"` export condition in `package.json` picks between them so consumers write one import and get whichever twin fits where their bundle runs:
-
-```json
-{
-    "exports": {
-        ".": {
-            "types": "./dist/index.d.ts",
-            "browser": "./dist/index.browser.js",
-            "import": "./dist/index.js",
-            "default": "./dist/index.js"
-        }
-    }
-}
-```
-
-`packages/plugin-coverage/package.json` and `packages/plugin-visual-regression/package.json` carry the shipped version of this map: each `index.ts` re-exports the Node entry, each `index.browser.ts` re-exports the browser entry. See [Plugin Hooks](architecture/plugin-hooks.md#navigation-decorations) for why the threshold decision has to live in the Node entry's hook and never in `badge()`.

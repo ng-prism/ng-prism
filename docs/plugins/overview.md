@@ -4,15 +4,7 @@ Plugins extend ng-prism with additional panels, controls, and build-time data ex
 
 ## What Plugins Can Do
 
-| Capability           | Description                                                                                 |
-| -------------------- | ------------------------------------------------------------------------------------------- |
-| `panels`             | Add new tabs to the addon panel area or the view toolbar                                    |
-| `controls`           | Register custom input controls for specific TypeScript types                                |
-| `onComponentScanned` | Enrich `ScannedComponent` data at build time (e.g. extract JSDoc, inject external metadata) |
-| `onServiceScanned`   | Enrich `ScannedService` data at build time, for [services](guide/showcasing-services.md)    |
-| `onPipeScanned`      | Enrich `ScannedPipe` data at build time, for [pipes](guide/showcasing-pipes.md)             |
-| `onPageScanned`      | Enrich `StyleguidePage` data at build time                                                  |
-| `onManifestReady`    | Transform the final manifest before it is written to disk                                   |
+A plugin adds tabs below the canvas or views next to the Playground, input controls of its own, figures in the header and markers in the sidebar, and it can read or add data while the styleguide is built. What each part of a plugin does is listed under [Writing a Plugin](plugins/writing-plugins.md#create-the-factory).
 
 ## Installing Plugins
 

@@ -316,7 +316,7 @@ Relative paths resolve against `workspaceRoot`. If you set this option, also upd
 - **The canvas toolbar is no longer a band.** It used to occupy a fixed-height strip between the variant ribbon and the canvas stage; it is now a floating rail (`.prism-toolrail`) absolutely positioned inside `.prism-canvas-wrap`, plus a popover menu for the background and zoom choosers. See [Theming: Measurement and Stage Tokens](guide/theming.md#measurement-and-stage-tokens) for the recommendation marker's replacement (a tinted border instead of a star).
 - **The gauge readout in the component head shows three values instead of five:** coverage, a11y score and VRT diff. The variant count moved to the details popover behind the ⓘ glyph, next to the selector and the tags, because it is a property of the component and has no threshold. The bundle-size figure was dropped: `bundleSize()` read `gzipKb`/`sizeKb` while `@ng-prism/plugin-perf` writes `sourceSize`/`gzipEstimate`, so the value was always `null`.
 
-None of this affects `ShowcaseConfig`, the manifest format, or any plugin's public API. See [`PrismMetricBadgeComponent` and `PrismIconComponent`](plugins/writing-plugins.md#header-and-panel-widgets) if you are building a header widget and want the same building blocks the built-in gauge uses.
+None of this affects `ShowcaseConfig`, the manifest format, or any plugin's public API. See [`PrismMetricBadgeComponent` and `PrismIconComponent`](api/plugin-ui.md#metric-badge) if you are building a header widget and want the same building blocks the built-in gauge uses.
 
 ## Breaking changes and deprecations in 22.7.0
 
@@ -453,7 +453,7 @@ badge: (c) => (open(c) ? { text: String(open(c)), variant: 'danger' } : null);
 badge: (c) => (open(c) ? { kind: 'issues', text: String(open(c)), tone: 'danger', label: `${open(c)} to review` } : null);
 ```
 
-Grade a figure with `statusFor()` and `thresholdFromTarget()` from `@ng-prism/core/plugin`, so a plugin's verdict matches the header, the sidebar and the built-in panels. The UI primitives the built-in panels use are exported from `@ng-prism/core`, see [Writing a Plugin: Panel Guidelines](plugins/writing-plugins.md#panel-guidelines).
+Grade a figure with `statusFor()` and `thresholdFromTarget()` from `@ng-prism/core/plugin`, so a plugin's verdict matches the header, the sidebar and the built-in panels. The UI primitives the built-in panels use are exported from `@ng-prism/core`, see [Panel Design](plugins/panel-design.md#principles).
 
 ## Related
 
