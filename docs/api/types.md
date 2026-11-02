@@ -1,64 +1,37 @@
 # Types
 
-All types exported from `ng-prism` or `ng-prism/plugin`.
+The types of `@ng-prism/core` and `@ng-prism/core/plugin`, one section per type. The decorator types are exported from `@ng-prism/core`. The manifest, API, discovery and plugin types are exported from `@ng-prism/core/plugin`, and from `@ng-prism/core` as well. Each group below says where its types come from, and a type that differs says so itself.
 
----
+The fields of `ShowcaseConfig` are in [ShowcaseConfig](api/showcase-config.md), those of `NgPrismConfig` in [NgPrismConfig](api/ng-prism-config.md), and the plugin interfaces (`NgPrismPlugin`, `PanelDefinition`, `PanelBadge`, `ControlDefinition`, `HeaderWidgetDefinition`, `NavigationDecorationDefinition`, `NavigationDecoration`) in [NgPrismPlugin](api/ng-prism-plugin.md).
 
-## RuntimeManifest
+## Manifest and scan
 
-The in-memory manifest produced after the builder scan and loaded at app bootstrap.
+What the builder scans and writes, and what the styleguide app runs on. `PrismManifest` is the build-time manifest the plugin hooks see; `RuntimeManifest` is the one the app bootstraps with. Where the manifest is written is described in [Build Pipeline](architecture/pipeline.md). Exported from `@ng-prism/core/plugin` and `@ng-prism/core`.
+
+### `PrismManifest`
+
+The build-time manifest: what the scan found, after the plugin hooks. Plain JSON data, no class references. `onManifestReady` receives it, and the builder writes the runtime manifest from it.
 
 ```typescript
-interface RuntimeManifest {
-    components: RuntimeComponent[];
-    services?: RuntimeService[];
-    pipes?: RuntimePipe[];
+interface PrismManifest {
+    components: ScannedComponent[];
+    services?: ScannedService[];
+    pipes?: ScannedPipe[];
     pages?: StyleguidePage[];
+    meta?: Record<string, unknown>;
 }
 ```
 
-`services` and `pipes` are only present when the library has [services](guide/showcasing-services.md) or [pipes](guide/showcasing-pipes.md) and a plugin shows them. Neither is ever part of `components`. Before 22.7.0 a showcased service or pipe was listed in `components` as a component; code that walks `components` no longer sees it, see [Breaking changes and deprecations in 22.7.0](guide/migration-v22.md#breaking-changes-and-deprecations-in-2270).
+| Field               | Description                                                                                                                                                                                                                                                                   |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `components`        | Every showcased component and directive. A [part](api/showcase-config.md#partof) is not in the list: it sits in the [`parts`](#scannedcomponent) of its parent                                                                                                                |
+| `services`, `pipes` | Only present when a plugin shows services or pipes, see [`onServiceScanned`](api/ng-prism-plugin.md#onservicescanned) and [`onPipeScanned`](api/ng-prism-plugin.md#onpipescanned). A service or a pipe is never in `components`                                               |
+| `pages`             | The `pages` of the config, after [`onPageScanned`](api/ng-prism-plugin.md#onpagescanned)                                                                                                                                                                                      |
+| `meta`              | Library-wide plugin metadata, such as aggregate coverage totals. When there is an a11y report, the build adds `meta.a11y` after the plugin hooks: the report's `total` and the thresholds it is graded against, see [A11y Reports](guide/a11y-reports.md#what-the-build-adds) |
 
----
+### `ScannedComponent`
 
-## RuntimeComponent
-
-A single entry in the runtime manifest, combining scan metadata with the actual Angular class reference.
-
-```typescript
-interface RuntimeComponent {
-    meta: ScannedComponent;
-    type: Type<unknown>;
-    composition?: Type<unknown>;
-    parts?: RuntimePart[];
-}
-```
-
-`composition` (since `22.7.0`) is the generated wrapper that renders the [compositions](#componentcomposition) of the showcase. The renderer sets its `__prismVariant__` input to the index of the variant and binds the inputs of the subject through the member names of the wrapper. It is only there when `meta.composition` is. When every variant is composed, `type` is the wrapper too. A variant without a composition renders `type` as before.
-
-`parts` (since `22.7.0`) are the components whose [`partOf`](api/showcase-config.md#partof) names this one, sorted by title, see [`RuntimePart`](#runtimepart). It is missing for a component without parts. **Experimental**
-
----
-
-## RuntimePart
-
-> **Experimental until 23.0.0: the shape may change in a 22.x minor release.** This covers `RuntimePart` and `RuntimeComponent.parts`.
-
-A part of a component or directive in the runtime manifest (since `22.7.0`): a showcase with [`partOf`](api/showcase-config.md#partof), which the styleguide shows on the page of its parent and never on a page of its own.
-
-```typescript
-interface RuntimePart {
-    meta: ScannedComponent;
-}
-```
-
-A part has `meta` and nothing else. It has no `type`, because the variants of the parent render it, and the manifest does not import its class, so a part costs no bundle size. The exception is a class that a [composition](#componentcomposition) of the parent names in its `imports`: that one is imported for the wrapper, as any class a template uses. A part is no longer in `RuntimeManifest.components`, so code that walks that list, such as a plugin or an external tool, does not see it as a component without variants.
-
----
-
-## ScannedComponent
-
-The raw data extracted from a `@Showcase`-annotated component by the TypeScript Compiler API scanner.
+What the scanner extracts from a component or directive with `@Showcase`. Plugins receive it in [`onComponentScanned`](api/ng-prism-plugin.md#oncomponentscanned).
 
 ```typescript
 interface ScannedComponent {
@@ -82,79 +55,123 @@ interface ScannedComponent {
 }
 ```
 
-| Field                       | Description                                                                                                                                                                                                                                                                                                                                                                                   |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `className`                 | TypeScript class name                                                                                                                                                                                                                                                                                                                                                                         |
-| `filePath`                  | Absolute path to the source file                                                                                                                                                                                                                                                                                                                                                              |
-| `showcaseConfig`            | The `ShowcaseConfig` passed to `@Showcase`                                                                                                                                                                                                                                                                                                                                                    |
-| `inputs`                    | Array of extracted `InputMeta` for each `input()` signal, base classes included                                                                                                                                                                                                                                                                                                               |
-| `outputs`                   | Array of extracted `OutputMeta` for each `output()` signal, base classes included                                                                                                                                                                                                                                                                                                             |
-| `componentMeta.selector`    | Angular element selector                                                                                                                                                                                                                                                                                                                                                                      |
-| `componentMeta.standalone`  | Whether the component is standalone                                                                                                                                                                                                                                                                                                                                                           |
-| `componentMeta.isDirective` | `true` if decorated with `@Directive`, `false` for `@Component`                                                                                                                                                                                                                                                                                                                               |
-| `importPath`                | Import path of the entry point that exports the component (e.g. `'my-lib'` or `'my-lib/atoms'`). The scanner sets it for every entry point it scans, the primary one included                                                                                                                                                                                                                 |
-| `baseClasses`               | Base classes with source the component extends, nearest first. Build time only, not in the manifest                                                                                                                                                                                                                                                                                           |
-| `api`                       | What the API page needs beyond `inputs` and `outputs`, see [`ComponentApi`](#componentapi) (since `22.7.0`). Only read when a plugin sets [`componentApi`](api/ng-prism-plugin.md#componentapi), missing otherwise and when a plugin hook builds the component. **Experimental**                                                                                                              |
-| `composition`               | What the variants render when they have a `template` or a host template, see [`ComponentComposition`](#componentcomposition) (since `22.7.0`). Missing when no variant is composed and when a plugin hook builds the component. **Experimental**                                                                                                                                              |
-| `parentClassName`           | The class name of the component or directive this one is a part of, set when the selector in `showcaseConfig.partOf` resolved to exactly one other showcased class (since `22.7.0`). A plugin that works per page skips a component that has it. Missing for a component that is not a part, and for one whose `partOf` did not resolve, which stays a component of its own. **Experimental** |
-| `parts`                     | The parts of the component, sorted by title (since `22.7.0`). Build time only: `onManifestReady` gets the parts here and not in `manifest.components`, and the runtime manifest carries them as [`RuntimeComponent.parts`](#runtimecomponent). `onComponentScanned` runs before the parts are nested and sees each as a component of its own. **Experimental**                                |
-| `meta`                      | Plugin-injected metadata                                                                                                                                                                                                                                                                                                                                                                      |
+| Field                       | Description                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `className`                 | TypeScript class name                                                                                                                                                                                                                                                                                                                                                                       |
+| `filePath`                  | Absolute path to the source file                                                                                                                                                                                                                                                                                                                                                            |
+| `showcaseConfig`            | The [`ShowcaseConfig`](api/showcase-config.md) passed to `@Showcase`, as the scan read it                                                                                                                                                                                                                                                                                                   |
+| `inputs`                    | One [`InputMeta`](#inputmeta) per input (`input()`, `model()` or `@Input()`), base classes included                                                                                                                                                                                                                                                                                         |
+| `outputs`                   | One [`OutputMeta`](#outputmeta) per output (`output()` or `@Output()`), base classes included                                                                                                                                                                                                                                                                                               |
+| `componentMeta.selector`    | The selector, as `@Component` or `@Directive` declares it                                                                                                                                                                                                                                                                                                                                   |
+| `componentMeta.standalone`  | Whether the class is standalone                                                                                                                                                                                                                                                                                                                                                             |
+| `componentMeta.isDirective` | `true` if decorated with `@Directive`, `false` for `@Component`                                                                                                                                                                                                                                                                                                                             |
+| `importPath`                | Import path of the entry point that exports the class (e.g. `'my-lib'` or `'my-lib/atoms'`). The scanner sets it for every entry point it scans, the primary one included                                                                                                                                                                                                                   |
+| `baseClasses`               | Base classes with source that the class extends, nearest first. Build time only, not in the manifest                                                                                                                                                                                                                                                                                        |
+| `api`                       | What the API page needs beyond `inputs` and `outputs`, see [`ComponentApi`](#componentapi) (since 22.7.0). Only read when a plugin sets [`componentApi`](api/ng-prism-plugin.md#componentapi), missing otherwise and when a plugin hook builds the component. **Experimental**                                                                                                              |
+| `composition`               | What the variants render when they have a `template` or a host template, see [`ComponentComposition`](#componentcomposition) (since 22.7.0). Missing when no variant is composed and when a plugin hook builds the component. **Experimental**                                                                                                                                              |
+| `parentClassName`           | The class name of the component or directive this one is a part of, set when the selector in `showcaseConfig.partOf` resolved to exactly one other showcased class (since 22.7.0). A plugin that works per page skips a component that has it. Missing for a component that is not a part, and for one whose `partOf` did not resolve, which stays a component of its own. **Experimental** |
+| `parts`                     | The parts of the class, sorted by title (since 22.7.0). Build time only: `onManifestReady` gets the parts here and not in `manifest.components`, and the runtime manifest carries them as [`RuntimeComponent.parts`](#runtimecomponent). `onComponentScanned` runs before the parts are nested and sees each as a component of its own. **Experimental**                                    |
+| `meta`                      | Plugin-injected metadata                                                                                                                                                                                                                                                                                                                                                                    |
 
-The runtime manifest carries every field of `ScannedComponent` except `baseClasses`, `parentClassName` and `parts`. `baseClasses` stays build-time only. A part sits under its parent in [`RuntimeComponent.parts`](#runtimecomponent), next to the `meta` of the parent rather than inside it, which makes `parentClassName` redundant. Since `22.7.0` the manifest carries `importPath` and `api`, `api` only when a plugin in the config sets `componentApi`: an older core wrote neither, and the page of a plugin has to cope with a manifest that lacks them. `composition` is carried too, with its `imports` and without the `origin` of each case, which only the generated code uses.
+The runtime manifest carries every field except `baseClasses`, `parentClassName` and `parts`. A part sits under its parent in [`RuntimeComponent.parts`](#runtimecomponent), next to the `meta` of the parent rather than inside it, which makes `parentClassName` redundant. `composition` is carried with its `imports` and without the `origin` of each case, which only the generated code uses. `importPath` and `api` are in the runtime manifest since 22.7.0, `api` only when a plugin in the config sets `componentApi`, so the page of a plugin treats both as optional.
 
 The scan reads `composition` before the plugin hooks run. A hook that changes `showcaseConfig.variants[].template`, a host template or `imports` afterwards does not change what renders.
 
-`className`, `filePath`, `showcaseConfig`, `inputs`, `outputs`, `componentMeta`, `importPath` and `meta` follow semver as they are. The shape of `api` does not, see below, and neither does the shape of `composition`, see [`ComponentComposition`](#componentcomposition).
+`className`, `filePath`, `showcaseConfig`, `inputs`, `outputs`, `componentMeta`, `importPath` and `meta` follow semver as they are. The shapes of `api` and `composition` do not, see [`ComponentApi`](#componentapi) and [`ComponentComposition`](#componentcomposition).
 
----
+### `InputMeta`
 
-## ComponentApi
-
-> **Experimental until 23.0.0: the shape may change in a 22.x minor release.** This covers `ComponentApi`, which is `ScannedComponent.api`. The `Api*` types it uses are the ones of [`ServiceApi`](#serviceapi) and share its status.
-
-What the API page of a component or directive needs beyond `inputs` and `outputs`, as the scanner extracts it for every component and directive (since `22.7.0`) when a plugin in the config sets [`componentApi`](api/ng-prism-plugin.md#componentapi). The JSDoc plugin draws the API tab from it, see [Components and Directives](plugins/jsdoc.md#components-and-directives). It shares `ApiDocTags`, `ApiTypeRef`, `ApiMethod` and `ApiTypeDoc` with `ServiceApi`, shown there.
+One input of a component or directive, as the scanner reads it: a signal input (`input()`, `input.required()`, `model()`) or an `@Input()`.
 
 ```typescript
-interface ComponentApi {
-    description?: string;
-    tags: ApiDocTags;
-    inputTypes: Record<string, ApiTypeRef>; // by member name
-    outputTypes: Record<string, ApiTypeRef>; // by member name
-    modelChanges: { input: string; event: string; type: ApiTypeRef }[];
-    methods: ApiMethod[];
-    types: ApiTypeDoc[];
+interface InputMeta {
+    name: string;
+    alias?: string;
+    type: 'string' | 'number' | 'boolean' | 'union' | 'array' | 'object' | 'unknown';
+    rawType?: string;
+    values?: string[];
+    defaultValue?: unknown;
+    defaultUnreadable?: true;
+    required: boolean;
+    doc?: string;
+    model?: true;
 }
 ```
 
-| Field          | Description                                                                                                                                                                                                                                                                                                            |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `description`  | The class's own description as Markdown, with `{@link}` kept as written. Missing without one                                                                                                                                                                                                                           |
-| `tags`         | The tags of the class doc block: `deprecated`, `since`, `version`, `see` and `example`                                                                                                                                                                                                                                 |
-| `inputTypes`   | The type of each input by member name (`InputMeta.name`, not the alias), as written in `input<T>()`, `model<T>()` or the annotation, else as the compiler infers it, with `links` to the cards. An input a generic base class declares in terms of its type parameters has the type the component instantiates it with |
-| `outputTypes`  | The payload of each output by member name: the type argument of `output<T>()`, `EventEmitter<T>` or the annotation, `void` for an `output()` without one                                                                                                                                                               |
-| `modelChanges` | One entry per `model()` input: `input` is its member name, `event` the change output Angular adds for it (`${alias ?? name}Change`) and `type` the type of the model. `ScannedComponent.outputs` has no entry for it                                                                                                   |
-| `methods`      | The public methods that have a doc block of their own or an inherited one, with signatures from the code: one entry per overload signature, so a name can repeat. The rules of what is left out are those of a service, see [Showcasing Services](guide/showcasing-services.md#members)                                |
-| `types`        | The documented types that the inputs, outputs and methods reach, recursively. A type is documented when any scanned entry point exports it and it is not `@internal`. An `id` is unique within this list                                                                                                               |
+| Field               | Description                                                                                                                                                                                                                  |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`              | The class member; variants and controls use it                                                                                                                                                                               |
+| `alias`             | The public name from `alias` (or `@Input('x')`), when it differs from `name`                                                                                                                                                 |
+| `type`              | The type category that selects a control, see [Inputs & Controls](guide/inputs-and-controls.md#input-types-and-controls)                                                                                                     |
+| `rawType`           | The TypeScript type as text (e.g. `'primary' \| 'danger'`)                                                                                                                                                                   |
+| `values`            | For a union of literals: the individual member values                                                                                                                                                                        |
+| `defaultValue`      | The initial value, such as the argument of `input(defaultValue)`                                                                                                                                                             |
+| `defaultUnreadable` | `true` when the input starts out with a value the scan could not evaluate, such as the result of a function call (since 22.7.0). `defaultValue` is missing then. Not set for `input<string>()`, which starts out `undefined` |
+| `required`          | `true` for a required input: `input.required()`, `model.required()` or `@Input({ required: true })`                                                                                                                          |
+| `doc`               | The JSDoc comment of the property, as written: `{@link X \| text}` keeps its bar (since 22.7.0), so a reader can tell the target from the text                                                                               |
+| `model`             | `true` for a `model()` or `model.required()` (since 22.7.0). Angular adds the output `${alias ?? name}Change` for it, which `ScannedComponent.outputs` does not list, since no class member declares it                      |
 
-The other `ScannedComponent` fields, `InputMeta`, `OutputMeta` and the plugin data `showcaseConfig.meta.jsdoc` stay as they were: `api` only adds. A component in a build without a plugin that sets `componentApi`, one whose API the scan could not read, one built by a plugin hook, or one read from the manifest of an older core has no `api`, and a reader falls back to `inputs` and `outputs`.
+`defaultUnreadable` is what tells a composition to leave an input alone. The wrapper of a [composed variant](#componentcomposition) does not bind an input with an unreadable default unless the variant sets it, because binding `undefined` would replace the default the subject has. In a variant that does not set it, its control reads `Not editable` with the reason "Its default is unknown to ng-prism".
 
----
+### `OutputMeta`
 
-## RuntimeService
-
-A single service in the runtime manifest. It carries data only: the service class is never imported into the styleguide, since the page is documentation and an import would only add bundle size and side effects.
+One output of a component or directive: an `output()` or an `@Output()`.
 
 ```typescript
-interface RuntimeService {
-    meta: ScannedService;
+interface OutputMeta {
+    name: string;
+    alias?: string;
+    doc?: string;
 }
 ```
 
----
+`alias` is the public event name from `output({ alias })` or `@Output('x')`, when it differs from `name`. `doc` is the JSDoc comment of the property, read like [`InputMeta.doc`](#inputmeta).
 
-## ScannedService
+### `ComponentComposition`
 
-The data the scanner extracts from a `@Showcase`-annotated class with `@Injectable` or `@Service` (since `22.7.0`), see [Showcasing Services](guide/showcasing-services.md). Plugins receive it in [`onServiceScanned`](api/ng-prism-plugin.md#onservicescanned).
+> **Experimental until 23.0.0: the shape may change in a 22.x minor release.** This covers `ComponentComposition`, which is `ScannedComponent.composition`, and [`CompositionCase`](#compositioncase).
+
+What the variants of a showcase render when they have a `template` or a host template (since 22.7.0): the distinct compositions, and which one each variant uses. It is `ScannedComponent.composition`, and the runtime manifest carries it next to the generated wrapper in [`RuntimeComponent.composition`](#runtimecomponent).
+
+```typescript
+interface ComponentComposition {
+    variantCases: number[];
+    cases: CompositionCase[];
+    imports?: ShowcaseImport[];
+}
+```
+
+| Field          | Description                                                                                                                                                                                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `variantCases` | One entry per variant, or one for a showcase without variants, which renders as one implicit variant. Each is the index into `cases`, or `-1` for a variant without a composition, which renders the class itself                                                                    |
+| `cases`        | One entry per distinct composition. Variants with the same markup and the same unbound inputs share one                                                                                                                                                                              |
+| `imports`      | Every class the generated wrapper imports besides the subject: the library classes the templates use, the showcase's `imports` and the class of a directive's object host. Set by the scan and carried in the runtime manifest, so that a usage example in the browser can name them |
+
+See [Compositions](guide/compositions.md) for how a composition is written and what the canvas shows.
+
+### `CompositionCase`
+
+One distinct composition of a showcase: the markup of one or more variants as the generated wrapper renders it (since 22.7.0). **Experimental**, like [`ComponentComposition`](#componentcomposition).
+
+```typescript
+interface CompositionCase {
+    template: string;
+    unbound: { name: string; reason: 'template' | 'default' }[];
+    origin?: string;
+}
+```
+
+| Field      | Description                                                                                                                                                                                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `template` | The markup as written, the subject element included, with `COMPOSITION_SUBJECT_SLOT` at the end of the start tag of the subject. The code snippet replaces the slot with the current attributes, the generated wrapper with the bindings                |
+| `unbound`  | The inputs of the subject that the wrapper does not bind in this case, by member name. `'template'`: the template sets the input itself. `'default'`: its default could not be read and the variant does not set it. Controls show them as not editable |
+| `origin`   | Where the case comes from, as the variants and `file:line`. Set at build time for the comments and errors of the generated code, not in the runtime manifest                                                                                            |
+
+A plugin that shows the markup of a variant, such as a snippet or a usage example, replaces the slot with the attributes of its choice. The `unbound` list is what the Controls panel and the snippet read: an input in it is neither bound nor written. The constants that name what ng-prism puts into a composition and takes out of it (`COMPOSITION_SUBJECT_SLOT`, `COMPOSITION_SUBJECT_ATTR`, `SUBJECT_MARKER_ATTR`, `PRISM_VARIANT_INPUT`) share the experimental status and are described in [Plugin UI Kit](api/plugin-ui.md#constants-and-helpers).
+
+### `ScannedService`
+
+What the scanner extracts from a class with `@Showcase` and `@Injectable` or `@Service` (since 22.7.0), see [Services & Pipes](guide/services-and-pipes.md#services). Plugins receive it in [`onServiceScanned`](api/ng-prism-plugin.md#onservicescanned).
 
 ```typescript
 interface ScannedService {
@@ -166,129 +183,33 @@ interface ScannedService {
     api: ServiceApi;
     meta?: Record<string, unknown>;
 }
+```
 
+| Field            | Description                                                                                                                                                                                                                                                                |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `className`      | TypeScript class name. It is what `?service=` addresses                                                                                                                                                                                                                    |
+| `filePath`       | Absolute path to the source file. Build time use                                                                                                                                                                                                                           |
+| `importPath`     | Import path of the entry point that exports the service. Missing when the scanner could not place it                                                                                                                                                                       |
+| `showcaseConfig` | The `@Showcase` argument, reduced to the [fields that apply to services](api/showcase-config.md#services-and-pipes): `title`, `description`, `category`, `categoryOrder`, `componentOrder`, `section`, `sectionOrder`, `tags`, `meta`, `status`. `setup` is in `api.setup` |
+| `provision`      | How the service reaches the injector, see [`ServiceProvision`](#serviceprovision)                                                                                                                                                                                          |
+| `api`            | The extracted API, see [`ServiceApi`](#serviceapi). **Experimental**                                                                                                                                                                                                       |
+| `meta`           | Plugin-injected metadata                                                                                                                                                                                                                                                   |
+
+`className`, `filePath`, `importPath`, `showcaseConfig`, `provision` and `meta` follow semver as they are. The shape of `api` does not, see [API model](#api-model).
+
+### `ServiceProvision`
+
+How a service reaches the injector (since 22.7.0).
+
+```typescript
 type ServiceProvision = 'auto' | 'manual';
 ```
 
-| Field            | Description                                                                                                                                                                                                                   |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `className`      | TypeScript class name. It is what `?service=` addresses                                                                                                                                                                       |
-| `filePath`       | Absolute path to the source file. Build time use                                                                                                                                                                              |
-| `importPath`     | Import path of the entry point that exports the service. Missing when the scanner could not place it                                                                                                                          |
-| `showcaseConfig` | The `@Showcase` argument, reduced to the fields that apply to services: `title`, `description`, `category`, `categoryOrder`, `componentOrder`, `section`, `sectionOrder`, `tags`, `meta`, `status`. `setup` is in `api.setup` |
-| `provision`      | `'auto'` when Angular provides the service on its own (`@Service()`, `providedIn: 'root'`, `'platform'` or `'any'`), `'manual'` when a providers array has to list it                                                         |
-| `api`            | The extracted API, see [`ServiceApi`](#serviceapi). **Experimental**                                                                                                                                                          |
-| `meta`           | Plugin-injected metadata                                                                                                                                                                                                      |
+`'auto'` when Angular provides the service on its own: `@Service()` unless it says `autoProvided: false`, or `@Injectable` with `providedIn: 'root'`, `'platform'` or `'any'`. `'manual'` when a providers array has to list it, which includes a `providedIn` the scan cannot read.
 
-`className`, `filePath`, `importPath`, `showcaseConfig`, `provision` and `meta` follow semver as they are. The shape of `api` does not, see below.
+### `ScannedPipe`
 
----
-
-## ServiceApi
-
-> **Experimental until 23.0.0: the shape may change in a 22.x minor release.** This covers `ServiceApi` and every `Api*` type below it: members, signatures, type cards, setup and the links between them. The first model is deliberately simple, and generics and statics can be refined in later minors. Read it in a plugin if you must, and expect to adjust it.
-
-The documentation of one service, as the scanner extracts it. The JSDoc plugin draws the service page from it.
-
-```typescript
-interface ServiceApi {
-    description?: string;
-    tags: ApiDocTags;
-    properties: ApiProperty[];
-    methods: ApiMethod[];
-    setup: ApiSetupEntry[];
-    types: ApiTypeDoc[];
-}
-
-interface ApiDocTags {
-    deprecated?: string | true;
-    since?: string;
-    version?: string; // from @version (since 22.7.0)
-    see?: string[];
-    example?: string[];
-    default?: string; // from @default
-}
-
-interface ApiTypeRef {
-    text: string; // as written, e.g. 'Signal<boolean>'
-    links?: string[]; // ids of the api.types entries (ServiceApi, PipeApi or ComponentApi) named in the text
-}
-
-interface ApiParam {
-    name: string;
-    type: ApiTypeRef;
-    optional: boolean;
-    rest?: true;
-    defaultValue?: string; // the initializer as written
-    description?: string; // from @param
-}
-
-interface ApiMethod {
-    name: string;
-    params: ApiParam[];
-    returnType: ApiTypeRef;
-    description?: string;
-    tags: ApiDocTags;
-}
-
-interface ApiProperty {
-    name: string;
-    type: ApiTypeRef;
-    readonly: boolean;
-    optional?: true;
-    description?: string;
-    tags: ApiDocTags;
-}
-
-interface ApiTypeDoc {
-    id: string; // the name, or `${name}@${importPath}` when two reachable types share a name; unique within one service, pipe or component
-    name: string;
-    kind: 'interface' | 'class' | 'type' | 'enum';
-    importPath: string;
-    description?: string;
-    tags: ApiDocTags;
-    properties?: ApiProperty[]; // interfaces, classes, object type aliases
-    methods?: ApiMethod[]; // interfaces and classes
-    union?: string[]; // a type alias of literals
-    text?: string; // any other type alias
-    members?: { name: string; value?: string; description?: string }[]; // enums
-    reachedFrom?: string; // e.g. 'parameter of show()', 'via options.action'
-}
-
-interface ApiSetupEntry {
-    name: string;
-    kind: 'function' | 'token';
-    importPath: string;
-    description?: string;
-    tags: ApiDocTags;
-    params?: ApiParam[]; // functions
-    returnType?: ApiTypeRef; // functions
-    tokenType?: ApiTypeRef; // tokens
-    config?: ApiProperty[]; // options of the first parameter, or of the token's type argument
-}
-```
-
-An overloaded method is one `ApiMethod` per overload signature, in source order, in `methods` and in the `methods` of a type card alike: the name repeats, and the implementation signature is left out. Each takes the doc block of its own, else the one of the implementation, else the description and `@param` texts of the first documented overload (not its tags), else the docs of the method in the nearest base class.
-
-`ServiceProvision`, `PanelTarget`, `ServiceApi`, `ComponentApi`, `ApiDocTags`, `ApiTypeRef`, `ApiParam`, `ApiMethod`, `ApiProperty`, `ApiTypeDoc` and `ApiSetupEntry` are exported from `@ng-prism/core/plugin` (and `@ng-prism/core`), with `ScannedService` and `RuntimeService`. What is listed and what is left out is described in [Showcasing Services](guide/showcasing-services.md#members).
-
----
-
-## RuntimePipe
-
-A single pipe in the runtime manifest. Like a service, it carries data only: the pipe class is never imported into the styleguide.
-
-```typescript
-interface RuntimePipe {
-    meta: ScannedPipe;
-}
-```
-
----
-
-## ScannedPipe
-
-The data the scanner extracts from a `@Showcase`-annotated class with `@Pipe` (since `22.7.0`), see [Showcasing Pipes](guide/showcasing-pipes.md). Plugins receive it in [`onPipeScanned`](api/ng-prism-plugin.md#onpipescanned).
+What the scanner extracts from a class with `@Showcase` and `@Pipe` (since 22.7.0), see [Services & Pipes](guide/services-and-pipes.md#pipes). Plugins receive it in [`onPipeScanned`](api/ng-prism-plugin.md#onpipescanned).
 
 ```typescript
 interface ScannedPipe {
@@ -314,123 +235,93 @@ interface ScannedPipe {
 | `api`            | The extracted API, see [`PipeApi`](#pipeapi). **Experimental**                                                                                                                                                                                        |
 | `meta`           | Plugin-injected metadata                                                                                                                                                                                                                              |
 
-`className`, `filePath`, `importPath`, `showcaseConfig`, `pipeName`, `pure` and `meta` follow semver as they are. The shape of `api` does not, see below.
+`className`, `filePath`, `importPath`, `showcaseConfig`, `pipeName`, `pure` and `meta` follow semver as they are. The shape of `api` does not, see [API model](#api-model).
 
----
+### `RuntimeManifest`
 
-## PipeApi
-
-> **Experimental until 23.0.0: the shape may change in a 22.x minor release.** Like [`ServiceApi`](#serviceapi), this covers `PipeApi` and every `Api*` type below it.
-
-The documentation of one pipe, as the scanner extracts it. The JSDoc plugin draws the pipe page from it. It shares `ApiDocTags`, `ApiMethod`, `ApiParam`, `ApiSetupEntry` and `ApiTypeDoc` with `ServiceApi`, shown there.
+The manifest the styleguide app runs on. The generated `prism-manifest.ts` exports it with the real class references, and `providePrism()` takes it.
 
 ```typescript
-interface PipeApi {
-    description?: string;
-    tags: ApiDocTags;
-    transform: ApiMethod[]; // one entry per overload signature, or the implementation when there are none
-    setup: ApiSetupEntry[];
-    types: ApiTypeDoc[];
+interface RuntimeManifest {
+    components: RuntimeComponent[];
+    services?: RuntimeService[];
+    pipes?: RuntimePipe[];
+    pages?: StyleguidePage[];
+    meta?: Record<string, unknown>;
 }
 ```
 
-`PipeApi`, `ScannedPipe` and `RuntimePipe` are exported from `@ng-prism/core/plugin` (and `@ng-prism/core`). A pipe has no `properties` or `methods`: only `transform()` is read, see [Showcasing Pipes](guide/showcasing-pipes.md#transform).
+| Field               | Description                                                                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `components`        | One [`RuntimeComponent`](#runtimecomponent) per component and directive, with its parts nested in it                                                          |
+| `services`, `pipes` | Only present when the library has [services or pipes](guide/services-and-pipes.md) and a plugin shows them. A service or a pipe is never part of `components` |
+| `pages`             | The pages of the config, and the component pages passed to `providePrism()`                                                                                   |
+| `meta`              | Library-wide plugin metadata, mirrored from [`PrismManifest.meta`](#prismmanifest), `meta.a11y` included                                                      |
 
----
+### `RuntimeComponent`
 
-## PanelTarget
-
-Where a panel appears, the type of [`PanelDefinition.appliesTo`](api/ng-prism-plugin.md#panels-on-service-and-pipe-pages).
-
-```typescript
-type PanelTarget = 'component' | 'service' | 'pipe';
-```
-
----
-
-## InputMeta
-
-Describes a single `input()` signal as extracted by the scanner.
+A single entry in the runtime manifest: the scan data plus the Angular class.
 
 ```typescript
-interface InputMeta {
-    name: string;
-    alias?: string;
-    type: 'string' | 'number' | 'boolean' | 'union' | 'array' | 'object' | 'unknown';
-    rawType?: string;
-    values?: string[];
-    defaultValue?: unknown;
-    defaultUnreadable?: true;
-    required: boolean;
-    doc?: string;
-    model?: true;
+interface RuntimeComponent {
+    meta: ScannedComponent;
+    type: Type<unknown>;
+    composition?: Type<unknown>;
+    parts?: RuntimePart[];
 }
 ```
 
-| Field               | Description                                                                                                                                                                                                                    |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `name`              | Property name; variants and controls use it                                                                                                                                                                                    |
-| `alias`             | Public name from `alias` (or `@Input('x')`), when it differs from `name`                                                                                                                                                       |
-| `type`              | Normalized type category used to select a control                                                                                                                                                                              |
-| `rawType`           | Raw TypeScript type string (e.g. `'primary' \| 'danger'`)                                                                                                                                                                      |
-| `values`            | For union types: the individual member values                                                                                                                                                                                  |
-| `defaultValue`      | Value from `input(defaultValue)`                                                                                                                                                                                               |
-| `defaultUnreadable` | `true` when the input starts out with a value the scan could not evaluate, such as the result of a function call (since `22.7.0`). `defaultValue` is missing then. Not set for `input<string>()`, which starts out `undefined` |
-| `required`          | `true` if declared with `input.required<T>()`                                                                                                                                                                                  |
-| `doc`               | JSDoc comment from the property, as written: `{@link X \| text}` keeps its bar (since `22.7.0`, see below)                                                                                                                     |
-| `model`             | `true` for a `model()` or `model.required()` (since `22.7.0`). Angular adds the output `${alias ?? name}Change` for it, which `ScannedComponent.outputs` does not list, since no class member declares it                      |
+`composition` (since 22.7.0) is the generated wrapper that renders the [compositions](#componentcomposition) of the showcase. The renderer sets its `__prismVariant__` input to the index of the variant and binds the inputs of the subject through the member names of the wrapper. It is only there when `meta.composition` is. When every variant is composed, `type` is the wrapper too. A variant without a composition renders `type`.
 
-`defaultUnreadable` is what tells a composition to leave an input alone. The wrapper of a [composed variant](#componentcomposition) does not bind an input with an unreadable default unless the variant sets it, because binding `undefined` would replace the default the subject has. In a variant that does not set it, its control reads `Not editable` with the reason "Its default is unknown to ng-prism".
+`parts` (since 22.7.0) are the components whose [`partOf`](api/showcase-config.md#partof) names this one, sorted by title, see [`RuntimePart`](#runtimepart). It is missing for a component without parts. **Experimental**
 
-`doc` of an input and of an output is the JSDoc comment of the property with its Markdown and `{@link}` tags as written. The bar of `{@link X | text}` stays since `22.7.0`, so a reader can tell the target from the text. Before, a link whose target TypeScript resolves to a symbol came out as `{@link Xtext}`.
+### `RuntimePart`
 
----
+> **Experimental until 23.0.0: the shape may change in a 22.x minor release.** This covers `RuntimePart` and `RuntimeComponent.parts`.
 
-## OutputMeta
-
-Describes a single `output()` signal.
+A part of a component or directive in the runtime manifest (since 22.7.0): a showcase with [`partOf`](api/showcase-config.md#partof), which the styleguide shows on the page of its parent and never on a page of its own.
 
 ```typescript
-interface OutputMeta {
-    name: string;
-    alias?: string;
-    doc?: string;
+interface RuntimePart {
+    meta: ScannedComponent;
 }
 ```
 
-`alias` is the public event name from `output({ alias })` or `@Output('x')`, when it differs from `name`. `doc` is the JSDoc comment of the property, read like `InputMeta.doc`.
+A part has `meta` and nothing else. It has no `type`, because the variants of the parent render it, and the manifest does not import its class, so a part costs no bundle size. The exception is a class that a [composition](#componentcomposition) of the parent names in its `imports`: that one is imported for the wrapper, as any class a template uses. A part is not in `RuntimeManifest.components`, so code that walks that list, such as a plugin or an external tool, does not see it as a component without variants.
 
----
+### `RuntimeService`
 
-## PanelDefinition
+A service in the runtime manifest (since 22.7.0). It carries data only: the service class is never imported into the styleguide, since the page is documentation and an import would only add bundle size and side effects.
 
-See [NgPrismPlugin: PanelDefinition](api/ng-prism-plugin.md#paneldefinition).
+```typescript
+interface RuntimeService {
+    meta: ScannedService;
+}
+```
 
----
+### `RuntimePipe`
 
-## ControlDefinition
+A pipe in the runtime manifest (since 22.7.0). Like a service, it carries data only: the pipe class is never imported into the styleguide.
 
-See [NgPrismPlugin: ControlDefinition](api/ng-prism-plugin.md#controldefinition).
+```typescript
+interface RuntimePipe {
+    meta: ScannedPipe;
+}
+```
 
----
+### `StyleguidePage`
 
-## StatusTone and StatusThreshold
-
-`StatusTone` (`'ok' | 'warn' | 'danger'`) and `StatusThreshold` (`{ ok, warn, direction? }`) are the verdict and the threshold of `statusFor()`, exported from `@ng-prism/core/plugin` since `22.7.0`. See [NgPrismPlugin: Status grading](api/ng-prism-plugin.md#status-grading).
-
----
-
-## StyleguidePage
-
-Discriminated union for sidebar pages.
+A page of the sidebar that is not a showcase, told apart by `type`.
 
 ```typescript
 type StyleguidePage = CustomPage | ComponentPage;
 ```
 
-### CustomPage
+Pages list in the pinned _Pages_ section at the top of the sidebar, grouped by `category` (`Docs` without one), in the order of the manifest; `categoryOrder` and `order` are carried but not used for sorting. The search matches a page by its title and its category. See [Component Pages](guide/component-pages.md).
 
-A data-only page processed through the build pipeline. Requires a plugin panel to render `data`.
+### `CustomPage`
+
+A page made of data, which goes through the build: declared in [`defineConfig({ pages })`](api/ng-prism-config.md#pages), passed through [`onPageScanned`](api/ng-prism-plugin.md#onpagescanned) and written into the manifest as JSON. The styleguide shows its title and its `data` as formatted JSON.
 
 ```typescript
 interface CustomPage {
@@ -443,9 +334,11 @@ interface CustomPage {
 }
 ```
 
-### ComponentPage
+`customPage()` from `@ng-prism/core/plugin` builds one with `type` set.
 
-A free-form Angular component rendered as a sidebar page. Registered via `providePrism`, not through the build pipeline.
+### `ComponentPage`
+
+An Angular component rendered as a page of the sidebar, and the page a [`renderPage`](api/showcase-config.md#renderpage) names by its `title`.
 
 ```typescript
 interface ComponentPage {
@@ -458,38 +351,203 @@ interface ComponentPage {
 }
 ```
 
-Use the `componentPage()` helper to create entries with TypeScript type safety:
+Register it in `main.ts` with the third argument of `providePrism()`, which takes the same fields without `type` (`ComponentPageOptions`, exported from `@ng-prism/core`). `componentPage()` builds a `ComponentPage` with `type` set. A `ComponentPage` in `defineConfig({ pages })` does not work: the build writes the config's pages into the manifest as JSON, and `component`, a class, does not survive that.
 
 ```typescript
-import { componentPage } from '@ng-prism/core';
-
-componentPage({
-    title: 'Button Patterns',
-    category: 'Atoms',
-    order: 99,
-    component: ButtonPatternsPageComponent
+providePrism(PRISM_RUNTIME_MANIFEST, config, {
+    componentPages: [{ title: 'Button Patterns', category: 'Atoms', component: ButtonPatternsPageComponent }]
 });
 ```
 
----
+## API model
 
-## NavigationItem
+> **Experimental until 23.0.0: the shape may change in a 22.x minor release.** This covers `ComponentApi`, `ServiceApi`, `PipeApi` and every `Api*` type they use: members, signatures, type cards, setup and the links between them. The first model is deliberately simple, and generics and statics can be refined in later minors. Read it in a plugin if you must, and expect to adjust it.
 
-Discriminated union used in `PrismNavigationService.sectionTree()` (the items of each category) and `PrismNavigationService.activeItem`.
+What the API page of a component, a service or a pipe shows, as the scanner extracts it (since 22.7.0). The [JSDoc](plugins/jsdoc.md) plugin draws its pages from it; which tags, overloads and members it reads is described there. The shared `Api*` types come first. Exported from `@ng-prism/core/plugin` and `@ng-prism/core`.
+
+### `ApiDocTags`
+
+The tags of a doc block.
 
 ```typescript
-type NavigationItem =
-    | { kind: 'component'; data: RuntimeComponent }
-    | { kind: 'service'; data: RuntimeService }
-    | { kind: 'pipe'; data: RuntimePipe }
-    | { kind: 'page'; data: StyleguidePage };
+interface ApiDocTags {
+    deprecated?: string | true;
+    since?: string;
+    version?: string;
+    see?: string[];
+    example?: string[];
+    default?: string;
+}
 ```
 
-The `'service'` and `'pipe'` kinds were added in 22.7.0 with [services](guide/showcasing-services.md) and [pipes](guide/showcasing-pipes.md). It is a public type, so any code that narrows a `NavigationItem` by `kind` and reads `data` needs a branch for each. That includes a plain two-way check: after `item.kind === 'component' ? … : item.data.title`, the `data` in the other branch is a `RuntimeService | RuntimePipe | StyleguidePage`, and `title` no longer type-checks. See [Breaking change: NavigationItem has two new kinds](guide/migration-v22.md#breaking-change-navigationitem-has-two-new-kinds) for a before and after.
+`deprecated` is the message of `@deprecated`, or `true` without one. `version` comes from `@version` (since 22.7.0), `default` from `@default`; prose such as "Default `x`." is not read.
 
----
+### `ApiTypeRef`
 
-## Variant
+A type as written, plus the ids of the documented types it mentions.
+
+```typescript
+interface ApiTypeRef {
+    text: string; // as written, e.g. 'Signal<boolean>'
+    links?: string[]; // ids of the api.types entries (ServiceApi, PipeApi or ComponentApi) named in the text
+}
+```
+
+`links` is missing when the text names no documented type.
+
+### `ApiParam`
+
+One parameter of a method or a setup function.
+
+```typescript
+interface ApiParam {
+    name: string;
+    type: ApiTypeRef;
+    optional: boolean;
+    rest?: true;
+    defaultValue?: string; // the initializer as written
+    description?: string; // from @param
+}
+```
+
+### `ApiMethod`
+
+One method signature.
+
+```typescript
+interface ApiMethod {
+    name: string;
+    params: ApiParam[];
+    returnType: ApiTypeRef;
+    description?: string;
+    tags: ApiDocTags;
+}
+```
+
+An overloaded method is one `ApiMethod` per overload signature, in source order, in `methods` and in the `methods` of a type card alike: the name repeats, and the implementation signature is left out. Each takes the doc block of its own, else the one of the implementation, else the description and `@param` texts of the first documented overload (not its tags), else the docs of the method in the nearest base class.
+
+### `ApiProperty`
+
+One property of a service or of a documented type.
+
+```typescript
+interface ApiProperty {
+    name: string;
+    type: ApiTypeRef;
+    readonly: boolean;
+    optional?: true; // `?` on an interface member
+    description?: string;
+    tags: ApiDocTags;
+}
+```
+
+### `ApiTypeDoc`
+
+A type card: a documented type that the API reaches.
+
+```typescript
+interface ApiTypeDoc {
+    id: string; // the name, or `${name}@${importPath}` when two reachable types share a name; unique within one service, pipe or component
+    name: string;
+    kind: 'interface' | 'class' | 'type' | 'enum';
+    importPath: string;
+    description?: string;
+    tags: ApiDocTags;
+    properties?: ApiProperty[]; // interfaces, classes, object type aliases
+    methods?: ApiMethod[]; // interfaces and classes
+    union?: string[]; // a type alias of literals
+    text?: string; // any other type alias
+    members?: { name: string; value?: string; description?: string }[]; // enums
+    reachedFrom?: string; // e.g. 'parameter of show()', 'via options.action'
+}
+```
+
+### `ApiSetupEntry`
+
+One entry of [`setup`](api/showcase-config.md#setup): a function or a token that configures a service or a pipe.
+
+```typescript
+interface ApiSetupEntry {
+    name: string;
+    kind: 'function' | 'token';
+    importPath: string;
+    description?: string;
+    tags: ApiDocTags;
+    params?: ApiParam[]; // functions
+    returnType?: ApiTypeRef; // functions
+    tokenType?: ApiTypeRef; // tokens: InjectionToken<T> as written
+    config?: ApiProperty[]; // options of the first parameter, or of the token's type argument
+}
+```
+
+### `ComponentApi`
+
+What the API page of a component or directive needs beyond `inputs` and `outputs`, as the scanner extracts it for every component and directive (since 22.7.0) when a plugin in the config sets [`componentApi`](api/ng-prism-plugin.md#componentapi). It is `ScannedComponent.api`. The JSDoc plugin draws the API tab from it, see [Components and Directives](plugins/jsdoc.md#components-and-directives).
+
+```typescript
+interface ComponentApi {
+    description?: string;
+    tags: ApiDocTags;
+    inputTypes: Record<string, ApiTypeRef>; // by member name
+    outputTypes: Record<string, ApiTypeRef>; // by member name
+    modelChanges: { input: string; event: string; type: ApiTypeRef }[];
+    methods: ApiMethod[];
+    types: ApiTypeDoc[];
+}
+```
+
+| Field          | Description                                                                                                                                                                                                                                                                                                            |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `description`  | The class's own description as Markdown, with `{@link}` kept as written. Missing without one                                                                                                                                                                                                                           |
+| `tags`         | The tags of the class doc block: `deprecated`, `since`, `version`, `see` and `example`                                                                                                                                                                                                                                 |
+| `inputTypes`   | The type of each input by member name (`InputMeta.name`, not the alias), as written in `input<T>()`, `model<T>()` or the annotation, else as the compiler infers it, with `links` to the cards. An input a generic base class declares in terms of its type parameters has the type the component instantiates it with |
+| `outputTypes`  | The payload of each output by member name: the type argument of `output<T>()`, `EventEmitter<T>` or the annotation, `void` for an `output()` without one                                                                                                                                                               |
+| `modelChanges` | One entry per `model()` input: `input` is its member name, `event` the change output Angular adds for it (`${alias ?? name}Change`) and `type` the type of the model. `ScannedComponent.outputs` has no entry for it                                                                                                   |
+| `methods`      | The public methods that have a doc block of their own or an inherited one, with signatures from the code: one entry per overload signature, so a name can repeat. What is left out is the same as for a service, see [JSDoc](plugins/jsdoc.md#services)                                                                |
+| `types`        | The documented types that the inputs, outputs and methods reach, recursively. A type is documented when any scanned entry point exports it and it is not `@internal`. An `id` is unique within this list                                                                                                               |
+
+`api` only adds to the other fields of `ScannedComponent`: `InputMeta`, `OutputMeta` and the plugin data `showcaseConfig.meta.jsdoc` keep their shape. A component in a build without a plugin that sets `componentApi`, one whose API the scan could not read, one built by a plugin hook, or one read from the manifest of an older core has no `api`, and a reader falls back to `inputs` and `outputs`.
+
+### `ServiceApi`
+
+The documentation of one service, as the scanner extracts it. It is `ScannedService.api`, and the JSDoc plugin draws the service page from it.
+
+```typescript
+interface ServiceApi {
+    description?: string;
+    tags: ApiDocTags;
+    properties: ApiProperty[];
+    methods: ApiMethod[];
+    setup: ApiSetupEntry[];
+    types: ApiTypeDoc[];
+}
+```
+
+What is listed and what is left out is described in [JSDoc](plugins/jsdoc.md#services).
+
+### `PipeApi`
+
+The documentation of one pipe, as the scanner extracts it. It is `ScannedPipe.api`, and the JSDoc plugin draws the pipe page from it.
+
+```typescript
+interface PipeApi {
+    description?: string;
+    tags: ApiDocTags;
+    transform: ApiMethod[]; // one entry per overload signature, or the implementation when there are none
+    setup: ApiSetupEntry[];
+    types: ApiTypeDoc[];
+}
+```
+
+A pipe has no `properties` or `methods`: only `transform()` is read, see [JSDoc](plugins/jsdoc.md#pipes).
+
+## Showcase config types
+
+The types the fields of [`ShowcaseConfig`](api/showcase-config.md) use. Exported from `@ng-prism/core`. `CanvasBg`, `PseudoState`, `PseudoTarget` and `ForcedPseudoStates` are exported from `@ng-prism/core/plugin` as well, and `CanvasLayout` is not exported.
+
+### `Variant`
+
+One entry of [`ShowcaseConfig.variants`](api/showcase-config.md#variants). The rules of each field are under [Variant fields](api/showcase-config.md#variant-fields).
 
 ```typescript
 interface Variant<T = unknown> {
@@ -507,27 +565,25 @@ interface Variant<T = unknown> {
 }
 ```
 
-The optional type parameter `T` is the component class. When provided (via `@Showcase<MyComponent>({...})`), `inputs` becomes `Partial<InputsOf<MyComponent>>` and the editor checks both keys and values against the component's signal inputs. When omitted, `T` defaults to `unknown` and `inputs` falls back to `Record<string, unknown>`, which keeps it fully backwards compatible.
+The optional type parameter `T` is the component class. When it is given (through `@Showcase<MyComponent>({...})`), `inputs` is `Partial<InputsOf<MyComponent>>`, and the editor checks both keys and values against the component's signal inputs. Without it, `T` is `unknown` and `inputs` is `Record<string, unknown>`.
 
-| Field          | Description                                                                                                                                                                                                                                                                  |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`         | Tab label                                                                                                                                                                                                                                                                    |
-| `inputs`       | Key-value map of input signal names to values. Typed via [`InputsOf<T>`](#inputsof) when a component generic is supplied to `@Showcase`.                                                                                                                                     |
-| `content`      | Content projected into `<ng-content>`: string for single slot, record for named slots                                                                                                                                                                                        |
-| `template`     | An Angular template, compiled as the content of the subject (since `22.7.0`). Wins over `content`. See [Compiled Content](guide/content-projection.md#compiled-content-template)                                                                                             |
-| `host`         | A [`HostTemplate`](#hosttemplate) the subject renders in for this variant (since `22.7.0`). Overrides `ShowcaseConfig.host`. See [Host Template](guide/directive-hosting.md#host-template)                                                                                   |
-| `description`  | Optional description rendered below the variant tab                                                                                                                                                                                                                          |
-| `meta`         | Metadata for plugins (e.g. `{ figma: 'url' }`), a [`ShowcaseMeta`](#showcasemeta). `a11y.accept` adds [accepted violations](guide/accessibility.md#accepted-violations) to the component's for this variant.                                                                 |
-| `bg`           | Recommended canvas background. Overrides `ShowcaseConfig.bg`. One of `dots`, `plain`, `light`, `dark`, `checker`, `transparent`. See [Per-Variant Background](guide/variants.md#per-variant-background).                                                                     |
-| `canvasLayout` | Canvas layout mode for this variant. Overrides `ShowcaseConfig.canvasLayout`. One of `fit`, `stretch`. See [Per-Variant Canvas Layout](guide/variants.md#per-variant-canvas-layout) and the [`CanvasLayout`](#canvaslayout) type.                                            |
-| `pseudo`       | Pseudo states forced on while the variant renders, each with the elements it applies to. See [Per-Variant Pseudo States](guide/variants.md#per-variant-pseudo-states) and the [`ForcedPseudoStates`](#forcedpseudostates) type.                                              |
-| `states`       | `false` keeps the variant out of every combination with the component's [`states`](#showcasestate): it renders in its own pseudo states only, as a single cell in the Overview. No other value is valid. See [Opting a variant out](guide/variants.md#opting-a-variant-out). |
+| Field          | Description                                                                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `name`         | The tab label, see [`name`](api/showcase-config.md#name)                                                                                   |
+| `inputs`       | Values for the inputs, by member name, typed through [`InputsOf<T>`](#inputsof), see [`inputs`](api/showcase-config.md#inputs)             |
+| `content`      | HTML projected into `<ng-content>`, see [`content`](api/showcase-config.md#content)                                                        |
+| `template`     | An Angular template compiled as the content of the subject (since 22.7.0), see [`template`](api/showcase-config.md#template)               |
+| `host`         | A [`HostTemplate`](#hosttemplate) the subject renders in for this variant (since 22.7.0), see [`host`](api/showcase-config.md#host)        |
+| `description`  | Data for plugins; the styleguide does not show it                                                                                          |
+| `meta`         | Plugin data for this variant, a [`ShowcaseMeta`](#showcasemeta), see [`meta`](api/showcase-config.md#meta)                                 |
+| `bg`           | The recommended background for this variant, a [`CanvasBg`](#canvasbg), see [`bg`](api/showcase-config.md#bg)                              |
+| `canvasLayout` | The layout for this variant, a [`CanvasLayout`](#canvaslayout), see [`canvasLayout`](api/showcase-config.md#canvaslayout)                  |
+| `pseudo`       | Pseudo states forced while the variant renders, [`ForcedPseudoStates`](#forcedpseudostates), see [`pseudo`](api/showcase-config.md#pseudo) |
+| `states`       | `false` keeps the variant out of the component's [`states`](api/showcase-config.md#states); no other value is valid                        |
 
----
+### `ShowcaseState`
 
-## ShowcaseState
-
-One named combination of forced pseudo states, an entry of `ShowcaseConfig.states`. It applies on top of any variant that does not opt out with `Variant.states: false`.
+One named combination of forced pseudo states, an entry of [`ShowcaseConfig.states`](api/showcase-config.md#states) (since 22.6.0). It applies on top of every variant that does not opt out with `states: false`.
 
 ```typescript
 interface ShowcaseState {
@@ -536,38 +592,30 @@ interface ShowcaseState {
 }
 ```
 
-| Field    | Description                                                                                                                                                                                                                                     |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`   | Column title in the Overview, chip label in the tools menu and state name in a visual regression report. Unique within the component.                                                                                                           |
-| `pseudo` | The pseudo states the state forces, with the same shape and meaning as `Variant.pseudo`, see [`ForcedPseudoStates`](#forcedpseudostates). Unlike `Variant.pseudo`, a state is forced only where it [fits](guide/variants.md#when-a-state-fits). |
+| Field    | Description                                                                                                                                                                                                                                          |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`   | The column title in the Overview, the chip label in the tools menu and the state name in a visual regression report. Unique within the component                                                                                                     |
+| `pseudo` | The pseudo states the state forces, with the same shape and meaning as `Variant.pseudo`, see [`ForcedPseudoStates`](#forcedpseudostates). Unlike `Variant.pseudo`, a state is forced only where it [fits](guide/states.md#when-a-state-does-not-fit) |
 
 ```typescript
 { name: 'Hover', pseudo: { hover: '.btn' } }
 { name: 'Pressed', pseudo: { hover: '.btn', active: '.btn' } }
 ```
 
-The position of a state in `ShowcaseConfig.states` is its identity: the `state` URL parameter, the render marker, [`DiscoveryState`](#discoverystate) and a visual regression report use that index. When a variant has a `pseudo` of its own, both are forced, and a pseudo-class both name goes to the targets of both.
+The position of a state in `ShowcaseConfig.states` is its index: the `state` URL parameter, the render marker, [`DiscoveryState`](#discoverystate) and a visual regression report use it. When a variant has a `pseudo` of its own, both are forced, and a pseudo-class both name goes to the targets of both. See [States & Pseudo States](guide/states.md).
 
-`ShowcaseState` is exported from `@ng-prism/core`. See [Variants: States](guide/variants.md#states).
+### `InputsOf`
 
----
-
-## InputsOf
-
-Utility type that maps a component class to a record of its signal-input properties, unwrapped to their write-side value type.
+Maps a component class to a record of its signal inputs, each unwrapped to the value it is written with.
 
 ```typescript
 type InputsOf<T>;
 ```
 
-**Selection rules**
-
-- Picks fields declared as `input()`, `input.required()`, `model()`, or `input(..., { transform })`.
-- Excludes `output()` and any other class members.
-- Unwraps each signal to its write-side type. For transform inputs (e.g. `input(false, { transform: booleanAttribute })`) this is the source type (`string | boolean | ''`), not the parsed value type. That mirrors what callers actually write in `inputs: {...}`.
-- When `T` is `unknown` (the default), evaluates to `Record<string, unknown>`.
-
-**Example**
+- It picks the fields declared as `input()`, `input.required()`, `model()`, or `input(..., { transform })`.
+- It leaves out `output()` and every other class member, `@Input()` properties included, so `@Showcase<T>` accepts no key for a decorator input, see [Inputs & Controls](guide/inputs-and-controls.md#decorator-inputs-and-outputs).
+- It unwraps each signal to its write-side type. For a transform input (e.g. `input(false, { transform: booleanAttribute })`) this is the type the transform reads (`string | boolean | ''`), not the parsed value, which is what a variant writes in `inputs: {...}`.
+- When `T` is `unknown` (the default), it is `Record<string, unknown>`.
 
 ```typescript
 import { booleanAttribute, input, model, output } from '@angular/core';
@@ -589,25 +637,25 @@ class FooComponent {
 // }
 ```
 
-`closed` is excluded because `output()` is not a signal input. `Variant<FooComponent>['inputs']` is `Partial<InputsOf<FooComponent>>`, so any subset of these keys is valid in a variant.
+`closed` is left out because `output()` is not a signal input. `Variant<FooComponent>['inputs']` is `Partial<InputsOf<FooComponent>>`, so any subset of these keys is valid in a variant. See [Inputs & Controls](guide/inputs-and-controls.md#type-safe-inputs).
 
----
+### `DirectiveHost`
 
-## DirectiveHost
+The object form of [`ShowcaseConfig.host`](api/showcase-config.md#host): an Angular component whose element a directive renders on. Exported since 22.7.0.
 
 ```typescript
 interface DirectiveHost {
-    selector: string;
-    import: { name: string; from: string };
-    inputs?: Record<string, unknown>;
+    selector: string; // the component's element, e.g. 'lib-button'
+    import: { name: string; from: string }; // the component's class: its exported name and its module
+    inputs?: Record<string, unknown>; // static inputs of the component
 }
 ```
 
-Used in `ShowcaseConfig.host` for directive showcases that require an Angular component as the host element. Exported from `@ng-prism/core` since `22.7.0`. See [Directive Hosting](guide/directive-hosting.md).
+The `inputs` are written as static attributes on the element. See [Directive Hosting](guide/directive-hosting.md).
 
----
+### `HostTemplate`
 
-## HostTemplate
+The template form of a host (since 22.7.0): the markup the showcased component or directive renders in, compiled as an Angular template.
 
 ```typescript
 interface HostTemplate {
@@ -615,119 +663,53 @@ interface HostTemplate {
 }
 ```
 
-The markup the showcased component or directive renders in, compiled as an Angular template (since `22.7.0`). The element that the selector of the subject matches is the subject, and `prism-subject` marks it when several match. Used in `ShowcaseConfig.host` and `Variant.host`; `ShowcaseConfig.host` is `string | DirectiveHost | HostTemplate`. See [Host Template](guide/directive-hosting.md#host-template).
+The element that the subject's selector matches is the subject, and `prism-subject` marks it where several match. Used in [`ShowcaseConfig.host`](api/showcase-config.md#host), which is `string | DirectiveHost | HostTemplate`, and in `Variant.host`. See [Compositions](guide/compositions.md#host-template).
 
----
+### `ShowcaseImport`
 
-## ShowcaseImport
+A class that the templates of a showcase use and ng-prism cannot find in the library on its own, an entry of [`ShowcaseConfig.imports`](api/showcase-config.md#imports) (since 22.7.0).
 
 ```typescript
 interface ShowcaseImport {
-    name: string;
-    from: string;
+    name: string; // exported name, e.g. 'CdkTextareaAutosize'
+    from: string; // module specifier, e.g. '@angular/cdk/text-field'
 }
 ```
 
-A class that the templates of a showcase use and ng-prism cannot find in the library on its own, an entry of `ShowcaseConfig.imports` (since `22.7.0`). `name` is the exported name (`'CdkTextareaAutosize'`) and `from` the module specifier (`'@angular/cdk/text-field'`). Strings, not a class reference, so that `ng-prism-strip` leaves no import behind. See [`imports`](api/showcase-config.md#imports).
+Strings, not a class reference, so that `ng-prism-strip` leaves no import behind in the published library.
 
-`HostTemplate` and `ShowcaseImport` are exported from `@ng-prism/core`.
+### `CanvasBg`
 
----
-
-## ComponentComposition
-
-> **Experimental until 23.0.0: the shape may change in a 22.x minor release.** This covers `ComponentComposition`, which is `ScannedComponent.composition`, `CompositionCase` and the four constants below.
-
-What the variants of a showcase render when they have a `template` or a host template (since `22.7.0`): the distinct compositions, and which one each variant uses. It is `ScannedComponent.composition`, and the runtime manifest carries it next to the generated wrapper in [`RuntimeComponent.composition`](#runtimecomponent).
-
-```typescript
-interface ComponentComposition {
-    variantCases: number[];
-    cases: CompositionCase[];
-    imports?: ShowcaseImport[];
-}
-
-interface CompositionCase {
-    template: string;
-    unbound: { name: string; reason: 'template' | 'default' }[];
-    origin?: string;
-}
-```
-
-| Field          | Description                                                                                                                                                                                                                                                                          |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `variantCases` | One entry per variant, or one for a showcase without variants, which renders as one implicit variant. Each is the index into `cases`, or `-1` for a variant without a composition, which renders as it did before                                                                    |
-| `cases`        | One entry per distinct composition. Variants with the same markup and the same unbound inputs share one                                                                                                                                                                              |
-| `imports`      | Every class the generated wrapper imports besides the subject: the library classes the templates use, the showcase's `imports` and the class of a directive's object host. Set by the scan and carried in the runtime manifest, so that a usage example in the browser can name them |
-
-| `CompositionCase` field | Description                                                                                                                                                                                                                                             |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `template`              | The markup as written, the subject element included, with `COMPOSITION_SUBJECT_SLOT` at the end of the start tag of the subject. The code snippet replaces the slot with the current attributes, the generated wrapper with the bindings                |
-| `unbound`               | The inputs of the subject that the wrapper does not bind in this case, by member name. `'template'`: the template sets the input itself. `'default'`: its default could not be read and the variant does not set it. Controls show them as not editable |
-| `origin`                | Where the case comes from, as the variants and `file:line`. Set at build time for the comments and errors of the generated code, not in the runtime manifest                                                                                            |
-
-A plugin that shows the markup of a variant, such as a snippet or a usage example, replaces the slot with the attributes of its choice. Four constants name what ng-prism puts into a composition and takes out of it, exported from `@ng-prism/core/plugin`:
-
-| Constant                   | Value                  | Meaning                                                                                           |
-| -------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------- |
-| `COMPOSITION_SUBJECT_SLOT` | `'\uE000'`             | Where the subject element takes its attributes and bindings in `CompositionCase.template`         |
-| `COMPOSITION_SUBJECT_ATTR` | `'data-prism-subject'` | Attribute the generated wrapper puts on the subject element, which is how the styleguide finds it |
-| `SUBJECT_MARKER_ATTR`      | `'prism-subject'`      | Attribute an author puts on the one of several matching elements that is the subject              |
-| `PRISM_VARIANT_INPUT`      | `'__prismVariant__'`   | The input of the wrapper that selects the case of a variant                                       |
-
-The `unbound` list is what the Controls panel and the snippet read: an input in it is neither bound nor written. See [Compiled Content](guide/content-projection.md#compiled-content-template) for how a composition is written and what the canvas shows.
-
----
-
-## CanvasBg
-
-Canvas background mode used by `ShowcaseConfig.bg` and `Variant.bg`.
+A canvas background, the type of [`ShowcaseConfig.bg`](api/showcase-config.md#bg) and `Variant.bg`.
 
 ```typescript
 type CanvasBg = 'dots' | 'plain' | 'light' | 'dark' | 'checker' | 'transparent';
 ```
 
-| Value         | Visual                                                                                                      |
-| ------------- | ----------------------------------------------------------------------------------------------------------- |
-| `dots`        | Dot grid over the themed surface (the canvas's own starting background)                                     |
-| `plain`       | The themed surface, no pattern                                                                              |
-| `light`       | Flat light surface, for components designed for light themes                                                |
-| `dark`        | Flat dark surface, for components designed for dark themes                                                  |
-| `checker`     | **Deprecated** (removed in 23.0.0). Checkerboard over the themed surface; captures as that surface's colour |
-| `transparent` | Checkerboard while browsing, real transparency in a capture. Also the "nothing declared" answer             |
+| Value         | Paints                                                                                                                       |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `dots`        | A dot grid over the themed surface, the canvas's own starting background                                                     |
+| `plain`       | The themed surface, no pattern                                                                                               |
+| `light`       | A flat light surface in an absolute colour, `--prism-void-light`                                                             |
+| `dark`        | A flat dark surface in an absolute colour, `--prism-void-dark`                                                               |
+| `checker`     | **Deprecated** since 22.2.0, removed in 23.0.0. A checkerboard over the themed surface, captured as that surface's colour    |
+| `transparent` | A checkerboard while browsing, real transparency in a capture. What a variant resolves to when nothing declares a background |
 
-Two different defaults are in play. The canvas starts on `dots` and remembers whatever the user picks from the toolbar. A variant's background resolves to `transparent` when neither the variant nor its component declares one. That is `DEFAULT_VARIANT_BG`, which is what [`DiscoveryVariant.bg`](guide/external-tooling.md#reading-the-background) reports and what capture mode paints. It was `checker` in the first two `22.2.0` betas; see [the note on the change](guide/visual-regression.md#breaking-the-default-background-changed).
+Which background applies where, and which to declare under visual regression, is described under [`bg`](api/showcase-config.md#bg). `CANVAS_BGS` lists every value, `DEFAULT_VARIANT_BG` is `'transparent'`, and `resolveVariantBg()` resolves the background of a variant as the styleguide does, see [Plugin UI Kit](api/plugin-ui.md#constants-and-helpers).
 
-`light` and `dark` are flat by design, and their colours (`--prism-void-light`, `--prism-void-dark`) are absolute instead of theme tokens, which makes them the values to declare for a variant under [visual regression](guide/visual-regression.md#the-background-is-part-of-the-baseline). `dots`, `plain` and `checker` follow `--prism-bg-surface` and therefore the active theme.
+### `CanvasLayout`
 
-`'checker'` is deprecated since 22.2.0 and removed in 23.0.0. It draws the same checkerboard as `'transparent'` while browsing, so the canvas cannot tell them apart. It does, however, capture as `--prism-bg-surface`, a theme token, which makes a baseline recorded on it depend on the theme the runner's browser started in. Use `'transparent'` for the same look with a capture that keeps its alpha, or `'light'`/`'dark'` for an absolute colour. The build warns for every component and variant that still declares it.
-
-`transparent` has no colour at all. While browsing it renders as the checkerboard, which is already the UI's way of saying "no surface here"; a see-through canvas would just show the app shell through it. In capture mode it becomes real transparency. See [Capturing transparency](guide/visual-regression.md#capturing-transparency).
-
----
-
-## CanvasLayout
-
-Wrapper sizing mode used by `ShowcaseConfig.canvasLayout` and `Variant.canvasLayout`. Controls how `.demo-wrap` (the inner wrapper of the canvas stage) sizes itself around the rendered component.
+How the wrapper around the rendered subject sizes itself, the type of [`ShowcaseConfig.canvasLayout`](api/showcase-config.md#canvaslayout) and `Variant.canvasLayout`.
 
 ```typescript
 type CanvasLayout = 'fit' | 'stretch';
 ```
 
-| Value     | Wrapper styles                                     | When to use                                                                                                                                                    |
-| --------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `fit`     | `display: inline-block`, shrinks to component size | Default. The vast majority of components (buttons, badges, cards, alerts) render at their intrinsic size and are centered by the canvas stage flex.            |
-| `stretch` | `display: block; width: 100%; max-width: 800px`    | Components without intrinsic width (horizontal dividers via `border-bottom`) or that opt into filling their container (full-width buttons with `width: 100%`). |
+`'fit'` is the default. What each value does is described under [`canvasLayout`](api/showcase-config.md#canvaslayout). The type is not exported; write `'fit' | 'stretch'` where you need it.
 
-The variant-level value always wins over the component-level value; the default is `'fit'`.
+### `PseudoState`
 
-With Viewport width on (canvas rail), `.demo-wrap` takes the width set there in both modes. A `fit` component is centred in it at its own size. A `stretch` component keeps `display: block` and fills it as it fills the canvas, also when the subject renders in a [`template`](guide/content-projection.md#compiled-content-template) or a [host template](guide/directive-hosting.md#host-template).
-
----
-
-## PseudoState
-
-A user-action pseudo-class a variant or a [component state](#showcasestate) can force on, used as a key of [`ForcedPseudoStates`](#forcedpseudostates).
+A user-action pseudo-class that a variant or a [component state](#showcasestate) can force on, a key of [`ForcedPseudoStates`](#forcedpseudostates).
 
 ```typescript
 type PseudoState = 'hover' | 'active' | 'focus' | 'focus-visible' | 'focus-within';
@@ -735,15 +717,12 @@ type PseudoState = 'hover' | 'active' | 'focus' | 'focus-visible' | 'focus-withi
 
 These are the states a script cannot hold: `:hover` and `:active` follow the pointer, and only one element in the document can be focused. A state an input can set, such as `:checked` or `:disabled`, belongs in `Variant.inputs`. `PSEUDO_STATES` lists every value, in the order the canvas tools menu shows them.
 
----
+### `PseudoTarget`
 
-## ForcedPseudoStates
-
-The type of `Variant.pseudo` and `ShowcaseState.pseudo`: which states a variant or a component state forces, and on which elements.
+Where a forced state applies.
 
 ```typescript
 type PseudoTarget = true | string | readonly string[];
-type ForcedPseudoStates = Partial<Record<PseudoState, PseudoTarget>>;
 ```
 
 | Target              | Forces the state on                                                                   |
@@ -754,19 +733,147 @@ type ForcedPseudoStates = Partial<Record<PseudoState, PseudoTarget>>;
 
 What is rendered is the whole [composition](#componentcomposition) for a variant with a `template` or a host template, so a selector reaches the frame and the other parts too, and `true` means every element of them.
 
+### `ForcedPseudoStates`
+
+The type of [`Variant.pseudo`](api/showcase-config.md#pseudo) and `ShowcaseState.pseudo`: which states a variant or a component state forces, and on which elements.
+
+```typescript
+type ForcedPseudoStates = Partial<Record<PseudoState, PseudoTarget>>;
+```
+
 ```typescript
 { 'focus-visible': '.btn' }                          // the inner <button> of the host
 { hover: true }                                      // the whole component
 { hover: '.pill', 'focus-visible': '.pill__close' }  // two states on two elements
 ```
 
-`PseudoState`, `PseudoTarget`, `ForcedPseudoStates` and `PSEUDO_STATES` are exported from `@ng-prism/core/plugin` (and `@ng-prism/core`). How the states are forced, and what cannot be forced, is described in [Per-Variant Pseudo States](guide/variants.md#per-variant-pseudo-states).
+How the states are forced, and what cannot be forced, is described in [States & Pseudo States](guide/states.md#pseudo-states).
 
----
+### `ComponentStatus`
 
-## DiscoveryState
+The maturity or migration state, the type of [`ShowcaseConfig.status`](api/showcase-config.md#status).
 
-One component-level state in `window.__PRISM_MANIFEST__`, the entries of `DiscoveryComponent.states`. The manifest is the discovery view for [external tooling](guide/external-tooling.md#enumerating-what-exists).
+```typescript
+type ComponentStatus = 'stable' | 'beta' | 'wip' | 'deprecated';
+```
+
+What each value means and shows in the sidebar and the page head is described under [`status`](api/showcase-config.md#status).
+
+### `ShowcaseMeta`
+
+`meta` on [`ShowcaseConfig`](api/showcase-config.md#meta) and on a [`Variant`](#variant): open for plugins and projects, with `a11y` typed (since 22.7.0).
+
+```typescript
+interface ShowcaseMeta {
+    a11y?: A11yShowcaseMeta;
+    [key: string]: unknown;
+}
+```
+
+### `A11yShowcaseMeta`
+
+`meta.a11y` on a `@Showcase` or a variant (since 22.7.0).
+
+```typescript
+interface A11yShowcaseMeta {
+    rules?: Record<string, { enabled: boolean }>; // component level: switch axe rules for the live audit
+    disable?: boolean; // component level: skip the live audit
+    accept?: A11yAcceptance[]; // component and variant: audited and shown, not counted
+    [key: string]: unknown;
+}
+```
+
+A rule switched off with `enabled: false` is not audited at all; an accepted violation is audited and shown under _Accepted_ with its reason, but not counted. The acceptances of a component apply to every variant, and a variant adds its own. Other keys stay open: the build adds the a11y report's entry for the component (`found`, `score`, `summary`) next to these keys. See [Accepted violations](guide/accessibility.md#accepted-violations).
+
+### `A11yAcceptance`
+
+A violation that is known, deliberate and owned, an entry of `A11yShowcaseMeta.accept` (since 22.7.0). It is matched by the axe rule id, for every node of that rule.
+
+```typescript
+interface A11yAcceptance {
+    rule: string; // the axe rule id, e.g. 'color-contrast'
+    reason: string; // required
+}
+```
+
+`reason` is required: an acceptance without one cannot be told apart from an oversight.
+
+### `ShowcaseSetupRef`
+
+An entry of [`ShowcaseConfig.setup`](api/showcase-config.md#setup): a function or an injection token that configures a service or a pipe (since 22.7.0).
+
+```typescript
+type ShowcaseSetupRef = ((...args: never[]) => unknown) | InjectionToken<unknown>;
+```
+
+Any function fits, whatever it takes and returns; ng-prism only reads its name, signature and type from the source and never calls it.
+
+## Discovery types
+
+The shape of `window.__PRISM_MANIFEST__`, the discovery view that external tools read: a JSON-safe projection of the runtime manifest without class references, set by `providePrism()`. The contract around it (URL parameters, the render marker, capture mode) is described in [External Tooling API](guide/external-tooling.md). Exported from `@ng-prism/core/plugin` and `@ng-prism/core`.
+
+### `DiscoveryManifest`
+
+```typescript
+interface DiscoveryManifest {
+    components: DiscoveryComponent[];
+    pages: DiscoveryPage[];
+}
+```
+
+`components` lists exactly what renders: no service, no pipe and no part. Use it to enumerate what to visit, see [Enumerating what exists](guide/external-tooling.md#enumerating-what-exists).
+
+### `DiscoveryComponent`
+
+One component or directive in `__PRISM_MANIFEST__`.
+
+```typescript
+interface DiscoveryComponent {
+    className: string;
+    title: string;
+    variants: DiscoveryVariant[];
+    states?: DiscoveryState[];
+    meta?: Record<string, unknown>;
+    parts?: DiscoveryPart[];
+}
+```
+
+| Field       | Description                                                                                                                                                                                                                                                          |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `className` | The class name, what `?component=` addresses                                                                                                                                                                                                                         |
+| `title`     | `ShowcaseConfig.title`, the display name                                                                                                                                                                                                                             |
+| `variants`  | One [`DiscoveryVariant`](#discoveryvariant) per declared variant. A component without variants reports one, `Default` at index 0                                                                                                                                     |
+| `states`    | `ShowcaseConfig.states`, one [`DiscoveryState`](#discoverystate) per declared slot. Omitted when the component declares none. Whether a state fits a variant is not in the manifest, since that is only known once the variant renders: the render marker reports it |
+| `meta`      | `ShowcaseConfig.meta`, plain data only, see [Reading `@Showcase` metadata](guide/external-tooling.md#reading-showcase-metadata). Omitted when empty                                                                                                                  |
+| `parts`     | The parts of the component, one [`DiscoveryPart`](#discoverypart) each, sorted by title (since 22.7.0). Omitted when there are none. **Experimental**                                                                                                                |
+
+### `DiscoveryVariant`
+
+One variant in `__PRISM_MANIFEST__`, an entry of `DiscoveryComponent.variants`.
+
+```typescript
+interface DiscoveryVariant {
+    name: string;
+    index: number;
+    bg: CanvasBg;
+    meta?: Record<string, unknown>;
+    pseudo?: ForcedPseudoStates;
+    states?: false;
+}
+```
+
+| Field    | Description                                                                                                                                                                                                                                         |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`   | `Variant.name`                                                                                                                                                                                                                                      |
+| `index`  | 0-based position in the `variants` array, the `?variant=` URL value                                                                                                                                                                                 |
+| `bg`     | The background the variant renders on, already resolved: `Variant.bg`, else `ShowcaseConfig.bg`, else `'transparent'`. Always present, and what capture mode paints, see [Reading the background](guide/external-tooling.md#reading-the-background) |
+| `meta`   | `Variant.meta`, plain data only. Omitted when empty                                                                                                                                                                                                 |
+| `pseudo` | `Variant.pseudo`, as declared. Omitted when the variant forces no state. The render marker waits for the states, so a capture shows them without any action on the runner's side                                                                    |
+| `states` | `false` when the variant opts out of the component's states, omitted otherwise. Nothing is forced for a state on such a variant, and the render marker reports its cell as excluded                                                                 |
+
+### `DiscoveryState`
+
+One component-level state in `__PRISM_MANIFEST__`, an entry of `DiscoveryComponent.states`.
 
 ```typescript
 interface DiscoveryState {
@@ -782,15 +889,11 @@ interface DiscoveryState {
 | `index`  | 0-based position in the declared `states` array, the `?state=` URL value                                                                                                           |
 | `pseudo` | The states it forces, as declared, see [`ForcedPseudoStates`](#forcedpseudostates). `{}` for a slot that forces nothing; it stays listed so the indices behind it keep their value |
 
-`DiscoveryComponent.states` is omitted when the component declares none, and `DiscoveryVariant.states` is `false` for a variant that opted out of the component's states and absent otherwise. `DiscoveryState` is exported from `@ng-prism/core/plugin`.
-
----
-
-## DiscoveryPart
+### `DiscoveryPart`
 
 > **Experimental until 23.0.0: the shape may change in a 22.x minor release.** This covers `DiscoveryPart` and `DiscoveryComponent.parts`.
 
-One part of a component or directive in `window.__PRISM_MANIFEST__` (since `22.7.0`), the entries of `DiscoveryComponent.parts`. The manifest is the discovery view for [external tooling](guide/external-tooling.md#enumerating-what-exists).
+One part of a component or directive in `__PRISM_MANIFEST__` (since 22.7.0), an entry of `DiscoveryComponent.parts`.
 
 ```typescript
 interface DiscoveryPart {
@@ -810,79 +913,62 @@ interface DiscoveryPart {
 | `inputs`    | The public names of its inputs: the `alias` where there is one, the member name otherwise                                                                            |
 | `outputs`   | The public names of its outputs: the `alias` where there is one, the member name otherwise, then the change output of each `model()` input, `${alias ?? name}Change` |
 
-`DiscoveryComponent.parts` is omitted when the component has no [parts](api/showcase-config.md#partof). A part is not in `DiscoveryManifest.components`: it has no variants and no render marker of its own, and a tool that walks the components does not visit it. `DiscoveryPart` is exported from `@ng-prism/core/plugin`.
+A part is not in `DiscoveryManifest.components`: it has no variants and no render marker of its own, and a tool that walks the components does not visit it. `?component=` with the class name of a part opens its parent.
 
----
+### `DiscoveryPage`
 
-## ComponentStatus
-
-Optional migration / maturity badge used by `ShowcaseConfig.status`.
+One page in `__PRISM_MANIFEST__`, an entry of `DiscoveryManifest.pages`: custom pages and component pages alike.
 
 ```typescript
-type ComponentStatus = 'stable' | 'beta' | 'wip' | 'deprecated';
-```
-
-| Value        | Meaning                                  |
-| ------------ | ---------------------------------------- |
-| `stable`     | Migrated and production-ready            |
-| `beta`       | Functional, but API may still change     |
-| `wip`        | Work in progress, migration ongoing      |
-| `deprecated` | Legacy component. Do not use in new code |
-
-When `status` is omitted, no indicator renders. See [`ShowcaseConfig.status`](api/showcase-config.md#status) for the full UI behavior in sidebar and header.
-
----
-
-## ShowcaseMeta
-
-`meta` on [`ShowcaseConfig`](api/showcase-config.md#meta) and on a [`Variant`](#variant): open for plugins and projects, with `a11y` typed (since 22.7.0). Exported from `@ng-prism/core`, like `A11yShowcaseMeta` and `A11yAcceptance`.
-
-```typescript
-interface ShowcaseMeta {
-    a11y?: A11yShowcaseMeta;
-    [key: string]: unknown;
-}
-
-interface A11yShowcaseMeta {
-    rules?: Record<string, { enabled: boolean }>; // component level: switch axe rules for the live audit
-    disable?: boolean; // component level: skip the live audit
-    accept?: A11yAcceptance[]; // component and variant: audited and shown, not counted
-    [key: string]: unknown;
-}
-
-interface A11yAcceptance {
-    rule: string; // axe rule id
-    reason: string; // required
+interface DiscoveryPage {
+    title: string;
 }
 ```
 
-A rule switched off with `enabled: false` is not audited at all; an accepted violation is audited and shown under _Accepted_ with its reason, but not counted. The build adds the a11y report's entry for the component (`found`, `score`, `summary`) next to these keys. See [Accepted violations](guide/accessibility.md#accepted-violations).
+## Plugin types
 
----
+Types a plugin works with besides the definitions in [NgPrismPlugin](api/ng-prism-plugin.md). `PanelTarget`, `StatusTone` and `StatusThreshold` are exported from `@ng-prism/core/plugin` and `@ng-prism/core`, `NavigationItem` from `@ng-prism/core` only.
 
-## ShowcaseSetupRef
+### `PanelTarget`
 
-An entry of [`ShowcaseConfig.setup`](api/showcase-config.md#setup): a function or an injection token that configures a service or a pipe.
+Where a panel appears, the type of `PanelDefinition.appliesTo` (since 22.7.0). See [Panels on service and pipe pages](api/ng-prism-plugin.md#panels-on-service-and-pipe-pages).
 
 ```typescript
-type ShowcaseSetupRef = ((...args: never[]) => unknown) | InjectionToken<unknown>;
+type PanelTarget = 'component' | 'service' | 'pipe';
 ```
 
-Any function fits, whatever it takes and returns; ng-prism only reads its name, signature and type from the source and never calls it. Exported from `@ng-prism/core`.
+### `NavigationItem`
 
----
-
-## PrismManifest
-
-The build-time manifest written to disk by the builder. Contains JSON-serializable data only, no class references.
+An entry of the navigation: `PrismNavigationService.sectionTree()` holds the items of each category, and `PrismNavigationService.activeItem` is the one open. See [Runtime Services](api/services.md).
 
 ```typescript
-interface PrismManifest {
-    components: ScannedComponent[];
-    services?: ScannedService[];
-    pipes?: ScannedPipe[];
-    pages?: StyleguidePage[];
+type NavigationItem =
+    | { kind: 'component'; data: RuntimeComponent }
+    | { kind: 'service'; data: RuntimeService }
+    | { kind: 'pipe'; data: RuntimePipe }
+    | { kind: 'page'; data: StyleguidePage };
+```
+
+`kind` tells the four apart, and the `'service'` and `'pipe'` kinds exist since 22.7.0. Code that narrows a `NavigationItem` by `kind` and reads `data` needs a branch for each kind: after `item.kind === 'component' ? … : item.data.title`, the `data` of the other branch is a `RuntimeService | RuntimePipe | StyleguidePage`, on which `title` does not type-check.
+
+### `StatusTone`
+
+The verdict of `statusFor()`, which grades a key figure against a threshold (since 22.7.0). See [Plugin UI Kit](api/plugin-ui.md#status-grading).
+
+```typescript
+type StatusTone = 'ok' | 'warn' | 'danger';
+```
+
+### `StatusThreshold`
+
+The threshold `statusFor()` grades against (since 22.7.0).
+
+```typescript
+interface StatusThreshold {
+    ok: number;
+    warn: number;
+    direction?: 'higher' | 'lower';
 }
 ```
 
-`services` and `pipes` are only present when a plugin shows them, see [`onServiceScanned`](api/ng-prism-plugin.md#onservicescanned) and [`onPipeScanned`](api/ng-prism-plugin.md#onpipescanned). Neither is in `components`.
+With `direction: 'higher'`, the default, a value is `ok` from `ok` up, `warn` from `warn` up and `danger` below that. With `'lower'`, it is `ok` up to `ok`, `warn` up to `warn` and `danger` above that.
