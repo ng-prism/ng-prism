@@ -24,21 +24,21 @@ See [NgPrismConfig](api/ng-prism-config.md) for the complete interface.
 
 The most commonly used fields:
 
-| Field             | Type                     | Description                                                                                                                                               |
-| ----------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `title`           | `string`                 | Header title text (default: the ng-prism wordmark)                                                                                                        |
-| `subtitle`        | `string`                 | Secondary text below the title (monospace, muted)                                                                                                         |
-| `plugins`         | `NgPrismPlugin[]`        | List of plugins to activate                                                                                                                               |
-| `pages`           | `StyleguidePage[]`       | Config-declared custom pages                                                                                                                              |
-| `appProviders`    | `Provider[]`             | Angular providers added to the Prism app bootstrap                                                                                                        |
-| `theme`           | `Record<string, string>` | CSS custom property overrides                                                                                                                             |
-| `themeStylesheet` | `string`                 | _Deprecated since 22.6.0, never had an effect._                                                                                                           |
-| `ui`              | object                   | _Deprecated since 22.6.0, never had an effect._                                                                                                           |
-| `headless`        | `boolean`                | _Deprecated since 22.6.0, never had an effect._                                                                                                           |
-| `urlState`        | `boolean`                | Disable URL state sync (default: `true`)                                                                                                                  |
-| `buildInfo`       | `object`                 | Show version / git hash pill in header                                                                                                                    |
-| `a11y`            | `object`                 | Report path, grading `thresholds` and build `gate` for the a11y report, see [Accessibility](guide/accessibility.md#library-wide-a11y-score--header-badge) |
-| `strictShowcase`  | `boolean`                | Fail the build when a `@Showcase` value is dropped (default: `false`)                                                                                     |
+| Field             | Type                     | Description                                                                                                       |
+| ----------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `title`           | `string`                 | Header title text (default: the ng-prism wordmark)                                                                |
+| `subtitle`        | `string`                 | Secondary text below the title (monospace, muted)                                                                 |
+| `plugins`         | `NgPrismPlugin[]`        | List of plugins to activate                                                                                       |
+| `pages`           | `StyleguidePage[]`       | Config-declared custom pages                                                                                      |
+| `appProviders`    | `Provider[]`             | Angular providers added to the Prism app bootstrap                                                                |
+| `theme`           | `Record<string, string>` | CSS custom property overrides                                                                                     |
+| `themeStylesheet` | `string`                 | _Deprecated since 22.6.0, never had an effect._                                                                   |
+| `ui`              | object                   | _Deprecated since 22.6.0, never had an effect._                                                                   |
+| `headless`        | `boolean`                | _Deprecated since 22.6.0, never had an effect._                                                                   |
+| `urlState`        | `boolean`                | Disable URL state sync (default: `true`)                                                                          |
+| `buildInfo`       | `object`                 | Show version / git hash pill in header                                                                            |
+| `a11y`            | `object`                 | Report path, grading `thresholds` and build `gate` for the a11y report, see [A11y Reports](guide/a11y-reports.md) |
+| `strictShowcase`  | `boolean`                | Fail the build when a `@Showcase` value is dropped (default: `false`)                                             |
 
 ## Adding Global Providers
 
