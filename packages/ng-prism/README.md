@@ -80,6 +80,7 @@ Using Claude Code? The [ng-prism plugin](https://ng-prism.github.io/ng-prism/#/g
 
 ```typescript
 // ng-prism.config.ts
+import { DEFAULT_CURRENCY_CODE } from '@angular/core';
 import { defineConfig } from '@ng-prism/core/config';
 import { jsDocPlugin } from '@ng-prism/plugin-jsdoc';
 
@@ -91,7 +92,7 @@ export default defineConfig({
         '--prism-font-sans': "'Inter', sans-serif"
     },
 
-    appProviders: [provideAnimationsAsync(), provideHttpClient()]
+    appProviders: [{ provide: DEFAULT_CURRENCY_CODE, useValue: 'EUR' }]
 });
 ```
 
