@@ -193,10 +193,7 @@ Token overrides for both themes, applied over the built-in values. For a token t
 
 ```typescript
 export default defineConfig({
-    theme: {
-        '--prism-primary': '#0ea5e9',
-        '--prism-font-sans': '"Inter", system-ui, sans-serif'
-    }
+    theme: { '--prism-primary': '#0d9488' }
 });
 ```
 
