@@ -18,14 +18,14 @@
  *              `/<old-route>` to `/<new-route>[?id=<anchor>]`; the old route has a file, the new one has a file, an
  *              anchor and a sidebar entry. A key `/<route>?id=<old-anchor>` sends one section of a page that stays to
  *              its new place: the page exists and no longer has that anchor, else the redirect would take a live
- *              section away; the target is checked the same way
+ *              section away; the target is checked the same way and names an id, else the browser keeps the old one
  *   stubs      the source of a page redirect stays a stub: at most 10 lines, with the absolute URL of the raw `.md` of
  *              its target, because agents fetch raw Markdown and never run the redirect. An anchor redirect has none
  *   history    release history (`Up to 22.x`, `beta.n`, `now lives` ...) lives on the two upgrade pages only
  *
  * Heading ids must match what docsify 4 renders, so they are computed the way it does: marked renders the heading
- * to HTML, docsify strips its `:id=` config, then slugifies with a counter per page. `--anchors` exists so that a
- * script can compare the ids with the DOM of the running site (`.claude/docs/` live check, task 16 of the overhaul).
+ * to HTML, docsify strips its `:id=` config, then slugifies with a counter per page. `--anchors` prints those ids, so
+ * that they can be compared with the heading ids in the DOM of the running site.
  *
  * Links follow docsify's default `relativePath: false`: every relative link resolves from the docs root, whatever
  * page it sits on. Links with `':ignore` and any URL scheme (`https:`, `mailto:` ...) are skipped.
@@ -365,6 +365,9 @@ function check(site) {
             if (target.error) {
                 fail('redirects', 'index.html', line, `${where}: ${target.error}`);
                 continue;
+            }
+            if (oldAnchor && !target.anchor) {
+                fail('redirects', 'index.html', line, `${where}: an anchor redirect needs an id in its target, else the old id is kept`);
             }
             if (!oldAnchor) sources.set(sourceFile, target.file);
             if (!pages.has(target.file)) {

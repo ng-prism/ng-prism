@@ -573,12 +573,19 @@
                 }
             };
         </script>
-        <!-- Old URLs of pages that were merged: "/old-route" or "/old-route?id=old-anchor" -> "/new-route[?id=anchor]" -->
+        <!-- Old URLs of pages that were merged: "/old-route" -> "/new-route[?id=anchor]", and of sections that left a page
+             that stays: "/route?id=old-anchor" -> "/new-route?id=anchor" (always with an id, or the old one is kept) -->
         <script type="application/json" id="prism-redirects">
             {
                 "/guide/showcasing-services": "/guide/services-and-pipes",
                 "/guide/showcasing-pipes": "/guide/services-and-pipes?id=pipes",
-                "/guide/custom-ui": "/api/ng-prism-config?id=deprecated-options"
+                "/guide/custom-ui": "/api/ng-prism-config?id=deprecated-options",
+                "/guide/variants?id=states": "/guide/states?id=states",
+                "/guide/showcase-decorator?id=partof": "/guide/parts?id=when-something-is-a-part",
+                "/guide/first-showcase?id=on-a-phone": "/guide/styleguide-ui?id=on-a-phone",
+                "/guide/directive-hosting?id=host-template": "/guide/compositions?id=host-template",
+                "/guide/content-projection?id=compiled-content-template": "/guide/compositions?id=template",
+                "/api/ng-prism-plugin?id=ui-primitives": "/api/plugin-ui?id=ui-primitives"
             }
         </script>
         <script>
