@@ -162,7 +162,7 @@ In Nx, a target with `"command": "npx ng-prism-strip dist/<path>"` and `"depends
 
 - ng-prism's major version follows Angular's. A breaking change within one Angular major ships as a minor release,
   with a deprecation first and the removal in the next major where it can be deprecated. One that cannot, such as a
-  union type that gains a member, ships in the minor release itself and is listed in `guide/migration-v22.md`. 22.x
+  union type that gains a member, ships in the minor release itself and is listed in `guide/upgrade-notes-22.md`. 22.x
   supports Angular 20 to 22.
 - 22.7.0 is such a release. A class with `@Showcase` and `@Injectable`, `@Service` or `@Pipe` but no component-only
   field leaves `components`, `__PRISM_MANIFEST__` and `onComponentScanned`; it is listed as a service or a pipe with
@@ -170,7 +170,7 @@ In Nx, a target with `"command": "npx ng-prism-strip dist/<path>"` and `"depends
   branch. 22.7.0 also brings a new palette and look: `--prism-primary` is the text role and fills read
   `--prism-primary-fill`, the `--prism-mark-*`, `--prism-spectrum` and `--prism-primary-from/-to` tokens are deprecated
   (the build names any override of them), and `PanelBadge.variant` gives way to `kind`. See
-  `guide/migration-v22.md#breaking-changes-and-deprecations-in-2270`.
+  `guide/upgrade-notes-22.md#upgrading-to-2270`.
 - Update the core and all plugins in one call: `ng update @ng-prism/core @ng-prism/plugin-jsdoc …`.
 - The migrations to v22 (manifest moved to `ng-prism-cache/`, `.ng-prism/` renamed) read `angular.json` only; in an Nx
   workspace apply them by hand following `guide/migration-v22.md`. They need Angular CLI 22 and a Node version it
@@ -178,6 +178,6 @@ In Nx, a target with `"command": "npx ng-prism-strip dist/<path>"` and `"depends
 
 ## Guides
 
-- `guide/installation.md`, `guide/configuration.md`, `api/ng-prism-config.md`
+- `guide/installation.md`, `guide/configuration.md`, `api/ng-prism-config.md`, `api/builders.md`
 - `plugins/overview.md` and one page per plugin (`plugins/jsdoc.md`, `plugins/figma.md`, …)
-- `guide/theming.md`, `guide/library-publishing.md`, `guide/migration-v22.md`
+- `guide/theming.md`, `guide/library-publishing.md`, `guide/upgrade-notes-22.md`, `guide/migration-v22.md`

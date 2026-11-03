@@ -12,11 +12,13 @@ npm install @ng-prism/plugin-perf
 
 ### Peer Dependencies
 
-| Package          | Version    |
-| ---------------- | ---------- |
-| `@ng-prism/core` | `^22.7.0`  |
-| `@angular/core`  | `>=20.0.0` |
-| `typescript`     | `>=5.0.0`  |
+| Package          | Version               |
+| ---------------- | --------------------- |
+| `@ng-prism/core` | `^<plugin version>-0` |
+| `@angular/core`  | `>=20.0.0`            |
+| `typescript`     | `>=5.0.0`             |
+
+Each release requires the `@ng-prism/core` of its own version (`^22.7.0-0` for 22.7.0), so keep the core and the plugin on the same version.
 
 ## Setup
 

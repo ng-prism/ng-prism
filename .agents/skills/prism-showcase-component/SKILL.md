@@ -146,7 +146,7 @@ interface Variant<T = unknown> {
   page, and `variants`, `states`, `category`, `bg` and the other page fields are dropped with a notice. A directive
   part keeps a string or object `host` (markup such as `'<span>12</span>'`) for its usage line. The parent's
   variants show the part. Demo in test-lib: `lib-list` with `lib-list-item`, `lib-list-group` and
-  `[libListItemMeta]`. Details: `docs/guide/showcase-decorator.md` › `partOf`
+  `[libListItemMeta]`. Details: `docs/guide/parts.md`
 - The component must be exported from the library's entry file to be discovered.
   Which file that is comes from the builder's `entryPoint` option — commonly
   `public-api.ts` or `index.ts`, not a fixed name.

@@ -1,9 +1,11 @@
-# Figma Plugin
+# Figma
 
-`@ng-prism/plugin-figma` brings your Figma designs into ng-prism with two complementary panels:
+`@ng-prism/plugin-figma` brings your Figma designs into the styleguide: embedded next to the component, and on request compared with it pixel by pixel.
 
-- **Figma Embed:** live, interactive iframe of the design. Registered by default.
-- **Design Diff:** pixel-by-pixel comparison between your rendered component and the Figma node (side by side, overlay, diff), switched in the panel toolbar; **Re-run** compares again, and the match percentage and the number of differing pixels are in its tooltip. **Opt-in** via `figmaPlugin({ designDiff: true })`.
+## What it does
+
+- Adds a **Figma** tab (id `figma`) to the addons panel below the canvas: the live, interactive Figma embed of the design that the component's `meta.figma` links. Registered by default.
+- With `designDiff: true`, adds a **Design Diff** tab (id `figma-diff`): it captures the active variant, fetches its Figma node as an image and compares the two pixel by pixel, side by side, as an overlay or as a diff. See [Design Diff](#design-diff).
 
 ## Install
 
@@ -11,15 +13,15 @@
 ng add @ng-prism/plugin-figma
 ```
 
-This installs the package and registers `figmaPlugin()` in your `ng-prism.config.ts` automatically, which gives you the Embed panel. See [Configuration](#configuration) to additionally enable the Design Diff panel. To install manually: `npm install @ng-prism/plugin-figma`.
+This installs the package and registers `figmaPlugin()` in `ng-prism.config.ts`, which gives you the Figma tab. [Configuration](#configuration) shows how to add the Design Diff tab. To install it by hand, see [Installing Plugins](plugins/overview.md#installing-plugins).
 
-The Design Diff feature additionally needs `html2canvas` and `pixelmatch` (declared as optional peer dependencies):
+The Design Diff needs `html2canvas` and `pixelmatch` as well, which the plugin declares as optional peer dependencies:
 
 ```bash
-npm install html2canvas pixelmatch
+npm install -D html2canvas pixelmatch
 ```
 
-You only need these if you actually use the Design Diff panel. The Embed panel works without them.
+The Figma tab works without them. The Design Diff tab is loaded when you first open it, and it loads `html2canvas` and `pixelmatch` only when you run a diff.
 
 ## Configuration
 
@@ -32,21 +34,16 @@ import { FIGMA_TOKEN } from './figma-token.local.ts';
 export default defineConfig({
     plugins: [
         figmaPlugin({
-            // Opt in to the Design Diff panel. Omit it and only the Embed panel is registered.
+            // Opt in to the Design Diff tab. Without it only the Figma tab is registered.
             designDiff: true,
-            // Required by the Design Diff panel to fetch node images.
+            // Required by the Design Diff to fetch node images.
             accessToken: FIGMA_TOKEN
         })
     ]
 });
 ```
 
-### Options
-
-| Option        | Type      | Default | Description                                                                                                                       |
-| ------------- | --------- | ------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `designDiff`  | `boolean` | `false` | Registers the Design Diff panel. Without it the plugin contributes the Embed panel only, and no Design Diff tab appears anywhere. |
-| `accessToken` | `string`  | -       | Personal access token used to fetch node images via the Figma REST API. Only read by the Design Diff panel.                       |
+The two options are independent: `designDiff` decides whether the Design Diff tab exists, `accessToken` whether it can run. `accessToken` alone does not add the tab; `designDiff: true` without a token adds it, and a diff then stops at **No access token**. For most setups the Figma tab alone is enough. Enable the diff when you want to compare pixels.
 
 ### Getting a Figma access token
 
@@ -59,24 +56,29 @@ export default defineConfig({
     export const FIGMA_TOKEN = 'figd_…';
     ```
 
-    The config runs twice: in Node inside the builder and in the browser, so `process.env['FIGMA_TOKEN']` doesn't work (the Angular build rejects `process`, and the browser has none). The `.ts` extension in the import lets the builder load the file in Node, which needs Node 22.18 or newer. For the Angular build, add `"rewriteRelativeImportExtensions": true` to the `compilerOptions` of the styleguide app's `tsconfig.app.json`. The file has to exist wherever the styleguide is built: without a token, `export const FIGMA_TOKEN = '';` builds, and the panel reports the missing token when you run a diff.
+    The config runs twice: in Node inside the builder and in the browser, so `process.env['FIGMA_TOKEN']` doesn't work (the Angular build rejects `process`, and the browser has none). The `.ts` extension in the import lets the builder load the file in Node, which needs Node 22.18 or newer. For the Angular build, add `"rewriteRelativeImportExtensions": true` to the `compilerOptions` of the styleguide app's `tsconfig.app.json`. The file has to exist wherever the styleguide is built: without a token, `export const FIGMA_TOKEN = '';` builds, and the Design Diff reports the missing token when you run a diff.
 
-> **The token becomes part of the styleguide app.** The styleguide's `main.ts` imports `ng-prism.config.ts`, and `figmaPlugin()` hands its options to the Design Diff panel, which calls the Figma REST API from the browser. Anyone who can open a styleguide built with a token can read the token from its bundle. Never deploy a styleguide built with your personal token where others can open it, and never commit the token to a repository.
+> **The token becomes part of the styleguide app.** The styleguide's `main.ts` imports `ng-prism.config.ts`, and `figmaPlugin()` hands its options to the Design Diff, which calls the Figma REST API from the browser. Anyone who can open a styleguide built with a token can read the token from its bundle. Never deploy a styleguide built with your personal token where others can open it, and never commit the token to a repository.
 
-The two options are independent: `designDiff` decides whether the panel exists, `accessToken` decides whether it can run. Setting `accessToken` alone does not register the panel; setting `designDiff: true` without a token registers it, but it shows an "Access Token fehlt" hint when triggered. For most setups the Embed panel alone is enough. Enable the diff only when you want to compare pixels.
+## Options
+
+| Option        | Type      | Default | Description                                                                                                              |
+| ------------- | --------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `designDiff`  | `boolean` | `false` | Adds the Design Diff tab. Without it the plugin contributes the Figma tab only, and no Design Diff tab appears anywhere. |
+| `accessToken` | `string`  | none    | Personal access token the Design Diff uses to fetch node images from the Figma REST API. Nothing else reads it.          |
 
 ## Linking components to Figma nodes
 
-Both panels read Figma URLs from `meta.figma`, but not from the same place:
+Both tabs read Figma URLs from `meta.figma`, but not from the same place:
 
-- The **Embed panel** reads only the component-level `meta.figma` on `@Showcase`, and only when it is a string. It shows the same design for every variant, and it stays hidden when the component has no such string, even if its variants have one.
-- The **Design Diff panel** (with `designDiff: true`) appears once at least one variant sets `meta.figma`; a component-level value alone does not show it. It compares the active variant with that variant's `meta.figma`, or with the component-level one when the variant has none.
+- The **Figma tab** reads only the component-level `meta.figma` on `@Showcase`, and only when it is a string. It shows the same design for every variant, and it stays hidden when the component has no such string, even if its variants have one.
+- The **Design Diff** tab (with `designDiff: true`) appears once at least one variant sets `meta.figma`; a component-level value alone does not show it. It compares the active variant with that variant's `meta.figma`, or with the component-level one when the variant has none.
 
-The Design Diff panel needs a node id: a `node-id` query parameter in the URL, which Figma adds when you copy the link to a selected frame, or the `nodeId` of the [object form](#object-form). The Embed panel passes the URL to Figma's embed endpoint as it is.
+The Design Diff needs a node id: a `node-id` query parameter in the URL, which Figma adds when you copy the link to a selected frame, or the `nodeId` of the [object form](#object-form). The Figma tab passes the URL to Figma's embed endpoint as it is.
 
 ### Component-level URL
 
-The only value the Embed panel reads, and the Design Diff panel's fallback for variants without their own:
+The only value the Figma tab reads, and the Design Diff's fallback for variants without their own:
 
 ```typescript
 @Showcase({
@@ -93,7 +95,7 @@ The only value the Embed panel reads, and the Design Diff panel's fallback for v
 
 ### Variant-level URLs
 
-Link a variant to its own Figma node. **The Design Diff panel needs at least one**: it only appears when a variant sets `meta.figma`, and it compares the active variant with that variant's node:
+Link a variant to its own Figma node. **The Design Diff needs at least one**: its tab only appears when a variant sets `meta.figma`, and it compares the active variant with that variant's node:
 
 ```typescript
 @Showcase({
@@ -113,75 +115,84 @@ Link a variant to its own Figma node. **The Design Diff panel needs at least one
 })
 ```
 
-For the Design Diff panel, a variant's `meta.figma` takes precedence over the component-level value, and a variant without one falls back to it. The Embed panel ignores variant-level values.
+For the Design Diff, a variant's `meta.figma` takes precedence over the component-level value, and a variant without one falls back to it. The Figma tab ignores variant-level values.
 
 ### Object form
 
-`meta.figma` also accepts an object, which is useful if you want to override the parsed node id explicitly. Only the Design Diff panel reads this form; on the component level it hides the Embed panel, which needs a string:
+`meta.figma` also accepts an object, which is useful if you want to set the node id explicitly. Only the Design Diff reads this form; on the component level it hides the Figma tab, which needs a string:
 
 ```typescript
 meta: {
   figma: {
     url: 'https://www.figma.com/design/abc123/My-Design?node-id=1-1',
-    nodeId: '1:1', // optional, overrides the node-id extracted from the URL
+    nodeId: '1:1', // optional, overrides the node-id read from the URL
   },
 },
 ```
 
-## Panel: Figma Embed
+## The Figma tab
 
-The Embed panel uses the public Figma Embed endpoint (`https://www.figma.com/embed?embed_host=ng-prism&url=...`). **No access token required** for public files. For private files, the user must be logged into Figma in their browser.
+The tab embeds the design through Figma's public embed endpoint (`https://www.figma.com/embed?embed_host=ng-prism&url=...`). **No access token is required.** For a private file, the viewer has to be logged into Figma in the same browser.
 
 The embedded viewer is fully interactive: you can navigate nodes, zoom and inspect properties without leaving ng-prism.
 
-The panel is visible when the component-level `meta.figma` on `@Showcase` is a string. Variant-level values don't count.
+The tab keeps its iframe while you switch to another tab (the panel is `keepAlive`), so coming back to it does not reload the design. The iframe reloads when the URL changes, for example on another component.
 
-The panel registers itself with `keepAlive: true`, so the iframe survives tab switches. Switching to Controls and back will not trigger a re-load of the Figma embed. The iframe is only reloaded when the active component (and therefore the Figma URL) changes.
+## Design Diff
 
-## Panel: Design Diff
-
-The Design Diff panel renders the component into a canvas (via `html2canvas`), fetches the corresponding Figma node as a PNG (via the Figma REST API), and computes a pixel-by-pixel diff (via `pixelmatch`).
-
-The panel has to be enabled with `figmaPlugin({ designDiff: true })`. Once enabled, it is visible when at least one variant has `meta.figma`. The diff targets the active variant, with the variant's own `meta.figma` or, without one, the component-level value.
+The Design Diff tab renders the active variant into an image (with `html2canvas`), fetches the Figma node as a PNG (from the Figma REST API) and computes a pixel-by-pixel diff (with `pixelmatch`).
 
 ### Workflow
 
-1. Open the **Design Diff** panel.
-2. Click **▶ Design Diff ausführen** to run the comparison.
-3. Review the result in one of three modes.
+1. Open the **Design Diff** tab.
+2. Click **Run design diff**. The tab shows **Loading screenshots…** while it works.
+3. Review the result in one of three views, switched in the panel toolbar.
+4. Click **Re-run** after editing the component or the Figma node to compare again.
 
 ### View modes
 
-| Mode             | What you see                                                                                                             |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **Side-by-side** | Component screenshot and Figma export rendered next to each other.                                                       |
-| **Overlay**      | Figma export layered on top of the component, with an opacity slider (0–100). Great for catching small alignment drifts. |
-| **Diff**         | Just the pixelmatch output: red pixels where component and design diverge.                                               |
+| Mode             | What you see                                                                                                                             |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **Side by side** | The capture of the component (labelled `ng-prism`) and the Figma image (labelled `Figma`) next to each other.                            |
+| **Overlay**      | The Figma image on top of the capture, with an opacity slider from 0 to 100 that starts at 50. Good for catching small alignment drifts. |
+| **Diff**         | The `pixelmatch` output alone: red pixels where the component and the design differ.                                                     |
 
 ### Stats
 
-The toolbar shows:
+The tooltip of **Re-run** shows the result of the last run, for example `98.7% match · 1,204 px differ`:
 
-- **Similarity %:** `(totalPixels − diffPixels) / totalPixels * 100`
-- **Diff pixel count:** raw number of pixels that differ beyond the threshold
-
-Click **↺ Erneut** in the toolbar to re-run after editing the component or refreshing the Figma source.
+- **Match:** `(totalPixels − diffPixels) / totalPixels × 100`, with one decimal
+- **Pixels that differ:** the number of pixels that differ beyond the threshold
 
 ### How the diff works
 
-1. The component is captured with `html2canvas` at the size it currently renders. For a variant with a `template` or a host template, that is the whole composition, see [Canvas State](architecture/canvas-state.md#composed-variants-root-and-subject).
-2. The Figma node is fetched at **2× scale** via `GET /v1/images/{fileKey}?ids={nodeId}&format=png&scale=2` and scaled to match the component dimensions.
-3. `pixelmatch` runs with `threshold: 0.1` and anti-aliasing detection disabled, producing the diff buffer.
-4. All three artefacts (component, Figma, diff) are stored as data URLs in the panel state, so mode switching makes no further network calls.
+1. The component is captured with `html2canvas` at the size it renders, at the screen's device pixel ratio. For a variant with a `template` or a host template, that is the whole composition, see [Canvas State](architecture/canvas-state.md#composed-variants-root-and-subject).
+2. The Figma node is fetched at **2× scale** with `GET https://api.figma.com/v1/images/{fileKey}?ids={nodeId}&format=png&scale=2` and the token in the `X-Figma-Token` header, then scaled to the size of the capture. The file key comes from a `figma.com/design/…` or `figma.com/file/…` URL; a `node-id` such as `1-2` is read as `1:2`.
+3. `pixelmatch` compares the two with `threshold: 0.1`. It detects anti-aliased pixels and does not count them as differences.
+4. All three images (capture, Figma image, diff) are kept in the tab, so switching views makes no further request.
 
-### Error states
+## Parts and compositions
 
-| Status               | What it means                                                                                                                                                                                                                                                                                                                        |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Access Token fehlt` | The panel is enabled via `designDiff: true`, but no `accessToken` was passed to `figmaPlugin()`.                                                                                                                                                                                                                                     |
-| `Kein Figma-Node …`  | Neither the active variant nor the component has a `meta.figma` with a node id: the value is missing, or its URL has no `node-id` and there is no `nodeId`.                                                                                                                                                                          |
-| `Figma API Fehler`   | The diff failed. Usually the Figma REST API rejected the request: invalid token, missing file scope, file/node not accessible to the token's owner. It also shows `Ungültige Figma-URL` for a URL that is not a `figma.com/design/…` or `figma.com/file/…` link, and errors from capturing the component or loading the Figma image. |
+- **Parts:** a [part](guide/parts.md) has no page of its own, so no Figma tab or Design Diff shows the `meta.figma` it declares. Link the design on the parent, or on the parent's variants that show the part.
+- **Compositions:** for a variant with a [`template` or a host template](guide/compositions.md), the Design Diff captures the whole composition, frame and other parts included. Compare such a variant with a Figma frame of the whole composition.
 
-## Lazy loading
+## Troubleshooting
 
-The Design Diff panel component (`FigmaDesignDiffPanelComponent`) is loaded via `loadComponent`; the Embed panel component (`FigmaPanelComponent`) is imported directly. The plugin factory itself runs in Node.js (during the build) and in the browser, so we avoid eager imports of `@angular/platform-browser`, `html2canvas`, and `pixelmatch`, because they would crash the Node-side evaluation. The heavy diff dependencies are only pulled in the moment the user clicks **Design Diff ausführen**.
+The Design Diff tab shows one of these instead of a result:
+
+| Message                            | What it means                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **No access token**                | `designDiff: true` is set, but `figmaPlugin()` got no `accessToken`. The hint under it names the option to set.                                                                                                                                                                                                                                                       |
+| **No Figma node for this variant** | Neither the active variant nor the component has a `meta.figma` with a node id: the value is missing, its URL has no `node-id` and there is no `nodeId`, or the variant's own value cannot be read (the component-level one is then not used).                                                                                                                        |
+| **Figma API error**                | The diff failed, with the reason under it. Usually the Figma REST API rejected the request (`Figma API 403: …`): an invalid token, a missing file scope, or a file or node the token's owner cannot open. It also appears for a URL that is not a `figma.com/design/…` or `figma.com/file/…` link, and when capturing the component or loading the Figma image fails. |
+
+When a tab is missing:
+
+- **No Figma tab:** the component-level `meta.figma` is not a string, or the component has none. Variant-level values and the object form do not count for it.
+- **No Design Diff tab:** `designDiff: true` is not set, or no variant of the component sets `meta.figma`.
+
+## Related
+
+- [`meta`](api/showcase-config.md#meta) in the ShowcaseConfig reference: where `figma` goes
+- [Visual Regression](plugins/visual-regression.md): compares captures with baselines from your own runner, not with a design
+- [Installing Plugins](plugins/overview.md#installing-plugins)

@@ -1,83 +1,79 @@
 # Configuration
 
-ng-prism is configured through an `ng-prism.config.ts` file at the workspace root (the builders' `configFile` option can point elsewhere). The file exports a default `NgPrismConfig` object created with `defineConfig()`.
+ng-prism reads its configuration from `ng-prism.config.ts` in the workspace root, which `ng add` creates. The file exports the object of `defineConfig()` as its default:
 
 ```typescript
 // ng-prism.config.ts (workspace root)
-import { defineConfig } from '@ng-prism/core';
+import { defineConfig } from '@ng-prism/core/config';
 import { jsDocPlugin } from '@ng-prism/plugin-jsdoc';
 
 export default defineConfig({
-    plugins: [jsDocPlugin()],
-    theme: {
-        '--prism-primary': '#0ea5e9',
-        '--prism-font-sans': '"Inter", system-ui, sans-serif'
-    }
+    title: 'Acme UI',
+    plugins: [jsDocPlugin()]
 });
 ```
 
-`defineConfig()` is an identity function. It only exists for TypeScript inference on the config object.
+Both sides load it: the builders while they build the styleguide, and the styleguide app in the browser, which imports it in its `main.ts`. The builder option [`configFile`](api/builders.md#configfile) points at another file. This page goes through the common tasks; every field, with its type, its default and its rules, is under [NgPrismConfig](api/ng-prism-config.md).
 
-## Full Reference
+## Plugins
 
-See [NgPrismConfig](api/ng-prism-config.md) for the complete interface.
+Plugins add panels, input controls, header widgets and sidebar markers. List them in [`plugins`](api/ng-prism-config.md#plugins), in the order their tabs should appear:
 
-The most commonly used fields:
+```typescript
+import { defineConfig } from '@ng-prism/core/config';
+import { figmaPlugin } from '@ng-prism/plugin-figma';
+import { jsDocPlugin } from '@ng-prism/plugin-jsdoc';
 
-| Field             | Type                     | Description                                                                                                                                               |
-| ----------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `title`           | `string`                 | Header title text (default: the ng-prism wordmark)                                                                                                        |
-| `subtitle`        | `string`                 | Secondary text below the title (monospace, muted)                                                                                                         |
-| `plugins`         | `NgPrismPlugin[]`        | List of plugins to activate                                                                                                                               |
-| `pages`           | `StyleguidePage[]`       | Config-declared custom pages                                                                                                                              |
-| `appProviders`    | `Provider[]`             | Angular providers added to the Prism app bootstrap                                                                                                        |
-| `theme`           | `Record<string, string>` | CSS custom property overrides                                                                                                                             |
-| `themeStylesheet` | `string`                 | _Deprecated since 22.6.0, never had an effect._                                                                                                           |
-| `ui`              | object                   | _Deprecated since 22.6.0, never had an effect._                                                                                                           |
-| `headless`        | `boolean`                | _Deprecated since 22.6.0, never had an effect._                                                                                                           |
-| `urlState`        | `boolean`                | Disable URL state sync (default: `true`)                                                                                                                  |
-| `buildInfo`       | `object`                 | Show version / git hash pill in header                                                                                                                    |
-| `a11y`            | `object`                 | Report path, grading `thresholds` and build `gate` for the a11y report, see [Accessibility](guide/accessibility.md#library-wide-a11y-score--header-badge) |
-| `strictShowcase`  | `boolean`                | Fail the build when a `@Showcase` value is dropped (default: `false`)                                                                                     |
+export default defineConfig({
+    plugins: [jsDocPlugin(), figmaPlugin()]
+});
+```
+
+`ng add @ng-prism/plugin-<name>` installs an official plugin and adds it to this list for you, see [Installing Plugins](plugins/overview.md#installing-plugins). The options of each plugin are on its own page. Services and pipes only get pages when a plugin shows them, such as `jsDocPlugin()`, see [Services & Pipes](guide/services-and-pipes.md).
+
+## Pages
+
+Pages of your own sit in a pinned _Pages_ section above the showcases. There are two kinds:
+
+- **A page of data**, such as a changelog: list it in [`pages`](api/ng-prism-config.md#pages), see [Custom Pages via Config](guide/component-pages.md#custom-pages-via-config).
+- **An Angular component of yours as a page**: register it in the `main.ts` of the styleguide app, not in the config, since the config's pages reach the app as JSON, see [Registering Pages](guide/component-pages.md#registering-pages).
+
+[Component Pages](guide/component-pages.md) explains when a page is the right choice over a composition.
 
 ## Adding Global Providers
 
-Use `appProviders` for services that every showcase component needs, for example a mock API service or router:
+A showcased component that injects something the styleguide app does not provide, such as `HttpClient`, a router for `routerLink`, a mock backend or a configuration token of your library, needs a provider in the root injector of the styleguide app. Every rendered component sees what is there. There are two places for one:
+
+- **The `providers` in the `main.ts` of the styleguide app**, next to `providePrism()`. This is the place for anything from your library or your own source files, and for `provideHttpClient()`, `provideRouter()` and other functions that return `EnvironmentProviders`.
+- **[`appProviders`](api/ng-prism-config.md#appproviders) in the config**, for providers made only of installed packages. The builders load the config in Node.js as well, which knows neither your path mappings nor Angular's decorators, so the config cannot import your library or a service of your own. `appProviders` is a `Provider[]` and does not take `EnvironmentProviders`.
 
 ```typescript
-import { defineConfig } from '@ng-prism/core';
-import { provideRouter, withHashLocation } from '@angular/router';
+// projects/my-lib-prism/src/main.ts
+import { provideHttpClient } from '@angular/common/http';
+import { provideRouter } from '@angular/router';
+import { API_BASE_URL, ApiService } from 'my-lib';
+import { MockApiService } from './mocks/mock-api.service';
 
-export default defineConfig({
-    appProviders: [provideRouter([], withHashLocation()), { provide: MyApiService, useClass: MockApiService }]
+bootstrapApplication(PrismShellComponent, {
+    providers: [
+        provideHttpClient(),
+        provideRouter([]),
+        { provide: API_BASE_URL, useValue: 'http://localhost:3000' },
+        { provide: ApiService, useClass: MockApiService },
+        providePrism(PRISM_RUNTIME_MANIFEST, config)
+    ]
 });
 ```
 
-Only for a provider that one component needs and the others must not see, render that component through a [component page](guide/component-pages.md) and declare the provider there. `@Showcase({ providers })` never worked and is deprecated.
-
-## Theming
-
-Override CSS custom properties to match your design system:
-
-```typescript
-export default defineConfig({
-    theme: {
-        '--prism-primary': '#0ea5e9',
-        '--prism-bg': '#0f172a',
-        '--prism-font-sans': '"Inter", sans-serif'
-    }
-});
-```
-
-See [Theming](guide/theming.md) for the full list of available properties.
+Keep the rest of the `main.ts` that `ng add` wrote. For a provider that only one component may see, render that component through a [component page](guide/component-pages.md) and declare the provider there.
 
 ## Branding
 
-Replace the default ng-prism logo, title, and subtitle in the header:
+Put your own name, logo and build in the header:
 
 ```typescript
 export default defineConfig({
-    title: 'My Component Library',
+    title: 'Acme UI',
     subtitle: 'acme/design-system',
     logo: {
         light: 'assets/logo-on-light.svg',
@@ -86,46 +82,34 @@ export default defineConfig({
 });
 ```
 
-| Field        | Type     | Description                                                                       |
-| ------------ | -------- | --------------------------------------------------------------------------------- |
-| `title`      | `string` | Header title, in plain text. Default: the ng-prism wordmark in the brand gradient |
-| `subtitle`   | `string` | Smaller text below the title (monospace, muted). Optional. Not shown on a phone.  |
-| `logo.light` | `string` | Logo image URL for light backgrounds                                              |
-| `logo.dark`  | `string` | Logo image URL for dark backgrounds                                               |
+- [`title`](api/ng-prism-config.md#title) replaces the ng-prism wordmark. "Powered by ng-prism" stays at the foot of the sidebar.
+- [`subtitle`](api/ng-prism-config.md#subtitle) is the smaller line under it.
+- [`logo`](api/ng-prism-config.md#logo) replaces the ng-prism symbol. The header is a navy band in both themes, so `dark` is the one it shows whenever you set it.
 
-On a phone (since 22.7.0) the header drops the subtitle, shortens a long title down to the logo when it runs out of room, and caps a wide logo at 40% of the width. See [On a Phone](guide/first-showcase.md#on-a-phone).
-
-Since 22.7 the header is a navy band in both themes, so `logo.dark` is shown whenever it is set, and `logo.light` only when it is the one you provided. Without a logo the ng-prism symbol is shown. The brand gradient belongs to the ng-prism wordmark: a `title` of your own is set in the regular text colour, and ng-prism stays credited as "Powered by ng-prism" in the sidebar footer.
+On a phone the header drops the subtitle and shortens a long title, see [On a phone](guide/styleguide-ui.md#on-a-phone).
 
 ### Build Info
 
-Show the deployed version and git hash as a pill in the header:
+Show the deployed version and commit as a pill in the header with [`buildInfo`](api/ng-prism-config.md#buildinfo):
 
 ```typescript
 export default defineConfig({
     buildInfo: {
-        version: packageJson.version,
-        gitHash: environment.gitHash
+        version: '1.2.3',
+        gitHash: 'a1b2c3d4e5f6'
     }
 });
 ```
 
-The pill appears left of the header action buttons. Both fields are optional, and the git hash is automatically truncated to 7 characters. On a phone (since 22.7.0) the build info moves into the ⋮ menu.
+The pill reads `v1.2.3 · a1b2c3d`. Either field works on its own.
 
-> **Note:** A small "Powered by ng-prism" notice is always visible at the bottom of the sidebar.
+## Theming
 
-## Plugins
+Colours, fonts and the density of the styleguide are CSS custom properties. Override them in [`theme`](api/ng-prism-config.md#theme) for both themes, or in [`darkTheme`](api/ng-prism-config.md#darktheme) and [`lightTheme`](api/ng-prism-config.md#lighttheme) for one. [Theming](guide/theming.md) shows how, and lists every token.
 
-Plugins are registered in order. Each is activated during the build pipeline and at runtime:
+## Other Options
 
-```typescript
-import { defineConfig } from '@ng-prism/core';
-import { jsDocPlugin } from '@ng-prism/plugin-jsdoc';
-import { figmaPlugin } from '@ng-prism/plugin-figma';
-
-export default defineConfig({
-    plugins: [jsDocPlugin(), figmaPlugin()]
-});
-```
-
-See [Plugin Overview](plugins/overview.md) for a description of each official plugin.
+- [`urlState`](api/ng-prism-config.md#urlstate) and [`persistState`](api/ng-prism-config.md#persiststate) switch off what the styleguide keeps in the URL and across reloads, see [Links & State](guide/url-state.md).
+- [`a11y`](api/ng-prism-config.md#a11y) points the build at a library-wide a11y report and sets its limits, see [A11y Reports](guide/a11y-reports.md).
+- [`strictShowcase`](api/ng-prism-config.md#strictshowcase) fails the build when the scan has to drop a `@Showcase` value, see [Build Warnings](api/build-warnings.md).
+- `themeStylesheet`, `ui`, `headless` and `appComponent` have no effect, see [Deprecated options](api/ng-prism-config.md#deprecated-options).

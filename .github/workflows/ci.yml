@@ -37,6 +37,7 @@ jobs:
             # Mirrors `npm run check`. Without it only the local run catches an
             # undeclared dependency, and a package ships to npm with green CI.
             - run: node scripts/check-declared-deps.mjs
+            - run: npm run check:docs
             - run: npm run style
             - run: npx nx run-many -t lint test build typecheck e2e-ci
             # Nx Cloud recommends fixes for failures to help you get CI green faster. Learn more: https://nx.dev/ci/features/self-healing-ci

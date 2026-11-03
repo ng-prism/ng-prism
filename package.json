@@ -7,7 +7,7 @@
         "build": "nx build ng-prism",
         "build:all": "nx build ng-prism && nx run-many -t build --projects='plugin-box-model,plugin-figma,plugin-jsdoc,plugin-perf,plugin-coverage,plugin-visual-regression'",
         "test": "nx test ng-prism",
-        "check": "nx format:check && node scripts/check-declared-deps.mjs && npm run style && nx run-many -t lint test build typecheck",
+        "check": "nx format:check && node scripts/check-declared-deps.mjs && npm run check:docs && npm run style && nx run-many -t lint test build typecheck",
         "check:fix": "npm run lint:fix && nx format:write && npm run style:fix",
         "lint": "nx run-many -t lint",
         "lint:fix": "node scripts/fix-until-stable.mjs eslint .",
@@ -22,6 +22,7 @@
         "test:workspace:clean": "cd test-workspace && rm -rf node_modules package-lock.json ng-prism.config.ts && git checkout -- angular.json package.json",
         "test:workspace:reset": "npm run test:workspace:clean && npm run test:workspace:setup && npm run test:workspace:install",
         "check:deps": "node scripts/check-declared-deps.mjs",
+        "check:docs": "node scripts/check-docs.mjs",
         "style": "stylelint --allow-empty-input '**/*.{css,scss}'",
         "style:fix": "stylelint --allow-empty-input --fix '**/*.{css,scss}'",
         "prepare": "husky"

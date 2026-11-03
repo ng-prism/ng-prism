@@ -1,231 +1,228 @@
 # Runtime Services
 
-All services are provided in `root` and injectable anywhere in the Prism app, for example in component pages and plugin components. Import from `@ng-prism/core`.
-
----
-
-## PrismManifestService
-
-Manages the runtime manifest, i.e. the in-memory representation of all discovered components, services, pipes and pages.
+The services of the styleguide app, for component pages, plugin panels, header widgets and custom controls. Each is provided in `root`, so `inject()` reaches it anywhere in the app. Import them from `@ng-prism/core`.
 
 ```typescript
-import { PrismManifestService } from '@ng-prism/core';
+import { PrismRendererService } from '@ng-prism/core';
 
-@Component({ ... })
-export class MyComponent {
-  private readonly manifest = inject(PrismManifestService);
+export class MyPanelComponent {
+    private readonly renderer = inject(PrismRendererService);
 }
 ```
 
-| Member                     | Type                                      | Description                                                            |
-| -------------------------- | ----------------------------------------- | ---------------------------------------------------------------------- |
-| `manifest`                 | `Signal<RuntimeManifest>`                 | Full runtime manifest (read-only)                                      |
-| `components`               | `Signal<RuntimeComponent[]>`              | All registered components                                              |
-| `services`                 | `Signal<RuntimeService[]>`                | All registered [services](guide/showcasing-services.md), `[]` for none |
-| `pipes`                    | `Signal<RuntimePipe[]>`                   | All registered [pipes](guide/showcasing-pipes.md), `[]` for none       |
-| `pages`                    | `Signal<StyleguidePage[]>`                | All registered pages                                                   |
-| `categories`               | `Signal<string[]>`                        | Distinct category names, sorted by `categoryOrder` then alphabetically |
-| `groupedByCategory`        | `Signal<Map<string, RuntimeComponent[]>>` | Components keyed by category                                           |
-| `updateManifest(manifest)` | `void`                                    | Replace the entire manifest (used by HMR)                              |
+A member typed `WritableSignal` can be set, but most have a method that does more than set the signal (clamp, save, reset). Use the method where there is one.
 
----
+## PrismManifestService
+
+The runtime manifest: every component, service, pipe and page of the styleguide.
+
+| Member                     | Type                                      | Description                                                                                                                                                |
+| -------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `manifest`                 | `Signal<RuntimeManifest>`                 | The [runtime manifest](api/types.md#runtimemanifest). After a rescan of `serve` the page reloads with the new one; `updateManifest()` replaces it in place |
+| `components`               | `Signal<RuntimeComponent[]>`              | Every component and directive. A part is not in the list but in the `parts` of its parent                                                                  |
+| `services`                 | `Signal<RuntimeService[]>`                | Every showcased [service](guide/services-and-pipes.md#services), `[]` when no plugin shows services                                                        |
+| `pipes`                    | `Signal<RuntimePipe[]>`                   | Every showcased [pipe](guide/services-and-pipes.md#pipes), `[]` when no plugin shows pipes                                                                 |
+| `pages`                    | `Signal<StyleguidePage[]>`                | The custom pages of the config and the component pages registered with `providePrism()`                                                                    |
+| `categories`               | `Signal<string[]>`                        | The categories of the components and pages, `'Uncategorized'` for none, sorted by the lowest `categoryOrder` of a component in them, then alphabetically   |
+| `groupedByCategory`        | `Signal<Map<string, RuntimeComponent[]>>` | The components by category, `'Uncategorized'` for none                                                                                                     |
+| `updateManifest(manifest)` | `void`                                    | Replaces the manifest                                                                                                                                      |
+
+### enablePrismHmr
+
+```typescript
+function enablePrismHmr(appRef: ApplicationRef, newManifest: RuntimeManifest): void;
+```
+
+A function, not a service: it hands a new manifest to `PrismManifestService.updateManifest()` through the root injector of `appRef`, so the styleguide shows it without a page reload and keeps the open component. The `main.ts` that `ng add` writes calls it from an `import.meta.hot` hook for the manifest module. That hook only runs where the dev server delivers a module update for the manifest; Angular 22's dev server reloads the page after a rescan instead, so under `serve` it does not run, see [Watching and reloading](api/builders.md#watching-and-reloading).
+
+```typescript
+import { enablePrismHmr } from '@ng-prism/core';
+
+// In the HMR accept handler of the manifest module:
+enablePrismHmr(appRef, mod.PRISM_RUNTIME_MANIFEST);
+```
 
 ## PrismNavigationService
 
-Manages which component, service, pipe or page is currently selected in the sidebar.
+What is open: a component, service, pipe or page.
 
-| Member                   | Type                                     | Description                                                                                               |
-| ------------------------ | ---------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `activeItem`             | `WritableSignal<NavigationItem \| null>` | Currently active navigation item                                                                          |
-| `activeComponent`        | `Signal<RuntimeComponent \| null>`       | Derived from `activeItem` if kind is `'component'`                                                        |
-| `activeService`          | `Signal<RuntimeService \| null>`         | Derived from `activeItem` if kind is `'service'`                                                          |
-| `activePipe`             | `Signal<RuntimePipe \| null>`            | Derived from `activeItem` if kind is `'pipe'`                                                             |
-| `activePage`             | `Signal<StyleguidePage \| null>`         | Derived from `activeItem` if kind is `'page'`                                                             |
-| `activeTarget`           | `Signal<PanelTarget \| null>`            | `'component'`, `'service'` or `'pipe'` for the active item, `null` for a page or when nothing is selected |
-| `sectionTree`            | `Signal<SectionNode[]>`                  | Sidebar tree of sections and their categories, filtered by search, sorted by order                        |
-| `select(comp)`           | `void`                                   | Select a `RuntimeComponent`                                                                               |
-| `selectService(service)` | `void`                                   | Select a `RuntimeService`                                                                                 |
-| `selectPipe(pipe)`       | `void`                                   | Select a `RuntimePipe`                                                                                    |
-| `selectPage(page)`       | `void`                                   | Select a `StyleguidePage`                                                                                 |
-| `selectFirst()`          | `void`                                   | Select the first page, component, service or pipe in the manifest                                         |
-
----
+| Member                    | Type                                     | Description                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `activeItem`              | `WritableSignal<NavigationItem \| null>` | The open [`NavigationItem`](api/types.md#navigationitem). Set it through the `select` methods                                                                                                                                                                                                                                                                    |
+| `activeComponent`         | `Signal<RuntimeComponent \| null>`       | The component of `activeItem`, looked up by class name in the current manifest, so it follows a rescan. `null` when another kind is open or the manifest no longer has it                                                                                                                                                                                        |
+| `activeService`           | `Signal<RuntimeService \| null>`         | The same for a service                                                                                                                                                                                                                                                                                                                                           |
+| `activePipe`              | `Signal<RuntimePipe \| null>`            | The same for a pipe                                                                                                                                                                                                                                                                                                                                              |
+| `activePage`              | `Signal<StyleguidePage \| null>`         | The same for a page, looked up by title and type                                                                                                                                                                                                                                                                                                                 |
+| `activeTarget`            | `Signal<PanelTarget \| null>`            | `'component'`, `'service'` or `'pipe'` for the open item, `null` for a page or when nothing is open                                                                                                                                                                                                                                                              |
+| `sectionTree`             | `Signal<SectionNode[]>`                  | The sidebar tree of the components, services and pipes that match the search: sections (`name`, `order`, `totalCount`, `categories`), each with its categories (`name`, `items: NavigationItem[]`), sorted by `sectionOrder`, `categoryOrder` and `componentOrder`, see [Identity and sidebar](api/showcase-config.md#identity-and-sidebar). Pages are not in it |
+| `parentOfPart(className)` | `RuntimeComponent \| undefined`          | The component that has a part of that class name (since 22.7.0). A part has no page of its own, so its parent's page is where it opens                                                                                                                                                                                                                           |
+| `select(comp)`            | `void`                                   | Opens a `RuntimeComponent`                                                                                                                                                                                                                                                                                                                                       |
+| `selectService(service)`  | `void`                                   | Opens a `RuntimeService`                                                                                                                                                                                                                                                                                                                                         |
+| `selectPipe(pipe)`        | `void`                                   | Opens a `RuntimePipe`                                                                                                                                                                                                                                                                                                                                            |
+| `selectPage(page)`        | `void`                                   | Opens a `StyleguidePage`                                                                                                                                                                                                                                                                                                                                         |
+| `selectFirst()`           | `void`                                   | Opens the first page that matches the search, else the first component, service or pipe, in that order; nothing when none matches                                                                                                                                                                                                                                |
 
 ## PrismRendererService
 
-Tracks the active variant and input values for the currently rendered component.
+The variant, the state and the input values of the component on the canvas, and the elements it rendered.
 
-| Member                        | Type                                                    | Description                                                                                                                                                                                                                                                                                                                                                       |
-| ----------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `activeVariantIndex`          | `WritableSignal<number>`                                | Index of the active variant tab (0-based)                                                                                                                                                                                                                                                                                                                         |
-| `activeStateIndex`            | `WritableSignal<number \| null>`                        | Position in `ShowcaseConfig.states` of the component-level state on the canvas, `null` for none. Reset when the variant or the component changes                                                                                                                                                                                                                  |
-| `inputValues`                 | `WritableSignal<Record<string, unknown>>`               | Current input values (merged defaults + variant + user overrides)                                                                                                                                                                                                                                                                                                 |
-| `activeContent`               | `Signal<string \| Record<string, string> \| undefined>` | Content projected into the canvas                                                                                                                                                                                                                                                                                                                                 |
-| `renderedElement`             | `WritableSignal<Element \| null>`                       | Reference to the root DOM element of what is rendered: the component, the host of a directive's wrapper, or the whole [composition](guide/content-projection.md#compiled-content-template) when the variant has a `template` or a host template                                                                                                                   |
-| `subjectElement`              | `Signal<Element \| null>`                               | The element of the showcased component or directive inside `renderedElement`, itself included: the one the generated wrapper marks with `data-prism-subject` in a composition, else `renderedElement`. `null` while nothing is rendered (since `22.7.0`)                                                                                                          |
-| `resetForComponent(comp)`     | `void`                                                  | Full reset: resets variant index, state, inputs, and content to variant 0                                                                                                                                                                                                                                                                                         |
-| `reconcileForComponent(comp)` | `void`                                                  | Runs on every component change, in any view, and again when the renderer mounts. Full reset when `comp` is another component than the last one; otherwise a soft reset that preserves variant index, state and user-overridden inputs (HMR, a cell opened from the Overview or restored from the URL) and merges input defaults when there was no prior component |
-| `selectVariant(index)`        | `void`                                                  | Change variant, apply its inputs and clear the active state (since `22.7.0`); select a state after the variant                                                                                                                                                                                                                                                    |
-| `selectState(index)`          | `void`                                                  | Set `activeStateIndex`; `null` clears the state                                                                                                                                                                                                                                                                                                                   |
-| `updateInput(name, value)`    | `void`                                                  | Update a single input value (merges into `inputValues`)                                                                                                                                                                                                                                                                                                           |
+| Member                           | Type                                                            | Description                                                                                                                                                                                                                                                                                    |
+| -------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `activeVariantIndex`             | `WritableSignal<number>`                                        | Index of the active variant, 0-based                                                                                                                                                                                                                                                           |
+| `activeStateIndex`               | `WritableSignal<number \| null>`                                | Position in [`states`](api/showcase-config.md#states) of the component-level state on the canvas, `null` for none. Reset when the variant or the component changes                                                                                                                             |
+| `inputValues`                    | `WritableSignal<Record<string, unknown>>`                       | The current input values: the defaults of the inputs, then the inputs of the variant, then the changes made in the Controls panel                                                                                                                                                              |
+| `activeContent`                  | `WritableSignal<string \| Record<string, string> \| undefined>` | The `content` of the variant that the canvas projects into the component; `undefined` for a directive and for a variant with a composition                                                                                                                                                     |
+| `renderedElement`                | `WritableSignal<Element \| null>`                               | The root DOM element of what is rendered: the component, the host of a directive's wrapper, or the whole [composition](guide/compositions.md) when the variant has a `template` or a host template                                                                                             |
+| `subjectElement`                 | `Signal<Element \| null>`                                       | The element of the showcased component or directive inside `renderedElement`, itself included: in a composition the one the generated wrapper marks with `data-prism-subject`, else `renderedElement`. `null` while nothing is rendered (since 22.7.0)                                         |
+| `dirtyInputCount`                | `Signal<number>`                                                | How many input values differ from those of the active variant. The Controls panel shows its Reset button while it is above zero                                                                                                                                                                |
+| `resetForComponent(comp)`        | `void`                                                          | Full reset: variant 0, no state, the inputs and the content of variant 0                                                                                                                                                                                                                       |
+| `reconcileForComponent(comp)`    | `void`                                                          | Runs on every navigation to a component, in any view, and again when the canvas mounts. A full reset when `comp` is another component than the last one; otherwise it keeps the variant and the state where the component still has them, keeps the changed inputs and fills in input defaults |
+| `selectVariant(index)`           | `void`                                                          | Changes the variant, applies its inputs and clears the active state (since 22.7.0). Select a state after the variant                                                                                                                                                                           |
+| `selectState(index)`             | `void`                                                          | Sets `activeStateIndex`; `null` clears the state                                                                                                                                                                                                                                               |
+| `updateInput(name, value)`       | `void`                                                          | Sets one input value, merged into `inputValues`                                                                                                                                                                                                                                                |
+| `resetInputsToVariantDefaults()` | `void`                                                          | Applies the inputs of the active variant again and drops the changes made in the Controls panel                                                                                                                                                                                                |
 
-`renderedElement` stays the root of everything the canvas renders. In a composition that is the frame and every other part as well, so a tool that measures, audits or captures the picture reads it. Use `subjectElement` when you mean the showcased element itself, for instance for its role or its label. Outside a composition the two are the same element.
+`renderedElement` stays the root of everything the canvas renders. In a composition that is the frame and every other element as well, so a tool that measures, audits or captures the picture reads it. Use `subjectElement` when you mean the showcased element itself, for instance for its role or its label. Outside a composition the two are the same element.
 
-Use `inputValues()` in Component Pages to react to Controls panel changes:
+A [component page](guide/component-pages.md) reacts to the Controls panel through `inputValues()`:
 
 ```typescript
-readonly rowCount = computed(() =>
-  this.renderer.inputValues()['rowCount'] as number ?? 0
-);
+readonly rowCount = computed(() => (this.renderer.inputValues()['rowCount'] as number) ?? 0);
 ```
-
----
 
 ## PrismSearchService
 
-Provides sidebar search and filtering.
+The sidebar search. A match is case-insensitive and ignores surrounding spaces; an empty query matches everything.
 
-| Member               | Type                         | Description                                                                        |
-| -------------------- | ---------------------------- | ---------------------------------------------------------------------------------- |
-| `query`              | `Signal<string>`             | Current search query                                                               |
-| `filteredComponents` | `Signal<RuntimeComponent[]>` | Components matching the query (title, class name, selector, category, tags, parts) |
-| `filteredServices`   | `Signal<RuntimeService[]>`   | Services matching the query (title, class name, category, tags)                    |
-| `filteredPipes`      | `Signal<RuntimePipe[]>`      | Pipes matching the query (title, class name, template name, category, tags)        |
-| `filteredPages`      | `Signal<StyleguidePage[]>`   | Pages matching the query (title, category)                                         |
-| `search(q)`          | `void`                       | Set the search query                                                               |
-| `clear()`            | `void`                       | Clear the search query                                                             |
-
----
+| Member               | Type                         | Description                                                                                             |
+| -------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `query`              | `WritableSignal<string>`     | The search query. Set it through `search()` and `clear()`                                               |
+| `filteredComponents` | `Signal<RuntimeComponent[]>` | The components whose title, category, tags, class name or selector match, or one of whose parts matches |
+| `filteredServices`   | `Signal<RuntimeService[]>`   | The services whose title, category, tags or class name match                                            |
+| `filteredPipes`      | `Signal<RuntimePipe[]>`      | The pipes whose title, category, tags, class name or pipe name match                                    |
+| `filteredPages`      | `Signal<StyleguidePage[]>`   | The pages whose title or category match                                                                 |
+| `search(q)`          | `void`                       | Sets the query                                                                                          |
+| `clear()`            | `void`                       | Clears the query                                                                                        |
 
 ## PrismEventLogService
 
-Records output events emitted by the rendered component for display in the Events panel.
+The output events the component on the canvas emitted, which the Events panel lists.
 
-| Member             | Type                      | Description                               |
-| ------------------ | ------------------------- | ----------------------------------------- |
-| `events`           | `Signal<EventLogEntry[]>` | List of logged events (most recent first) |
-| `log(name, value)` | `void`                    | Append an event entry                     |
-| `clear()`          | `void`                    | Clear all entries                         |
-
-`EventLogEntry`:
+| Member             | Type                              | Description                     |
+| ------------------ | --------------------------------- | ------------------------------- |
+| `events`           | `WritableSignal<EventLogEntry[]>` | The logged events, newest first |
+| `log(name, value)` | `void`                            | Adds an event                   |
+| `clear()`          | `void`                            | Removes all events              |
 
 ```typescript
 interface EventLogEntry {
-    id: number;
-    timestamp: number;
+    id: number; // counts up from 0
+    timestamp: number; // Date.now()
     name: string;
     value: unknown;
 }
 ```
 
-The built-in renderer calls `log()` automatically for all `output()` signals. Use `log()` manually only if you build a custom renderer.
-
----
-
-## PrismPanelService
-
-Controls which addon panel and view tab are active.
-
-| Member                       | Type                              | Description                                                                                                                                                                                                                                                                                                  |
-| ---------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `activePanelId`              | `WritableSignal<string>`          | ID of the active addon panel tab (default: `'controls'`)                                                                                                                                                                                                                                                     |
-| `activeViewId`               | `WritableSignal<string>`          | ID of the active view tab (default: `'renderer'`). Every component starts on `'renderer'`, unless the URL names a view (since 22.7.0; before, the view stayed from one component to the next while the next one offered it)                                                                                  |
-| `partsPanel`                 | `Signal<PanelDefinition \| null>` | The first visible view panel with [`listsParts`](api/ng-prism-plugin.md#panels-that-list-parts), `null` when there is none (since 22.7.0)                                                                                                                                                                    |
-| `activePart`                 | `Signal<string \| null>`          | Key of the part the active view is asked to show: its class name, with `~2`, `~3`, … for a later part of the same class name (see `partKeys()`). Set by `showPart()`, and `null` as soon as the active component or view is another one (since 22.7.0)                                                       |
-| `showPart(partKey, panelId)` | `void`                            | Opens the view panel `panelId` on a part of the active component, given by its key (see `activePart`), which the panel reads as its `activePart` input. For the part the view shows already, `activePart` is `null` for one render and then the part again, so the panel goes to it once more (since 22.7.0) |
-| `clearPart()`                | `void`                            | Forgets the part without leaving the view (since 22.7.0)                                                                                                                                                                                                                                                     |
-
----
+The canvas calls `log()` for every output of the component it renders. It does not for the component of a page that [`renderPage`](api/showcase-config.md#renderpage) opens, so such a page calls `log()` itself to fill the Events panel. `EventLogEntry` is exported from `@ng-prism/core` as a type.
 
 ## PrismLayoutService
 
-Manages sidebar, variant rail, and panel visibility. State is persisted to `localStorage` under the key `ng-prism-layout`.
+The visibility and the sizes of sidebar, variant rail and addon panel. It keeps them in `localStorage` under the key `ng-prism-layout`.
 
-| Member                | Type                          | Description                                                                                                                                                                                  |
-| --------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sidebarVisible`      | `Signal<boolean>`             | Whether the sidebar is visible                                                                                                                                                               |
-| `addonsVisible`       | `Signal<boolean>`             | Whether the addon panel area is visible                                                                                                                                                      |
-| `toolbarVisible`      | `Signal<boolean>`             | Whether the variant rail (the variant ribbon above the canvas) is visible. The name predates the removal of the canvas toolbar band, which is now a floating rail and has no visibility flag |
-| `addonsOrientation`   | `Signal<'bottom' \| 'right'>` | Panel area orientation                                                                                                                                                                       |
-| `sidebarWidth`        | `Signal<number>`              | Sidebar width in pixels (200–360, default 280; since 22.7, before 160–600)                                                                                                                   |
-| `panelHeight`         | `Signal<number>`              | Addon panel height in pixels, used when orientation is `'bottom'` (200–560, default 300; since 22.7, before 100–600)                                                                         |
-| `panelWidth`          | `Signal<number>`              | Addon panel width in pixels, used when orientation is `'right'` (200–600)                                                                                                                    |
-| `toggleSidebar()`     | `void`                        | Toggle sidebar visibility                                                                                                                                                                    |
-| `toggleAddons()`      | `void`                        | Toggle addon panel visibility                                                                                                                                                                |
-| `toggleToolbar()`     | `void`                        | Toggle variant rail visibility (`Alt+T`)                                                                                                                                                     |
-| `toggleOrientation()` | `void`                        | Switch between bottom and right orientation                                                                                                                                                  |
-| `setSidebarWidth(px)` | `void`                        | Set sidebar width with clamping                                                                                                                                                              |
-| `setPanelHeight(px)`  | `void`                        | Set panel height with clamping                                                                                                                                                               |
-| `setPanelWidth(px)`   | `void`                        | Set panel width with clamping                                                                                                                                                                |
+| Member                | Type                                  | Description                                                                               |
+| --------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `sidebarVisible`      | `WritableSignal<boolean>`             | Whether the sidebar is visible. Default `true`                                            |
+| `addonsVisible`       | `WritableSignal<boolean>`             | Whether the addon panel area is visible. Default `true`                                   |
+| `toolbarVisible`      | `WritableSignal<boolean>`             | Whether the variant rail, the variant ribbon above the canvas, is visible. Default `true` |
+| `addonsOrientation`   | `WritableSignal<'bottom' \| 'right'>` | Where the addon panel area sits. Default `'bottom'`                                       |
+| `sidebarWidth`        | `WritableSignal<number>`              | Sidebar width in pixels, 200–360, default 280                                             |
+| `panelHeight`         | `WritableSignal<number>`              | Height of the addon panel in pixels when it sits at the bottom, 200–560, default 300      |
+| `panelWidth`          | `WritableSignal<number>`              | Width of the addon panel in pixels when it sits on the right, 200–600, default 320        |
+| `toggleSidebar()`     | `void`                                | Shows or hides the sidebar                                                                |
+| `toggleAddons()`      | `void`                                | Shows or hides the addon panel area                                                       |
+| `toggleToolbar()`     | `void`                                | Shows or hides the variant rail (`Alt+T`)                                                 |
+| `toggleOrientation()` | `void`                                | Moves the addon panel area between bottom and right                                       |
+| `setSidebarWidth(px)` | `void`                                | Sets the sidebar width, clamped to its range                                              |
+| `setPanelHeight(px)`  | `void`                                | Sets the panel height, clamped to its range                                               |
+| `setPanelWidth(px)`   | `void`                                | Sets the panel width, clamped to its range                                                |
 
----
+The methods save the layout; setting a signal directly does not.
 
 ## PrismThemeService
 
 The colour mode and the theme tokens. It keeps the mode in `localStorage` under the key `ng-prism-theme`, sets `data-theme` on `<html>`, writes the resolved tokens onto `document.documentElement` and sets the favicon.
 
-| Member                         | Type                                | Description                                                                                                                                                                                                                                                                    |
-| ------------------------------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `theme`                        | `WritableSignal<'dark' \| 'light'>` | The active mode (default: `'dark'`)                                                                                                                                                                                                                                            |
-| `isDark`                       | `Signal<boolean>`                   | Whether the active mode is `'dark'`                                                                                                                                                                                                                                            |
-| `appTokens`                    | `Signal<Record<string, string>>`    | Since 22.7. Every token of the active mode, with the config's overrides. The header renders with the dark set, so a popover that opens from a header widget binds this as `[style]` to show the active theme again                                                             |
-| `headerTokens`                 | `Signal<Record<string, string>>`    | Since 22.7. The dark set with the `theme` and `darkTheme` overrides. The header binds it on its host: it is a navy band in both themes                                                                                                                                         |
-| `toggle()`                     | `void`                              | Switch between dark and light                                                                                                                                                                                                                                                  |
-| `applyConfigOverrides(config)` | `void`                              | Apply `theme`, `darkTheme` and `lightTheme` from the config. `PrismShellComponent` calls it at startup. Since 22.7 an override of a deprecated token is carried over to its successor where it has one, and the console warns once per token (see [Theming](guide/theming.md)) |
-
----
+| Member                         | Type                                | Description                                                                                                                                                                                                                                                                          |
+| ------------------------------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `theme`                        | `WritableSignal<'dark' \| 'light'>` | The active mode. Default `'dark'`, or `'light'` when that is the stored choice                                                                                                                                                                                                       |
+| `isDark`                       | `Signal<boolean>`                   | Whether the active mode is `'dark'`                                                                                                                                                                                                                                                  |
+| `appTokens`                    | `Signal<Record<string, string>>`    | Every token of the active mode, with the overrides of the config (since 22.7.0). The header renders with the dark set, so a popover that opens from a header widget binds this as `[style]` to show the active theme again                                                           |
+| `headerTokens`                 | `Signal<Record<string, string>>`    | The dark set with the `theme` and `darkTheme` overrides (since 22.7.0). The header binds it on its host: it is a navy band in both themes                                                                                                                                            |
+| `toggle()`                     | `void`                              | Switches between dark and light                                                                                                                                                                                                                                                      |
+| `applyConfigOverrides(config)` | `void`                              | Applies `theme`, `darkTheme` and `lightTheme` from the config; `PrismShellComponent` calls it at startup. An override of a deprecated token goes to its successor where it has one, and the console warns once per token (since 22.7.0), see [`theme`](api/ng-prism-config.md#theme) |
 
 ## PrismPluginService
 
-Provides aggregated plugin contributions (panels and controls) derived from `NgPrismConfig.plugins`.
+The contributions of the plugins in `NgPrismConfig.plugins`, in plugin order. The built-in panels, header widgets and navigation decorations are not in these lists.
 
-| Member        | Type                          | Description                        |
-| ------------- | ----------------------------- | ---------------------------------- |
-| `panels`      | `Signal<PanelDefinition[]>`   | All panels from all plugins        |
-| `addonPanels` | `Signal<PanelDefinition[]>`   | Panels with `placement !== 'view'` |
-| `viewPanels`  | `Signal<PanelDefinition[]>`   | Panels with `placement === 'view'` |
-| `controls`    | `Signal<ControlDefinition[]>` | All controls from all plugins      |
+| Member                  | Type                                       | Description                                            |
+| ----------------------- | ------------------------------------------ | ------------------------------------------------------ |
+| `panels`                | `Signal<PanelDefinition[]>`                | Every panel of every plugin                            |
+| `addonPanels`           | `Signal<PanelDefinition[]>`                | The panels with `placement` other than `'view'`        |
+| `viewPanels`            | `Signal<PanelDefinition[]>`                | The panels with `placement: 'view'`                    |
+| `controls`              | `Signal<ControlDefinition[]>`              | Every custom control of every plugin                   |
+| `headerWidgets`         | `Signal<HeaderWidgetDefinition[]>`         | Every header widget of every plugin, sorted by `order` |
+| `headerWidgetsStart`    | `Signal<HeaderWidgetDefinition[]>`         | The header widgets with `placement: 'start'`           |
+| `headerWidgetsEnd`      | `Signal<HeaderWidgetDefinition[]>`         | The header widgets with `placement: 'end'` or none     |
+| `navigationDecorations` | `Signal<NavigationDecorationDefinition[]>` | Every navigation decoration of every plugin            |
 
----
+The definitions are described in [NgPrismPlugin](api/ng-prism-plugin.md).
 
 ## PrismUrlStateService
 
-Synchronizes navigation state with URL query parameters: `component`, `service`, `pipe`, `page`, `variant`, `state`, `view`, `panel`. Initialized automatically by `PrismShellComponent`.
+Keeps what is open in the URL: the component, service, pipe or page, the variant, the state, the view, the part and the addon panel, see [URL parameters](guide/url-state.md#url-parameters).
 
-| Member   | Description                                                                         |
-| -------- | ----------------------------------------------------------------------------------- |
-| `init()` | Reads initial state from URL, starts sync effect, and registers `popstate` listener |
-
-Disabled via `NgPrismConfig.urlState = false`. See [State Preservation](guide/url-state.md).
-
----
+| Member   | Type   | Description                                                                                                                                                           |
+| -------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `init()` | `void` | Restores the state from the URL, then writes every change back and listens for `popstate`. Does nothing when [`urlState`](api/ng-prism-config.md#urlstate) is `false` |
 
 ## PrismPersistenceService
 
-Persists control panel input overrides (per `className` + `variantIndex`) and a11y sub-state (`activeTab`, `perspective`) to `sessionStorage` under the key `ng-prism:state`. Initialized automatically by `PrismShellComponent` immediately after `PrismUrlStateService`.
+Keeps the input values of each component visited, with the variant they belong to, and the active tab and perspective of the A11y panel, in `sessionStorage` under the key `ng-prism:state`.
 
-| Member   | Description                                                                               |
-| -------- | ----------------------------------------------------------------------------------------- |
-| `init()` | Reads sessionStorage, applies persisted state, and starts a debounced sync effect (200ms) |
+| Member   | Type   | Description                                                                                                                                                                                                                                                                                                                                                       |
+| -------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `init()` | `void` | Restores the input values of the open component when its variant is the stored one, then saves every change, 200 ms after the last one. Does nothing when [`persistState`](api/ng-prism-config.md#persiststate) is `false` and in capture mode. An unreadable entry, a full storage or a browser without `sessionStorage` leave the styleguide working without it |
 
-Schema version, corrupted JSON, quota-exceeded errors, and a missing `sessionStorage` (Privacy/SecurityError) are all handled gracefully. Layout, theme, and canvas are persisted independently to `localStorage` by their own services.
+`PrismShellComponent` calls `PrismUrlStateService.init()` and then `PrismPersistenceService.init()` at startup. Layout, theme and canvas settings are kept by their own services in `localStorage`. What survives a reload, and how, is described in [Links & State](guide/url-state.md).
 
-Disabled via `NgPrismConfig.persistState = false`. See [State Preservation](guide/url-state.md).
+## Injection tokens
 
-`PrismShellComponent` calls both init methods, URL state first, then persistence.
-
----
-
-## enablePrismHmr
-
-A standalone function (not a service) that integrates with Vite/webpack HMR to hot-reload the manifest without a full page refresh.
+| Token                  | Type                                 | Exported from                             | Description                                                                                                                                                                                                                     |
+| ---------------------- | ------------------------------------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PRISM_MANIFEST`       | `InjectionToken<RuntimeManifest>`    | `@ng-prism/core`, `@ng-prism/core/plugin` | The runtime manifest `providePrism()` was called with, including the component pages it registered. It keeps that value when `updateManifest()` replaces the manifest in place, which `PrismManifestService.manifest()` follows |
+| `PRISM_CONFIG`         | `InjectionToken<NgPrismConfig>`      | `@ng-prism/core`, `@ng-prism/core/plugin` | The config `providePrism()` was called with, `{}` without one: in the browser, the config `main.ts` imports, with the browser entries of the plugins                                                                            |
+| `PRISM_RENDERER_HOOKS` | `InjectionToken<PrismRendererHooks>` | `@ng-prism/core/plugin`, `@ng-prism/core` | Optional, not provided by default. Callbacks around each render of the Playground canvas, provided through [`appProviders`](api/ng-prism-config.md#appproviders)                                                                |
 
 ```typescript
-import { enablePrismHmr } from '@ng-prism/core';
-import type { ApplicationRef } from '@angular/core';
-
-// In your HMR accept handler:
-enablePrismHmr(appRef, newManifest);
+interface PrismRendererHooks {
+    onBeforeCreate?(selector: string): void;
+    onAfterCreate?(selector: string): void;
+    onAfterDestroy?(selector: string): void;
+}
 ```
 
-`enablePrismHmr(appRef, newManifest)` calls `PrismManifestService.updateManifest()` via the app's root injector. The showcase UI updates reactively without losing the active selection.
+`onBeforeCreate` runs before the canvas creates the component, with its selector; `onAfterCreate` after the inputs are set and the first change detection ran. `onAfterDestroy` runs after the canvas removed what it rendered, with an empty string. A page that `renderPage` opens gets only `onAfterDestroy`. The Overview does not call them.
+
+```typescript
+import { defineConfig } from '@ng-prism/core/config';
+import { PRISM_RENDERER_HOOKS, type PrismRendererHooks } from '@ng-prism/core/plugin';
+
+const hooks: PrismRendererHooks = {
+    onAfterCreate: (selector) => performance.mark(`rendered ${selector}`)
+};
+
+export default defineConfig({
+    appProviders: [{ provide: PRISM_RENDERER_HOOKS, useValue: hooks }]
+});
+```

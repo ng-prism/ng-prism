@@ -8,7 +8,9 @@ body:
           value: |
               For small fixes (typos, broken links, a stale code sample) a pull
               request against `docs/` is usually faster than an issue. Both are
-              welcome.
+              welcome. Each topic has one page that owns it, listed under
+              [Documentation](https://github.com/ng-prism/ng-prism/blob/main/CONTRIBUTING.md#documentation)
+              in the contributing guide.
 
     - type: input
       id: page

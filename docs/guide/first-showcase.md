@@ -1,20 +1,19 @@
 # Your First Showcase
 
-This guide walks through annotating an existing Angular component with `@Showcase` and seeing it appear in the browser.
+This guide annotates an existing Angular component with `@Showcase` and opens it in the styleguide. It assumes ng-prism is set up in your workspace; if it is not, start with [Installation](guide/installation.md).
 
 ## Start with a Component
 
 Assume you have this button component in your library:
 
 ```typescript
-// packages/my-lib/src/lib/button/button.component.ts
+// projects/my-lib/src/lib/button/button.component.ts
 import { Component, input } from '@angular/core';
 
 @Component({
     selector: 'lib-button',
-    standalone: true,
     template: `
-        <button [class]="'btn btn--' + variant()">
+        <button [class]="'btn btn--' + variant()" [disabled]="disabled()">
             {{ label() }}
         </button>
     `
@@ -28,7 +27,7 @@ export class ButtonComponent {
 
 ## Add the Decorator
 
-Import `Showcase` from `ng-prism` and add the decorator above `@Component`:
+Import `Showcase` from `@ng-prism/core` and add the decorator above `@Component`:
 
 ```typescript
 import { Component, input } from '@angular/core';
@@ -55,7 +54,6 @@ import { Showcase } from '@ng-prism/core'; // ← add this
 })
 @Component({
     selector: 'lib-button',
-    standalone: true,
     template: `...`
 })
 export class ButtonComponent {
@@ -65,23 +63,18 @@ export class ButtonComponent {
 }
 ```
 
-## What Each Field Does
-
-| Field         | Effect                                                                                                                                 |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `title`       | Display name in the sidebar and component head                                                                                         |
-| `category`    | Groups this component in the sidebar, and is the breadcrumb ahead of the title in the component head. Omit to land in "Uncategorized". |
-| `description` | Shown in the component head's details popover, behind the ⓘ glyph next to the title.                                                   |
-| `variants`    | Named tabs above the rendered component. Each tab sets different `inputs`.                                                             |
+`title` names the component in the sidebar, `category` groups it there, `description` goes into the details card behind ⓘ next to the title, and each entry of `variants` is one way to render it, with its own `inputs`. Every other field is listed under [All fields at a glance](guide/showcase-decorator.md#all-fields-at-a-glance).
 
 ## Make Sure It Is Exported
 
-The scanner follows your library's public API. The component must be exported from your `index.ts`:
+The scanner follows your library's public API from its entry file, the `lib.entryFile` of its `ng-package.json`. The component must be exported there:
 
 ```typescript
-// packages/my-lib/src/index.ts
-export { ButtonComponent } from './lib/button/button.component.js';
+// projects/my-lib/src/public-api.ts
+export * from './lib/button/button.component';
 ```
+
+A component with `@Showcase` that the entry file does not export, directly or through another file, does not show up. How the builders find the entry files, secondary entry points included, is under [`entryPoint`](api/builders.md#entrypoint).
 
 ## Run the Showcase
 
@@ -89,29 +82,25 @@ export { ButtonComponent } from './lib/button/button.component.js';
 ng run my-lib:prism
 ```
 
-The scanner reads your `index.ts`, finds `ButtonComponent` (because it has `@Showcase`), extracts the inputs and their types, and generates a runtime manifest. The showcase opens in the browser.
+The scanner reads the entry file, finds `ButtonComponent` because it has `@Showcase`, reads its inputs and their types, and writes the manifest the styleguide renders. The styleguide opens at `http://localhost:4400`.
 
 You will see:
 
-- "Atoms" category in the sidebar with "Button" inside
-- Three variant tabs: Primary, Secondary, Danger
-- A **Controls** panel listing `label`, `variant`, and `disabled` with appropriate input types
-- A **`</> Code`** toggle that shows a live code snippet reflecting current input values
+- **Atoms** in the sidebar, with **Button** inside
+- a tab for each variant above the canvas: Primary, Secondary, Danger
+- a **Controls** tab in the panel below the canvas, with a text field for `label`, a button per value for `variant` and a toggle for `disabled`
+- **`</>`** on the canvas rail, which opens the Angular template of the variant with its current input values
 
-## On a Phone
+[Tour of the UI](guide/styleguide-ui.md) names every part of the screen, and shows how the styleguide works [on a phone](guide/styleguide-ui.md#on-a-phone). While `ng run my-lib:prism` runs, a change to the component or its `@Showcase` reaches the styleguide by itself, see [Watching and reloading](api/builders.md#watching-and-reloading).
 
-Since 22.7.0 the styleguide has a phone layout, so a link to a component opens properly on a phone and a component can be checked on a real device. It applies up to 900 px of width, and on touch screens no taller than 500 px, which takes in large phones held sideways.
+## Before You Publish
 
-- **Navigation:** the sidebar is no longer a column. ☰ in the header opens it over the whole page; picking an entry, ✕ or Escape closes it again. A link always opens on the component, with the navigation closed.
-- **Canvas and panel:** the canvas takes the full width and the panel sits below it at about half the height. Drag the grip between them, or tap the active panel tab to fold the panel down to its tabs and tap it again to open it. On a short screen, such as a phone held sideways, the panel starts folded.
-- **Component head:** once the head runs out of room, in a narrow desktop window as well, Playground / Overview / API becomes a menu named after the active view, and the parts and the metrics move into the ⓘ card. A dot on ⓘ says that a metric warns or alarms.
-- **Header:** the subtitle goes, a long title shortens before the plugin widgets scroll, and the theme switch and the build info move into the ⋮ menu.
-- **Controls** stack under their labels. On touch screens buttons, tabs and rows grow to a size a finger can hit, and text fields use 16 px so iOS does not zoom the page when one gets focus.
-
-The phone layout leaves out guides, rulers, the [measuring tool](guide/measuring.md) and the viewport width: they need a pointer that hovers and an Alt key, and on a phone the canvas already is the device's viewport, so the component's media queries meet the real screen. Whatever you switched on at the desktop is back when the window is wide again. The phone layout keeps its panel height to itself and never changes the layout you set at the desktop.
+The built library still calls `@Showcase` and imports `@ng-prism/core`. Run `npm run strip-showcase` after `ng build my-lib` to remove both, see [Publishing Libraries](guide/library-publishing.md).
 
 ## Next Steps
 
-- Learn about all `@Showcase` options in the [@Showcase Decorator](guide/showcase-decorator.md) reference
-- Understand how input types map to controls in [Variants](guide/variants.md)
-- Add content projection with the `content` field (see [Content Projection](guide/content-projection.md))
+- [@Showcase](guide/showcase-decorator.md): what the decorator does, how to order the sidebar, and every field.
+- [Variants](guide/variants.md) and [Inputs & Controls](guide/inputs-and-controls.md): more variants, type-safe inputs and how input types map to controls.
+- [Content Projection](guide/content-projection.md) and [Compositions](guide/compositions.md): content inside the component, and the component together with others.
+- [Configuration](guide/configuration.md): plugins, branding and the theme of the styleguide.
+- [Overview](plugins/overview.md): the official plugins, such as the API page from your JSDoc.

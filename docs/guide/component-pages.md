@@ -1,28 +1,26 @@
 # Component Pages
 
-Component Pages are free-form Angular components registered as styleguide pages. They live in the sidebar alongside `@Showcase` components but render an arbitrary Angular component instead of a generic canvas.
+A component page is an Angular component of your own that the styleguide renders as a page. It stands in the _Pages_ section of the sidebar, and a showcased component can render it in place of its canvas with [`renderPage`](api/showcase-config.md#renderpage). A custom page is a page without a component: data from the config, shown as JSON.
 
-## When to Use @Showcase vs Component Pages
+## Composition, renderPage or a component page?
 
-| Situation                                                                        | Recommendation                                                                                 |
-| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Standard component with `input()` signals                                        | `@Showcase`                                                                                    |
-| Component with components or directives in its content (frame and control)       | `@Showcase` with a variant [`template`](guide/content-projection.md#compiled-content-template) |
-| Directive that belongs in a frame, or one of several radios in a group           | `@Showcase` with a [`host: { template }`](guide/directive-hosting.md#host-template)            |
-| Component needing complex template projections that a composition cannot express | `@Showcase` + `renderPage`                                                                     |
-| Pattern overview page (multiple components together)                             | Component Page                                                                                 |
-| Color palette, token display, icon catalog                                       | Component Page                                                                                 |
-| Component with mock data that requires Angular bindings                          | Component Page                                                                                 |
+Most demos need no page. Go down this list and take the first row that fits: each one further down gives up more of what the styleguide does for a showcase.
 
-### Composition or Page
+| What the demo needs                                                                                                                  | Use                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| Input values that can be written as literals                                                                                         | The `inputs` of a variant, see [Variants](guide/variants.md)                                                            |
+| Other components, directives or pipes of your library in or around the subject, with mock data written as literals in their bindings | A composition, a variant `template` or a `host: { template }`, see [Compositions](guide/compositions.md)                |
+| A service, a router or a token that every component may see, such as a mock backend or translations                                  | The root injector of the styleguide app, see [Adding Global Providers](guide/configuration.md#adding-global-providers)  |
+| Providers that only this demo may see, state that the demo owns, or more than one subject                                            | `renderPage` with a component page, see [Linking a Page to a Component](#linking-a-page-to-a-component-with-renderpage) |
+| No single subject: a pattern overview, a colour palette, a token table, an icon catalog                                              | A component page of its own, see [Registering Pages](#registering-pages)                                                |
 
-A [composition](guide/content-projection.md#compiled-content-template) (since `22.7.0`) renders the showcased component or directive together with other parts of your library, as one compiled Angular template. It is the better choice whenever the parts are all classes of your library and the point is how they work together: a form field with its input, a radio group with its radios, a select with its options. The subject keeps everything a showcase has. The Overview, `states`, Controls, the Events panel, the code snippet and the Perf render marks all work on it, and the variants can be compared side by side.
+A composition is compiled ahead of time with your classes and keeps everything a showcase has: the Overview, `states`, the Controls and Events panels, the Perf render marks and the side by side comparison of the variants. A page replaces the canvas with a component of your own and gives up part of that, see [What a Page Gives Up](#what-a-page-gives-up).
 
-A page replaces the canvas with a component of your own, and gives up part of that, see [What a Page Gives Up](#what-a-page-gives-up). Reach for it when the demo needs something a template of library classes cannot hold: a service or provider that only the demo has, mock data wired to state that the page owns, a component of the styleguide app that is not part of the library, or a view that is not one subject at all, such as a palette or an icon catalog.
+`renderPage` is for components and directives. On a [part](guide/parts.md) it is dropped with a notice, and on a class with `@Injectable`, `@Service` or `@Pipe` it keeps the class a component, see [Services & Pipes](guide/services-and-pipes.md#which-fields-apply).
 
 ## Creating a Page Component
 
-A Component Page is a standard Angular standalone component. Place it in your showcase app (`projects/my-lib-prism/src/`), not in the library itself. Angular class references cannot be JSON-serialized and must not pass through the build pipeline.
+A component page is a standalone Angular component. Place it in the styleguide app (`projects/my-lib-prism/src/`), not in the library: it is a demo, not part of what you publish, and it reaches the styleguide through `main.ts`, because a class cannot go through the manifest that the build writes.
 
 ```typescript
 // projects/my-lib-prism/src/pages/button-patterns.page.ts
@@ -31,7 +29,6 @@ import { ButtonComponent } from 'my-lib';
 
 @Component({
     selector: 'app-button-patterns',
-    standalone: true,
     imports: [ButtonComponent],
     template: `
         <h2>Button Patterns</h2>
@@ -44,6 +41,8 @@ import { ButtonComponent } from 'my-lib';
 })
 export class ButtonPatternsPageComponent {}
 ```
+
+The styleguide shows the page's `title` as a heading above the component.
 
 ## Following the Theme
 
@@ -68,78 +67,63 @@ A page renders in the styleguide's own document, on the dark or light background
 }
 ```
 
-Text without a colour of its own inherits `--prism-text-2` and the styleguide's sans font. Headings, paragraphs, lists, code and links without styles of their own get the styleguide's defaults (links in `--prism-link`, underlined). Those defaults carry no more weight than a single attribute selector, so any rule your page sets for the same element wins. [Theming](guide/theming.md) lists every token with its dark and light value. For anything a token cannot express, such as an image per theme, `data-theme` on `<html>` reads `dark` or `light`, see [Dark and Light Themes](guide/theming.md#dark-and-light-themes).
+Text without a colour of its own inherits `--prism-text-2` and the styleguide's sans font. Headings, paragraphs, lists, code and links without styles of their own get the styleguide's defaults (links in `--prism-link`, underlined). Those defaults sit in a cascade layer, so any rule of your page or of a global stylesheet for the same element wins, whatever its specificity. [Theming](guide/theming.md) lists every token with its dark and light value. For anything a token cannot express, such as an image per theme, `data-theme` on `<html>` reads `dark` or `light`, see [Dark and Light Themes](guide/theming.md#dark-and-light-themes).
 
 ## Registering Pages
 
-Register pages via the third argument to `providePrism()` in `main.ts`:
+Register component pages with the third argument of `providePrism()` in the `main.ts` of the styleguide app:
 
 ```typescript
+// projects/my-lib-prism/src/main.ts
 import { bootstrapApplication } from '@angular/platform-browser';
 import { PrismShellComponent, providePrism } from '@ng-prism/core';
-import { componentPage } from '@ng-prism/core';
 import { PRISM_RUNTIME_MANIFEST } from 'prism-manifest/my-lib-prism';
 import config from 'ng-prism.config';
-import { ButtonPatternsPageComponent } from './pages/button-patterns.page.js';
+import { ButtonPatternsPageComponent } from './pages/button-patterns.page';
 
 bootstrapApplication(PrismShellComponent, {
     providers: [
         providePrism(PRISM_RUNTIME_MANIFEST, config, {
-            componentPages: [
-                componentPage({
-                    title: 'Button Patterns',
-                    category: 'Atoms',
-                    categoryOrder: 1,
-                    order: 99,
-                    component: ButtonPatternsPageComponent
-                })
-            ]
+            componentPages: [{ title: 'Button Patterns', category: 'Patterns', component: ButtonPatternsPageComponent }]
         })
     ]
 });
 ```
 
-## Page Fields
+Keep the rest of the `main.ts` that `ng add` wrote, such as the hot replacement of the manifest; only the third argument is new.
 
-| Field           | Type            | Description                          |
-| --------------- | --------------- | ------------------------------------ |
-| `title`         | `string`        | Display name in the sidebar          |
-| `category`      | `string`        | Groups the page alongside components |
-| `categoryOrder` | `number`        | Controls category sort order         |
-| `order`         | `number`        | Sort position within the category    |
-| `component`     | `Type<unknown>` | The Angular component to render      |
+| Field       | Type            | Description                                                          |
+| ----------- | --------------- | -------------------------------------------------------------------- |
+| `title`     | `string`        | The name in the sidebar, and what a `renderPage` names               |
+| `category`  | `string`        | The group in the _Pages_ section of the sidebar. Without one, `Docs` |
+| `component` | `Type<unknown>` | The Angular component to render                                      |
 
-## Mixing Pages and Components in One Category
+The options also take `categoryOrder` and `order`, which the sidebar does not use. A component page in `defineConfig({ pages })` does not work, since the build writes the config's pages as JSON, where a class does not survive. See [`ComponentPage`](api/types.md#componentpage).
 
-Pages and `@Showcase` components can share the same category. They appear interleaved in the sidebar, sorted by `order` / `componentOrder`.
+## Pages in the Sidebar
 
-```typescript
-// Component in library
-@Showcase({ title: 'Button', category: 'Atoms', componentOrder: 1 })
-export class ButtonComponent { ... }
+Pages have a section of their own, _Pages_, pinned at the top of the sidebar above the components. They never mix with components, also when a page and a component have the same `category`. Within the section, pages are grouped by `category`, `Docs` for a page without one, in the order of the manifest: the custom pages of the config first, then the component pages in the order of `componentPages`.
 
-// Page in showcase app
-componentPage({ title: 'Button Patterns', category: 'Atoms', order: 99 })
-```
+The sidebar search finds a page by its title and its category. A link to a page is `?page=` with its title, see [Links & State](guide/url-state.md). A page that a `renderPage` uses is listed there as well.
 
 ## Linking a Page to a Component with `renderPage`
 
-Use `renderPage` on `@Showcase` to replace the default canvas with a Component Page. This is useful for complex components where the automatic rendering is not expressive enough.
+`renderPage` on `@Showcase` names a registered component page by its `title`, and the canvas of the component renders that page instead of the component:
 
 ```typescript
 @Showcase({
-  title: 'Data Table',
-  renderPage: 'Data Table Demo',  // must match the ComponentPage title exactly
-  variants: [
-    { name: 'Empty' },
-    { name: '10 rows', inputs: { rowCount: 10 } },
-  ],
+    title: 'Data Table',
+    renderPage: 'Data Table Demo', // the title of the component page
+    variants: [{ name: 'Empty' }, { name: '10 rows', inputs: { rowCount: 10 } }]
 })
-@Component({ ... })
-export class DataTableComponent { ... }
+@Component({ selector: 'lib-data-table' /* ... */ })
+export class DataTableComponent {
+    readonly rowCount = input(0);
+    readonly loading = input(false);
+}
 ```
 
-The page component is shown in the canvas area while the Controls panel and variant tabs stay. Their values only reach the page when it reads them, see [Reacting to Controls Panel Changes](#reacting-to-controls-panel-changes).
+The variant tabs and the Controls panel stay. Their values only reach the page when it reads them, see [Reacting to Controls Panel Changes](#reacting-to-controls-panel-changes). A title that matches no registered component page renders the component itself.
 
 ### What a Page Gives Up
 
@@ -152,23 +136,24 @@ The canvas renders the page instead of the component, so what depends on the com
 | Controls                                  | Only what the page reads from `PrismRendererService.inputValues` |
 | Events panel                              | Stays empty: the outputs of the component are not subscribed to  |
 | Perf render marks                         | None: the Performance panel has no render timings for the page   |
-| Code snippet                              | Shows the selector of the showcased component, not the page      |
+| Angular template popover                  | Shows the selector of the showcased component, not the page      |
 | a11y, Box Model, measuring, Figma and VRT | Work, on the root element of the page                            |
 
-If the page only composes library components, a [`template`](guide/content-projection.md#compiled-content-template) or a [`host: { template }`](guide/directive-hosting.md#host-template) gives the same picture without giving any of this up.
+If the page only puts library components together, a [composition](guide/compositions.md) gives the same picture without giving any of this up.
 
 ## Reacting to Controls Panel Changes
 
-A Component Page linked via `renderPage` can inject `PrismRendererService` to read the current input values and active variant index:
+A component page that a `renderPage` names can inject [`PrismRendererService`](api/services.md#prismrendererservice) to read the current input values and the active variant:
 
 ```typescript
-import { Component, inject, computed } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { PrismRendererService } from '@ng-prism/core';
+import { DataTableComponent } from 'my-lib';
 
 @Component({
     selector: 'app-data-table-demo',
-    standalone: true,
-    template: ` <lib-data-table [rows]="rows()" [loading]="loading()" /> `
+    imports: [DataTableComponent],
+    template: `<lib-data-table [rows]="rows()" [loading]="loading()" />`
 })
 export class DataTableDemoComponent {
     private readonly renderer = inject(PrismRendererService);
@@ -187,10 +172,10 @@ export class DataTableDemoComponent {
 
 ## Custom Pages via Config
 
-For pages that don't require Angular components (e.g. static data rendered by a shared page template), use `CustomPage` entries in `ng-prism.config.ts`:
+A page of data needs no component. Declare it as a [`CustomPage`](api/types.md#custompage) in [`pages`](api/ng-prism-config.md#pages) of `ng-prism.config.ts`:
 
 ```typescript
-import { defineConfig } from '@ng-prism/core';
+import { defineConfig } from '@ng-prism/core/config';
 
 export default defineConfig({
     pages: [
@@ -204,4 +189,11 @@ export default defineConfig({
 });
 ```
 
-Custom pages require a plugin with an `onPageScanned` hook and a matching panel to render `data`. See [Writing a Plugin](plugins/writing-plugins.md).
+The styleguide shows its title and its `data` as formatted JSON. That is all it shows: a page has no view tabs and no panels, so no plugin draws it. A plugin can change the page before it is written into the manifest, in [`onPageScanned`](api/ng-prism-plugin.md#onpagescanned). For a page with a layout of its own, write a component page.
+
+## Related
+
+- [`renderPage`](api/showcase-config.md#renderpage) in the ShowcaseConfig reference, [`pages`](api/ng-prism-config.md#pages) in the NgPrismConfig reference
+- [`ComponentPage`](api/types.md#componentpage), [`CustomPage`](api/types.md#custompage) and [`StyleguidePage`](api/types.md#styleguidepage) in Types
+- [`PrismRendererService`](api/services.md#prismrendererservice) in Runtime Services
+- [Compositions](guide/compositions.md): the subject together with other parts of your library, without a page

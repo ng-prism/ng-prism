@@ -1,31 +1,38 @@
 # Canvas State
 
-The canvas (`PrismRendererComponent`) is governed by cooperating services with distinct responsibilities: durable preferences, the effective background, and the forced pseudo states.
+The canvas (`PrismRendererComponent`) is governed by cooperating services with distinct responsibilities: durable preferences, the effective background, the forced pseudo states and the measurements. This page describes how they work, for contributors. What a user sees and does is under [Tour of the UI](guide/styleguide-ui.md) and [Measuring](guide/measuring.md).
 
 ## `PrismCanvasService`
 
 Holds the user's globally persisted canvas preferences:
 
-- `bg`: global default canvas background (any `CanvasBg`: `dots | plain | light | dark | checker | transparent`)
+- `bg`: global default canvas background (any `CanvasBg`: `dots | plain | light | dark | checker | transparent`), `'dots'` until the user picks one
 - `zoom`, `guides`, `rulers`: set from the floating canvas rail; guides and rulers are toggle buttons on the rail itself, zoom is a chooser in the rail's tools menu
-- `viewportWidth`: `number | null`; the width `.demo-wrap` is constrained to, or `null` for unconstrained. Toggled from the rail, set from the **Width** chooser in the tools menu, and dragged from the grips at either edge of the constrained area.
+- `measure`: whether the measuring tool is on, a toggle button on the rail. It lives here rather than in `PrismMeasureService` because it is the same kind of state as `guides` and `rulers`, a preference about the working environment, not a statement about the variant. The measurements themselves are in `PrismMeasureService`, see [Measuring](#measuring).
+- `viewportWidth`: `number | null`; the width `.demo-wrap` is constrained to, or `null` for unconstrained. Toggled from the rail, set from the **Width** chooser in the tools menu, and dragged from the grips at either edge of the constrained area. `toggleViewport()` restores the last width of the session, a field that is not persisted and starts at `VIEWPORT_DEFAULT` (390).
 
-State is persisted to `localStorage` under the key `ng-prism-canvas`. This is the source of truth for the user's preferred working environment across sessions.
+State is persisted to `localStorage` under the key `ng-prism-canvas`. This is the source of truth for the user's preferred working environment across sessions. In capture mode the service neither reads nor writes it: the field defaults stay (zoom 1, no guides, no rulers, measuring off, no viewport width), and `save()` is a no-op, so a capture run neither inherits nor overwrites a stored preference.
 
 ## `PrismVariantBgService`
 
 Computes the actually-applied canvas background by resolving a fallback chain:
 
 ```
-effective = override  ??  variant.bg  ??  component.bg  ??  canvas.bg()
+recommended = variant.bg ?? component.bg
+effective   = override ?? recommended ?? canvas.bg()      // browsing
+effective   = recommended ?? DEFAULT_VARIANT_BG           // capture mode ('transparent')
 ```
 
-- `recommended`: computed from the active component and variant (`Variant.bg` wins over `ShowcaseConfig.bg`)
+- `recommended`: computed from the active component and variant (`Variant.bg` wins over `ShowcaseConfig.bg`), `null` when neither declares one
 - `override`: read-only view of a transient signal; set when the user picks a background from the tools menu's **Canvas** group while a recommendation is active
-- `effective`: the final `CanvasBg` value bound to the `data-bg` attribute of `.prism-canvas-stage`
-- `isDeviating`: computed boolean; true when the override is non-null AND differs from the current recommendation
+- `effective`: the final `CanvasBg` value bound to the `data-bg` attribute of `.prism-canvas-stage`. Capture mode ignores the override, which is session UI state, and uses `DEFAULT_VARIANT_BG` where nothing is declared instead of `canvas.bg()`: `dots` paints a theme token, so a baseline would depend on the runner's theme. `DEFAULT_VARIANT_BG` is also what the discovery manifest reports, so the reported and the captured background cannot drift apart.
+- `isDeviating`: computed boolean; true when the override is non-null AND differs from the current recommendation. It shows the `Recommended: <bg> [Reset]` pill (`PrismCanvasBgPillComponent`), whose button calls `clearOverride()`.
 
 The override auto-clears whenever the active variant or component changes, so navigating back to a variant always shows its recommendation again.
+
+The **Canvas** group of the tools menu is a readout of this service as well: the filled button (`is-on`) is `effective()`, and the button of `recommended()` carries `is-rec`, a border in the primary colour. A click writes the override when `recommended()` is non-null and otherwise `canvas.setBg()`, the persisted default.
+
+The shell also binds `canvasOverlayTokens(effective())` (`canvas/canvas-overlay-tokens.ts`) on `.prism-canvas-wrap`. On `light` and `dark` these set the `--prism-canvas-overlay-*` tokens to fixed values, so the rail, the pill, the pin row and the rulers follow the ground rather than the theme; on the other grounds they are left to the theme, see [Canvas overlays](guide/theming.md#canvas-overlays).
 
 ### Why a separate service?
 
@@ -47,9 +54,11 @@ Capture mode skips the toggles: both layers are what is declared.
 - `stateExclusion`: `'states: false'` while a state is active and the active variant opts out with `Variant.states: false`, else `null`. The state layer is `null` then, and the state declares nothing.
 - `override`: transient per-state toggles from the tools menu's **State** group. `true` adds a state on the whole component, `false` switches off one the variant or the state declares. Cleared whenever the active variant, the active state or the component changes, and ignored in capture mode, because session UI state must not shape a baseline. The active state, in contrast, applies in capture mode: it addresses the cell.
 - `layers`: `{ base, state }`, computed by `splitLayers()`. A toggle switched off takes the state out of both layers. A toggle switched on leaves a target the variant or the state declares in its own layer, and otherwise forces the state on the whole component in `base`, where the fit rule does not reach it. A state that does not fit is not applied, so it does not count as declaring anything here: `splitLayers()` takes a `stateFits` flag, and with `false` a class only the state declares is forced on the whole component by the toggle. The state layer is the same either way, since the marker still needs it to see when the state fits again. The state layer is `null` when no state applies or when the toggles have switched off every class the state declares, so a deliberate toggle never reads as a state that forces nothing. A state that declares nothing itself (a slot the scanner could not evaluate) stays an empty object, which the marker reports as not fitting. While nothing is toggled both layers are the declared objects themselves, not copies, because the render marker compares by identity (below).
-- `canvasFit`: whether the active state fits the rendered canvas, a `StateFit` the renderer writes from its marker, `null` while no state is applied. `isForced()` counts a class of the state layer only while `canvasFit()?.fits`, and `isDeclared()` counts the classes of the variant, and those of the active state while it fits (`canvasFit` still `null` before the first render counts as fitting), so the tools menu can tint both.
+- `canvasFit`: whether the active state fits the rendered canvas, a `StateFit` the renderer writes from its marker, `null` while no state is applied. `isForced()` counts a class of the state layer only while `canvasFit()?.fits`, and `isDeclared()` counts the classes of the variant, and those of the active state while it fits (`canvasFit` still `null` before the first render counts as fitting), so the tools menu can mark both.
 
 The service also owns the document's `PseudoStyleSheets`, which every marker shares, so each stylesheet is rewritten once whether the Playground or an Overview cell forces a state first.
+
+The tools menu's **State** group reads the service. Its chips come from `buildStateChips()` (`canvas/state-chips.ts`), at most one on; a click calls `PrismRendererService.selectState()`, and a click on the active chip passes `null`. Whether each state fits is `chipFits()`: the canvas's own `canvasFit` for the active state, `evaluateStateFit()` against the rendered element for the others, re-measured after every render, so a chip and the canvas cannot disagree. A chip that does not fit gets `is-na` and stays selectable. The toggles below bind `is-on` to `isForced()` and `is-rec` to `isDeclared()`, mirroring the Canvas group.
 
 ### Markers
 
@@ -77,12 +86,7 @@ A switch to or from a composed variant creates the component again, since the ty
 
 ## Viewport Width
 
-`viewportWidth` narrows `.demo-wrap` so a layout can be checked at a given width without resizing
-the browser. The state is a single nullable number instead of a device list, because the tool is
-for finding where a layout breaks. Presets (320, 390, 480, 640, 768, 1024) are named values of that
-number, and a drag snaps to one when it comes within 8px. A drag is clamped to between 100 and 1600,
-regardless of preset. The floor sits well below any real device so you can find where a layout
-gives up.
+`viewportWidth` narrows `.demo-wrap` so a layout can be checked at a given width without resizing the browser. The state is a single nullable number instead of a device list, because the tool is for finding where a layout breaks. The bounds, the presets and the snap tolerance are constants in `shared/viewport.type.ts` (`VIEWPORT_MIN`, `VIEWPORT_MAX`, `VIEWPORT_SNAPS`, `VIEWPORT_SNAP_TOLERANCE`); `clampViewportWidth()` keeps every stored and set value inside the bounds and on a whole pixel, and `snapViewportWidth()` (`canvas/viewport-snap.ts`) pulls a dragged width onto a preset within the tolerance. What the user sees is under [Viewport width](guide/styleguide-ui.md#viewport-width).
 
 ### The specimen is centred at the container
 
@@ -116,21 +120,37 @@ into the specimen and re-align its text whenever the viewport was switched on.
 
 ### Container queries respond; media queries do not
 
-A width constraint narrows a box but does not change what `@media (max-width: ...)` sees, which is
-the real browser viewport. A component using media queries stays in its desktop layout however
-narrow the box gets. `@container` does respond: `.demo-wrap` carries `container-type: inline-size`
-while constrained, so a component written against container queries reflows as it would in
-production.
+`.demo-wrap` carries `container-type: inline-size` while constrained, so `@container` rules respond to
+the width, while `@media` keeps reading the real browser window. Emulating media queries would mean
+rendering the component in an iframe, which would take `plugin-box-model` and every other overlay its
+target, since overlays render as Angular components inside `.demo-wrap`. The width constraint is the
+cheaper option.
 
-Emulating media queries would mean rendering the component in an iframe, which would take
-`plugin-box-model` and every other overlay its target, since overlays render as Angular components inside
-`.demo-wrap`. The width constraint is the cheaper option.
+### Grips and dimension line
 
-### Not in the URL
+The grips, one straddling each edge of the constrained area, and the dimension line are siblings of
+`.demo-wrap`, never children of it: `.demo-wrap` is what a visual regression runner screenshots, and
+anything inside it would composite into every baseline.
 
-Like `zoom`, `guides` and `rulers`, the viewport width is a `localStorage` preference and not a URL
-parameter. `PrismUrlStateService` carries navigation only (which component, service, pipe, page, variant, state, view
-and panel you are looking at) and no canvas setup.
+- **Grips** run on `prismResizer` with `scale` `-2 / zoom` and `2 / zoom`: `.demo-wrap` is centred and
+  scaled by the canvas zoom, so an edge moving by `d` changes the width by `2d / zoom`, which keeps the
+  grip under the cursor at any zoom level. Each is a handle on a faint 1px guide line that runs the full
+  height of the stage. Only the handle is clickable: the line's track is `pointer-events: none`, or it
+  would cover the background pill's Reset button whenever a viewport is on. The handle's hit box is
+  larger than the mark it draws (`background-clip: content-box` over padding), and the **Width** chooser
+  reaches the same presets for anyone who cannot hit a 9px target. The line crosses the specimen, so it
+  stays faint and brightens with the handle on hover, drag and focus. Both grips are
+  `role="separator"` with `aria-valuenow`, `aria-valuemin` and `aria-valuemax`. The pointer inversion
+  that lets the left grip track the cursor does not apply to the keyboard: ArrowRight widens on either
+  grip, because two separators announcing the same `aria-valuenow` must not move it in opposite
+  directions for the same key.
+- **Dimension line**: a horizontal rule in `--prism-measure` spanning the painted width at the top of
+  the stage, with the value set into a gap at its centre and a short tick at each end, which make it
+  read as a measurement instead of a divider. It is the middle resident of the overlay band (pill left,
+  rail right) and reads the same `--prism-canvas-overlay-top` as the other two, so enabling rulers
+  moves all three together. Its width carries the same `--prism-vp-w * --zoom` product the grips use.
+
+The rail itself prints no width; `zoomTitle()` puts it into the zoom readout's tooltip.
 
 ### Capture mode
 
@@ -142,51 +162,68 @@ no-op while capture is active), so a capture run cannot corrupt the user's store
 
 ### Phone layout
 
-The phone layout (since 22.7.0) ignores the width the same way: the renderer's `viewportWidth`
-computed is `null` while capture mode is active or the phone layout is, so on a phone the specimen
-meets the device's own width. The grips, the dimension line, the crosshair, the rulers and the
+The phone layout ignores the width the same way: the renderer's `viewportWidth` computed is `null`
+while capture mode is active or the phone layout is (`desktopTools()` is false), so on a phone the
+specimen meets the device's own width. The grips, the dimension line, the crosshair, the rulers and the
 measuring tool are left out there too, and the stored width, like the other toggles, stays as it was
-and applies again once the window is wide.
+and applies again once the window is wide. See [On a phone](guide/styleguide-ui.md#on-a-phone).
 
 ## Measuring
 
-The measuring tool adds a third kind of state to the two services above: a point, stored in `.demo-wrap`-local CSS pixels, and an overlay drawn as a sibling of `.demo-wrap`, deliberately never a child of it.
+The measuring tool adds a third kind of state to the two services above: a point, stored in `.demo-wrap`-local CSS pixels, and an overlay drawn as a sibling of `.demo-wrap`, deliberately never a child of it. `PrismMeasureService` holds the drag in progress (`draft`), the pinned measurements (`pins`) and the Alt-click anchor (`hoverAnchor`). A change of variant or component clears all three (`clearAll()`); switching the tool off only drops the draft and the anchor (`suspend()`), because the toggle is a mode, not a reset. Nothing of it is persisted.
 
 ### Local coordinates, not screen coordinates
 
-A `MeasurePoint` is recorded via `toLocal` in the same coordinate space `.demo-wrap` itself occupies before its own transform is applied — not in screen coordinates. The distinction matters because `.demo-wrap` carries `transform: scale(var(--zoom))`: a screen-pixel gap between two points on a zoomed-out canvas is smaller than the CSS-pixel distance the component itself renders at. Storing a point already inside that pre-scale space means the distance between two of them (`measureDistance`, a plain `Math.hypot`) is already the real CSS-pixel distance — `formatMeasure` never has to divide by `zoom` to print it.
+A `MeasurePoint` is recorded via `toLocal` in the same coordinate space `.demo-wrap` itself occupies before its own transform is applied, not in screen coordinates. The distinction matters because `.demo-wrap` carries `transform: scale(var(--zoom))`: a screen-pixel gap between two points on a zoomed-out canvas is smaller than the CSS-pixel distance the component itself renders at. Storing a point already inside that pre-scale space means the distance between two of them (`measureDistance`, a plain `Math.hypot`) is already the real CSS-pixel distance, and `formatMeasure` never has to divide by `zoom` to print it.
 
-It also means a pin survives a zoom change instead of being tied to the screen position it was drawn at. `toScreen`, the inverse of `toLocal`, re-projects every point on every render, reading whatever `zoom` currently is; a pin placed at 50% and viewed back at 200% is recomputed from its stored CSS-pixel position, rather than replaying the screen coordinates captured the first time. The alt-hover four-sided readout takes the opposite route to the same destination: `quadSpans` reads screen-space boxes straight from `getBoundingClientRect()`, so `quadLines` divides by `zoom` once, by hand, before formatting — the one place the overlay needs an explicit division, because that reading starts in the other coordinate space.
+It also means a pin survives a zoom change instead of being tied to the screen position it was drawn at. `toScreen`, the inverse of `toLocal`, re-projects every point on every render, reading whatever `zoom` currently is; a pin placed at 50% and viewed back at 200% is recomputed from its stored CSS-pixel position, rather than replaying the screen coordinates captured the first time. The alt-hover four-sided readout takes the opposite route to the same destination: `quadSpans` reads screen-space boxes straight from `getBoundingClientRect()`, so `quadLines` divides by `zoom` once, by hand, before formatting. It is the one place the overlay needs an explicit division, because that reading starts in the other coordinate space.
+
+### Rounding
+
+Whatever the document did not pin is reported in whole pixels (`quantizeFree`). A point that latched onto nothing is the cursor minus the specimen's own offset, and because `.demo-wrap` is centred that offset is itself fractional, a left edge at 824.3594 and the like. Those decimals would describe where the specimen happened to sit, not what was measured, so they are rounded away.
+
+The rounding is per axis, not per point, which keeps it from discarding the fractions that are real. Only one axis of a snapped point comes from the document: an endpoint latched to a left edge takes that edge's exact x, while its y is still the raw cursor carrying the same offset as a free point. So the latched axis is kept exactly and the other is rounded. Measured against this repo's own fixtures, about a fifth of the distances between a parent and its child are genuinely fractional, such as a toggle knob centred at 2.5px in its track, or an avatar's glyph sitting 6.8281 from one side and 6.8438 from the other, and rounding those away would hide the asymmetry a ruler exists to reveal.
+
+Values are printed to at most one decimal, and whole values carry none (`formatMeasure`). One decimal is a deliberate floor: it is enough to show that a gap is 2.5 and not 3, and short enough to read at a glance. It does mean two readings that differ in the second decimal print the same number.
+
+A measurement constrained with Shift (`constrainDirection`) is the one place fractions survive on purpose. Projecting onto a diagonal multiplies by √2/2, and the distance between two whole points on a 45-degree line is irrational in any case; rounding there would trade the exact angle Shift just promised for a tidier number.
 
 ### Why the label moves at 28px
 
-`MEASURE_LABEL_MIN_SPAN` (28) is evaluated against the _projected_ span — the on-screen distance between the two ticks after `toScreen` — not the CSS-pixel value the label prints. That split matters: a measurement can be a large number and still render as a short line on screen at low zoom, and it is the rendered length, not the number, that decides whether the end ticks and the value can share the space without overlapping. Below 28px the value steps aside, perpendicular to the line, by `MEASURE_LABEL_OFFSET` (15px) — but which side it steps toward is not fixed to one reference point across both callers of `labelPlacement`. The primary drag and pin measurements push it away from the specimen's own centre (`specimenCentre()`); the alt-hover quad readout instead pushes it away from the centre of whichever element is currently hovered (`hover()` computes that centre fresh from `boxOf(targetEl)` on every call). Same mechanism, a different "away from" depending on what is actually being measured — and either way, a short measurement inside a single small component never buries its own number under its own ticks.
+`MEASURE_LABEL_MIN_SPAN` (28) is evaluated against the _projected_ span, the on-screen distance between the two ticks after `toScreen`, not the CSS-pixel value the label prints. That split matters: a measurement can be a large number and still render as a short line on screen at low zoom, and it is the rendered length, not the number, that decides whether the end ticks and the value can share the space without overlapping. Below 28px the value steps aside, perpendicular to the line, by `MEASURE_LABEL_OFFSET` (15px). Which side it steps toward is not fixed to one reference point across both callers of `labelPlacement`: the primary drag and pin measurements push it away from the specimen's own centre (`specimenCentre()`), while the alt-hover quad readout pushes it away from the centre of whichever element is currently hovered (`hover()` computes that centre fresh from `boxOf(targetEl)` on every call). Same mechanism, a different "away from" depending on what is actually being measured, and either way a short measurement inside a single small component never buries its own number under its own ticks.
 
 ### Two coordinate systems, and the projection between them
 
-A stored `MeasurePoint` is `.demo-wrap`-local; every rect the overlay reads — `.demo-wrap`'s own for the projection origin, the specimen's for the label reference point, an element's for the four-sided readout — comes out of `getBoundingClientRect()` and is therefore in _viewport_ coordinates, measured from the corner of the window. Neither is the space the overlay draws in. `.m-svg` is `inset: 0` on the host, so its user coordinates begin at the host's top-left corner, and `.m-label` is placed with `left`/`top` against the same corner. `toHostSpace` is the one subtraction that closes the gap, applied to every drawn coordinate right after `toScreen` and inside `boxOf`. Skip it and the stored numbers stay exactly right while every line, tick, echo, outline and label is translated by the stage's screen offset — down by the header, right by the sidebar — which on a normal shell puts most of the drawing outside the stage. It is a pure function taking the host rect rather than reading one, because jsdom reports every rect as zero and a test routed through the DOM could not tell the subtraction from its absence.
+A stored `MeasurePoint` is `.demo-wrap`-local; every rect the overlay reads (`.demo-wrap`'s own for the projection origin, the specimen's for the label reference point, an element's for the four-sided readout) comes out of `getBoundingClientRect()` and is therefore in _viewport_ coordinates, measured from the corner of the window. Neither is the space the overlay draws in. `.m-svg` is `inset: 0` on the host, so its user coordinates begin at the host's top-left corner, and `.m-label` is placed with `left`/`top` against the same corner. `toHostSpace` is the one subtraction that closes the gap, applied to every drawn coordinate right after `toScreen` and inside `boxOf`. Skip it and the stored numbers stay exactly right while every line, tick, echo, outline and label is translated by the stage's screen offset, down by the header and right by the sidebar, which on a normal shell puts most of the drawing outside the stage. It is a pure function taking the host rect rather than reading one, because jsdom reports every rect as zero and a test routed through the DOM could not tell the subtraction from its absence.
 
 ### Where the overlay sits in the stack
 
-`<prism-canvas-measure>` carries `z-index: 1`, and both the floor and the ceiling are load-bearing. It needs one at all because `.demo-wrap` is `position: relative` with a `transform` — a stacking context of its own — and renders _after_ the overlay in the template: at `z-index: auto` the two paint in tree order, `.demo-wrap` wins, and the overlay's marks disappear behind the specimen while its `pointerdown` never arrives, which takes alt-click anchoring with it. And it has to be the lowest of the stage's overlays — below the background pill at 2, the rulers, grips and dimension line at 4, and the toolrail at 5 — because it is the only one that takes pointer events across the stage's whole area: above the pill it covers that pill's Reset button, and above the rail it covers the button that switches the tool back off.
+`<prism-canvas-measure>` carries `z-index: 1`, and both the floor and the ceiling are load-bearing. It needs one at all because `.demo-wrap` is `position: relative` with a `transform`, a stacking context of its own, and renders _after_ the overlay in the template: at `z-index: auto` the two paint in tree order, `.demo-wrap` wins, and the overlay's marks disappear behind the specimen while its `pointerdown` never arrives, which takes alt-click anchoring with it. And it has to be the lowest of the stage's overlays (below the background pill at 2, the rulers, grips and dimension line at 4, and the toolrail at 5), because it is the only one that takes pointer events across the stage's whole area: above the pill it covers that pill's Reset button, and above the rail it covers the button that switches the tool back off.
 
 Sitting above `.demo-wrap` is also what makes `elementUnderPoint` read the hit list rather than its topmost entry. The overlay is now the topmost hit for every point over the specimen, so `document.elementFromPoint` answers the overlay itself; `document.elementsFromPoint` and the first entry the rendered root contains gives the element actually underneath. The `contains` guard stays either way, because the toolrail and the grips sit above the overlay and would otherwise be snapped to.
 
 ### Core chrome, not a plugin overlay
 
-`<prism-canvas-measure>` sits inside `.prism-canvas-stage` as a sibling of `.demo-wrap`, gated only by `canvasService.measure()` and the same `@if (!capture.active())` guard the crosshair, the rulers and the background pill sit behind — never by which panel is active. A plugin overlay does not have that option: it is rendered as an ordinary Angular component _inside_ `.demo-wrap`, through `NgComponentOutlet` bound to the active panel. Two problems follow from sitting there instead. It is scaled by the same `transform: scale(var(--zoom))` `.demo-wrap` carries, so a label sized at 10px in the overlay's own CSS renders at 5 real screen pixels the moment zoom drops to 50% — the same shrink the specimen itself gets. And it is confined to `.demo-wrap`'s box the way `plugin-box-model`'s own overlay is, whose host sits at `inset: 0` relative to `.demo-wrap` with its own `overflow: hidden`, so a margin box that would extend past the specimen's edge is clipped exactly there. Neither problem is particular to box-model's overlay specifically — both are what any component rendered inside a scaled, bounded box inherits for free, and both are exactly wrong for a tool whose job is comparing two elements that are not necessarily at the same place or the same apparent size on screen.
+`<prism-canvas-measure>` sits inside `.prism-canvas-stage` as a sibling of `.demo-wrap`, gated only by `canvasService.measure()` and the same `@if (!capture.active())` guard the crosshair, the rulers and the background pill sit behind, never by which panel is active. A plugin overlay does not have that option: it is rendered as an ordinary Angular component _inside_ `.demo-wrap`, through `NgComponentOutlet` bound to the active panel. Two problems follow from sitting there instead. It is scaled by the same `transform: scale(var(--zoom))` `.demo-wrap` carries, so a label sized at 10px in the overlay's own CSS renders at 5 real screen pixels the moment zoom drops to 50%, the same shrink the specimen itself gets. And it is confined to `.demo-wrap`'s box the way `plugin-box-model`'s own overlay is, whose host sits at `inset: 0` relative to `.demo-wrap` with its own `overflow: hidden`, so a margin box that would extend past the specimen's edge is clipped exactly there. Neither problem is particular to box-model's overlay: both are what any component rendered inside a scaled, bounded box inherits for free, and both are exactly wrong for a tool whose job is comparing two elements that are not necessarily at the same place or the same apparent size on screen.
 
-The deeper reason is architectural rather than visual: a panel overlay is _about_ the active panel — box-model's overlay only makes sense while the Box Model panel is open. Measuring is not about any panel; it is orthogonal to them, chrome for the whole canvas the way guides and rulers are, rather than for one view. `resolveOverlay()` makes that explicit rather than incidental: it resolves to `{ kind: 'none' }` whenever the measuring tool is active, regardless of which panel is selected, and a lazy panel overlay is never even fetched while it runs — the two are never competing for the same pointer. The function's own doc calls this a bridge: once the tool can attribute a measured gap to the CSS property that produced it, the box-model plugin has nothing left that it alone can do, and the reason for keeping them apart dissolves with it.
+The deeper reason is architectural rather than visual: a panel overlay is _about_ the active panel, and box-model's overlay only makes sense while the Box Model panel is open. Measuring is not about any panel; it is orthogonal to them, chrome for the whole canvas the way guides and rulers are, rather than for one view. `resolveOverlay()` makes that explicit rather than incidental: it resolves to `{ kind: 'none' }` whenever the measuring tool is active, regardless of which panel is selected, and a lazy panel overlay is never even fetched while it runs, so the two are never competing for the same pointer. The function's own doc calls this a bridge: once the tool can attribute a measured gap to the CSS property that produced it, the box-model plugin has nothing left that it alone can do, and the reason for keeping them apart dissolves with it.
 
-## UI Affordances
+### The pin row
 
-- **Tools menu, State group:** a row of chips for `ShowcaseConfig.states` (`buildStateChips()` in `canvas/state-chips.ts`), at most one on: a click calls `PrismRendererService.selectState()`, and a click on the active chip passes `null`. A chip whose state does not fit the shown variant (`chipFits()`, the canvas's own `canvasFit` for the active one) gets `is-na`, a dashed border, and the reason in its tooltip; it stays selectable. Below the chips, one toggle per pseudo state, several can be on at once. `is-on` follows `isForced()`, the tinted `is-rec` border `isDeclared()`: the states the variant declares and those of the active state while it fits, mirroring the Canvas group.
-- **Tools menu, recommendation marker:** the recommended background's button in the **Canvas** group carries a tinted border (driven by `recommended()`) instead of a separate glyph. Title attribute: `Recommended background for this variant`. Passive, always visible while a recommendation is active.
-- **Canvas pill:** `Recommended: <bg> [Reset]` appears in the top-left of the canvas only when `isDeviating()` is true (actionable; the button clears the override and returns to the recommendation).
-- **Tools menu, active state:** the active background button binds to `effective()` and carries the filled `is-on` state. Clicks write to the override when a recommendation exists; otherwise they update the persisted global default (backward-compatible behavior for components without `bg`). The recommended and active buttons can be the same one.
-- **Dimension line:** a horizontal rule spanning the painted width at the top of the stage, in `--prism-measure`, with the value set into a gap at its centre and a short vertical tick at each end. The ticks make it read as a measurement instead of a divider, and they mark the two edges the grips can be dragged to. It is the third resident of the overlay band (pill left, dimension centre, rail right) and reads the same `--prism-canvas-overlay-top` as the others, so enabling rulers moves all three together. Its width carries the same `--prism-vp-w * --zoom` product the grips use, so the three stay locked together.
+Pinned measurements render in `<prism-canvas-pin-row>`, a row below the canvas, not in a corner of the stage. The space above the canvas is already spoken for (the background pill on the left, the dimension line in the centre, the toolrail on the right), and a fourth floating surface there would be the first to collide with one of the other three. The row is a direct child of `.prism-canvas-wrap` without a capture guard of its own: capture mode's structural rule removes every child of the wrap that does not contain the stage.
 
-- **Edge grips:** one straddling each edge of the constrained area, each a handle sitting on a faint 1px guide line that runs the full height of the stage. Only the handle is clickable: the line's full-height track is `pointer-events: none`, or it would cover the background pill's Reset button whenever a viewport is on. The handle's hit box is larger than the mark it draws (`background-clip: content-box` over padding), and the same widths are reachable from the **Width** chooser for anyone who cannot hit a 9px target. The line makes the constrained area read as a region instead of two loose handles; it crosses the specimen, so it stays faint and brightens with the handle on hover, drag and focus. The grips run on `prismResizer` with `scale` `-2 / zoom` and `2 / zoom`: `.demo-wrap` is centred and scaled by the canvas zoom, so an edge moving by `d` changes the width by `2d / zoom`, which keeps the grip under the cursor at any zoom level. Both are keyboard-reachable and expose `aria-valuenow`, `aria-valuemin` and `aria-valuemax`. ArrowRight and ArrowUp widen by 10px on either grip and ArrowLeft/ArrowDown narrow, with Home and End jumping to the floor and the ceiling. The pointer inversion that lets the left grip track the cursor does not apply to the keyboard, because two separators announcing the same `aria-valuenow` must not move it in opposite directions for the same key.
-- **Rail width readout:** a second line under the zoom percentage on the floating toolrail, shown only while the viewport constraint is on. It renders the active width with a `px` suffix (`390px`), since a bare number directly under a `100%` line would read ambiguously.
+### No keyboard start yet
 
-**Overlay colours follow the ground.** The band's residents (rail, pill, pin row, rulers) paint with the `--prism-canvas-overlay-*` tokens, which the shell binds on `.prism-canvas-wrap` from `canvasOverlayTokens(PrismVariantBgService.effective())` (`canvas/canvas-overlay-tokens.ts`). On `bg: 'light'` and `bg: 'dark'` they are fixed light or dark values; on the theme-following grounds they fall back to the theme. The rail therefore never shows the dark theme's surface on a light canvas, or the reverse.
+Keyboard support only operates a draft that already exists: arrow keys nudge (`nudge()` in `canvas/measure-keyboard.ts`, 1px, 10px with Shift), Enter commits, Escape cancels. A measurement begins only from a pointer-down. The design called for Tab to step through the specimen's snap targets as the keyboard equivalent of a pointer-down, arguably the more precise input of the two, since edges are exactly what one wants to measure, and that was never built. Tab is left untouched by `onKey` rather than repurposed as a plain stepping key, so it stays free for that mechanism. What the real interaction should be is still an open product question: a tool covering the whole canvas cannot simply take Tab for its own use without first deciding how a keyboard user gets back out of it.
+
+The overlay is exposed as a labelled `group` rather than as an `application` for the same reason: `application` hands every keystroke to the widget and takes a screen-reader user out of browse mode, which would be a bad trade for a key set that cannot start anything. That changes the day the Tab mechanism exists, together with the overlay's `aria-label`.
+
+## URL and Session State
+
+Two services keep what is open across reloads; the user side is under [Links & State](guide/url-state.md). Neither carries canvas setup: zoom, guides, rulers, the measuring toggle and the viewport width are `localStorage` preferences of `PrismCanvasService`, not URL parameters.
+
+`PrismUrlStateService` reads the URL on startup via `window.location.search` and sets the initial navigation state: the component, service, pipe or page, then the variant, then the state (after the variant, which clears it), the view and the part, and the addon panel. It then follows the navigation signals with an effect and calls `history.pushState()` when what is open changes to another component, service, pipe or page, and `replaceState()` when only the variant, state, view, part or panel changes. The query string is built from scratch on every write, so a parameter the app does not own, `capture` included, never survives a navigation. A `popstate` restores from the URL again. With `urlState: false` it neither reads nor writes.
+
+`PrismPersistenceService` reads `sessionStorage` (`ng-prism:state`) after the URL service has selected the active component, then applies persisted control values that match the current `className` and variant index. It follows the same signals and writes back debounced (200 ms), skipping a write that would store what is already there. A different schema version, corrupted JSON, an exceeded quota and a missing `sessionStorage` are all handled without crashing the app. With `persistState: false`, and in capture mode, it neither reads nor writes.
+
+`PrismShellComponent` initializes both at startup, in this order: `urlStateService.init()`, then `persistenceService.init()`.

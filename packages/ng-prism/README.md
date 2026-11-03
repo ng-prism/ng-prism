@@ -2,8 +2,7 @@
 
 **ng-prism** is the Angular-native Storybook alternative. A lightweight component showcase tool that scans your library at build time and renders interactive demos. Annotate components with `@Showcase`; no separate story files needed.
 
-[![Angular](https://img.shields.io/badge/Angular-20%20%7C%2021%20%7C%2022-dd0031)](https://angular.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.5+-3178c6)](https://www.typescriptlang.org)
+[![Angular](https://img.shields.io/badge/Angular-22-dd0031)](https://angular.dev)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
 **[Live Demo](https://ng-prism.github.io/ng-prism/demo/?component=ButtonComponent)** · **[Documentation](https://ng-prism.github.io/ng-prism/)**
@@ -16,12 +15,12 @@
 - **Compositions**: show a component with the parts it works with, such as a form field with its input, as a compiled Angular template with `template`, `host: { template }` and `imports`
 - **Services and pipes**: `@Showcase` on a service or pipe gives it an API page, no canvas needed
 - **Parts**: a component that only works inside another, such as an option in a select, names its parent with `partOf` and shows on the parent's page
-- **Plugin architecture**: JSDoc, A11y, Figma, Performance, Box Model, Coverage
+- **Plugin architecture**: JSDoc, Figma, Performance, Box Model, Coverage, Visual Regression
 - **Live Controls**: auto-generated input controls with type-aware editors
 - **Code Snippets**: live-updating Angular template snippets per variant
 - **Component Pages**: free-form demo pages for complex components
 - **Deep-linking**: URL state sync for sharing specific component/variant/view
-- **Themeable**: full CSS custom property system, replaceable UI sections
+- **Themeable**: full CSS custom property system, and plugins add panels, header widgets and controls of their own
 
 ## Quick Start
 
@@ -81,6 +80,7 @@ Using Claude Code? The [ng-prism plugin](https://ng-prism.github.io/ng-prism/#/g
 
 ```typescript
 // ng-prism.config.ts
+import { DEFAULT_CURRENCY_CODE } from '@angular/core';
 import { defineConfig } from '@ng-prism/core/config';
 import { jsDocPlugin } from '@ng-prism/plugin-jsdoc';
 
@@ -92,7 +92,7 @@ export default defineConfig({
         '--prism-font-sans': "'Inter', sans-serif"
     },
 
-    appProviders: [provideAnimationsAsync(), provideHttpClient()]
+    appProviders: [{ provide: DEFAULT_CURRENCY_CODE, useValue: 'EUR' }]
 });
 ```
 
@@ -118,7 +118,7 @@ export class TooltipDirective { ... }
 
 ## Component Pages
 
-For complex components that need template projections or mock data:
+For a demo that needs providers or state of its own, or more than one subject (most demos need no page, see [Composition, renderPage or a component page?](https://ng-prism.github.io/ng-prism/#/guide/component-pages?id=composition-renderpage-or-a-component-page)):
 
 ```typescript
 providePrism(PRISM_RUNTIME_MANIFEST, config, {
@@ -151,9 +151,9 @@ Link to a `@Showcase`-decorated component for combined API docs + custom renderi
 
 ## Requirements
 
-- Angular >= 20 (Angular 20, 21, and 22 are supported)
-- TypeScript >= 5.5
-- Components must use `input()` / `output()` signals
+- Angular 22
+- Node.js 22+
+- Signal inputs and outputs (`input()`, `output()`) are the supported way; `@Input()` and `@Output()` are read with limits, see [Decorator inputs and outputs](https://ng-prism.github.io/ng-prism/#/guide/inputs-and-controls?id=decorator-inputs-and-outputs)
 
 ## License
 
