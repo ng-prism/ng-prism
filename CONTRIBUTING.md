@@ -48,7 +48,7 @@ npm install
 #### 2. Verify the core builds and tests
 
 ```bash
-npm run check       # Format + declared-deps check + style + lint + test + build + typecheck for all packages
+npm run check       # Format + declared-deps check + docs check + style + lint + test + build + typecheck for all packages
 ```
 
 CI runs these same steps (see [Run the Check Suite](#3-run-the-check-suite)). It must pass before continuing, because the test-workspace setup depends on a working core build.
@@ -234,7 +234,7 @@ Use a descriptive branch name with a prefix:
 Before opening a PR, run the checks CI runs on GitHub:
 
 ```bash
-npm run check       # nx format:check + check-declared-deps + stylelint + lint + test + build + typecheck for all packages
+npm run check       # nx format:check + check-declared-deps + check-docs + stylelint + lint + test + build + typecheck for all packages
 ```
 
 CI runs step for step the same list. The one difference is that CI appends

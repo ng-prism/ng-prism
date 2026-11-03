@@ -96,7 +96,7 @@ and a local Verdaccio registry feeds the test workspace's installs.
 `package.json` holds the exact versions.
 
 ```bash
-npm run check          # Full local check: format, declared deps, Stylelint, then lint/test/build/typecheck everywhere
+npm run check          # Full local check: format, declared deps, docs, Stylelint, then lint/test/build/typecheck everywhere
 npm run check:fix      # Fix what check reports (see below for why not nx ... --fix)
 npm run build:all      # Build the core and every plugin
 npx nx test ng-prism   # One package's tests; add -- --testPathPatterns=<name> for one spec
