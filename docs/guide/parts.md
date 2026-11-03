@@ -57,15 +57,7 @@ Elsewhere:
 
 ## Rules
 
-The field's reference is [`partOf`](api/showcase-config.md#partof), and every message is under [Build Warnings](api/build-warnings.md#parts).
-
-- **One parent, and no chains.** Name a selector that exactly one other class with `@Showcase` has. A part cannot be the parent of another part, and cannot name itself.
-- **A `partOf` that does not resolve never makes a class disappear.** The scan reports it, drops `partOf`, and the class keeps a page of its own with everything it declares, its variants included. The report counts for [`strictShowcase`](api/ng-prism-config.md#strictshowcase).
-- **A part uses** `title`, `description`, `tags` and `status`, the inputs and outputs the scan reads from its class, and `meta`, which stays for plugins.
-- **What only a page uses has no effect:** `variants`, `states`, `category`, `categoryOrder`, `componentOrder`, `section`, `sectionOrder`, `bg`, `canvasLayout`, a host template, `imports` and `renderPage`. The scan drops each with a notice, which never fails a build, since nothing is lost that the styleguide could have shown. Delete them from the part.
-- **The scan reads a class before it knows that it is a part.** A value in one of those fields that is malformed or cannot be read, and an error in the template of one of the part's variants, is reported as on any other component, and does count for `strictShowcase`. `providers` and `setup` keep their own warnings.
-- **A directive part keeps a string or object `host`,** such as `host: '<button>Open</button>'`. It names the element the directive sits on, and the API tab of the [JSDoc](plugins/jsdoc.md) plugin writes the part's usage line on it: `<button libTrigger>` instead of `<div libTrigger>`.
-- **Only a component or a directive can be a part.** On a service or a pipe, `partOf` is dropped with a warning, which appears once a plugin shows services or pipes.
+A `partOf` that does not resolve never makes a class disappear: the build warns, and the class keeps a page of its own, variants included. On a part, the fields that only a page uses, such as `variants`, `states` and `bg`, have no effect, and the scan drops them with a notice, which never fails the build. Every rule is under [`partOf`](api/showcase-config.md#partof) in the ShowcaseConfig reference, and every message under [Build Warnings](api/build-warnings.md#parts).
 
 ## Related
 

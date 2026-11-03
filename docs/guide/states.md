@@ -47,7 +47,7 @@ A variant with a `pseudo` of its own can be shown in a state as well. Both are f
 
 A state is identified by its position in the list. The `state` URL parameter, the render marker, `__PRISM_MANIFEST__` and a visual regression report all use that index, so reordering the list moves them. Add new states at the end.
 
-That is also why a broken entry keeps its place. The scanner checks every entry, reports what it cannot use as a warning, and [`strictShowcase`](api/ng-prism-config.md#strictshowcase) turns that into a build error. An entry that is not an object, a name that repeats an earlier one (the first entry wins), and a `pseudo` that is missing or has nothing usable left become an empty state: it forces nothing, fits no variant and shows as an empty column, so the states behind it keep their index. An entry without a `name` is called `State 2` for the second entry, and works as a state as long as its `pseudo` is usable. The full list is under [`states`](api/showcase-config.md#states), the messages under [Build Warnings](api/build-warnings.md#showcase-values).
+That is also why a broken entry keeps its place. The scanner reports it, and an entry it cannot use at all becomes an empty state, which forces nothing, fits no variant and shows as an empty column, so the states behind it keep their index. Which entries count as broken is under [`states`](api/showcase-config.md#states), the messages under [Build Warnings](api/build-warnings.md#showcase-values).
 
 ### Opting a variant out
 
@@ -57,7 +57,7 @@ That is also why a broken entry keeps its place. The scanner checks every entry,
 { name: 'Full width', inputs: { fullWidth: true }, canvasLayout: 'stretch', states: false }
 ```
 
-The variant has a single cell in the Overview, spanning every column, and no state is forced on it. Its own `pseudo` still applies. A state requested for it anyway, with `?state=` or from the tools menu, stays selected but is not applied, and the combination reads `states: false`. `false` is the only valid value: anything else is reported and dropped.
+The variant has a single cell in the Overview, spanning every column, and no state is forced on it. Its own `pseudo` still applies. A state requested for it anyway, with `?state=` or from the tools menu, does not fit, with the reason `states: false`, see [When a state does not fit](#when-a-state-does-not-fit). The values the field takes are under [`states`](api/showcase-config.md#states).
 
 ## Pseudo states
 
@@ -66,7 +66,7 @@ Both `states` and a variant's `pseudo` name pseudo states the same way. The keys
 - **`true`**: every element of what is rendered, the host included. Closest to what a pointer resting on the component does.
 - **A selector, or a list of them**: only the matching elements, matched against what is rendered: the host element and everything inside it. Use it for the element the state belongs to, such as the inner `<button>` of a host component, or a visually hidden `<input>` whose sibling draws the box.
 
-The scanner reads them from the source like any other value. An unknown state, a target that is neither `true` nor a selector, and an empty selector are dropped with a warning that counts for `strictShowcase`. Whether a selector parses is up to the browser, which warns once when it is used.
+The scanner reads them from the source like any other value and drops what it cannot use with a warning; whether a selector parses is up to the browser. The details are under [`pseudo`](api/showcase-config.md#pseudo).
 
 ### Your CSS does the styling
 

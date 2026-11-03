@@ -493,7 +493,7 @@ npx nx run-many -t test
 | `template`, host template, `imports`                                                             | [guide/compositions.md](docs/guide/compositions.md)                                                    |
 | `host` as a string or an object, `DirectiveHost`                                                 | [guide/directive-hosting.md](docs/guide/directive-hosting.md)                                          |
 | Composition, `renderPage` or component page: which to use                                        | [guide/component-pages.md](docs/guide/component-pages.md)                                              |
-| `partOf` and how parts behave                                                                    | [guide/parts.md](docs/guide/parts.md)                                                                  |
+| `partOf`: its rules in the reference, how a part shows in the guide                              | [api/showcase-config.md](docs/api/showcase-config.md#partof) and [guide/parts.md](docs/guide/parts.md) |
 | What the scanner can read statically                                                             | [guide/scanner-reads.md](docs/guide/scanner-reads.md)                                                  |
 | Every build message, with its cause and fix                                                      | [api/build-warnings.md](docs/api/build-warnings.md)                                                    |
 | The contract for external tools: anchors, render marker, capture mode, the room for a focus ring | [guide/external-tooling.md](docs/guide/external-tooling.md)                                            |

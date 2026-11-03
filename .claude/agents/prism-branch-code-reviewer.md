@@ -35,7 +35,7 @@ Then check the docs side of the diff:
 - No topic is described in full on a second page: a guide links the reference for a field's type and default instead of repeating them, and a copied paragraph is a finding.
 - No version history outside the Upgrade Notes: guides and reference say only "since x.y" and "deprecated since x.y, removed in z"; sentences such as "Up to 22.5.0 …", "now lives …" or "has moved …" belong in `docs/guide/upgrade-notes-22.md`.
 - A new page has its entry in `docs/_sidebar.md`; a moved or merged page leaves a redirect in `docs/index.html` and a stub at its old path.
-- `npm run check:docs` passes (run it; it is fast and not part of `npm run check`).
+- `npm run check:docs` passes (run it; it is fast).
 
 The consumer plugin's skills (`.agents/plugins/claude/skills/`) describe the same surface for agents in projects that use ng-prism, and a change they describe updates them in the same PR:
 - `showcase.types.ts`, static evaluation or component discovery in the scanner → `showcase/SKILL.md`

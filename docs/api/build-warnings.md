@@ -333,7 +333,7 @@ Diagnostic · `builder/scanner/pseudo-states.ts`
 
 ## Parts
 
-The messages of [`partOf`](api/showcase-config.md#partof) (since 22.7.0): six diagnostics and one notice. After a diagnostic, `partOf` is dropped and the class keeps a page of its own, with everything it declares. Each message ends with the location of `partOf` or of the field. See [Parts](guide/parts.md#rules) for the rules.
+The messages of `partOf` (since 22.7.0): six diagnostics and one notice. After a diagnostic, `partOf` is dropped and the class keeps a page of its own, with everything it declares. Each message ends with the location of `partOf` or of the field. The rules are under [`partOf`](api/showcase-config.md#partof) in the ShowcaseConfig reference.
 
 ### partOf that is not a selector
 

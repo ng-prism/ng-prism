@@ -153,7 +153,7 @@ Link to a `@Showcase`-decorated component for combined API docs + custom renderi
 
 - Angular 22
 - Node.js 22+
-- Components must use `input()` / `output()` signals
+- Signal inputs and outputs (`input()`, `output()`) are the supported way; `@Input()` and `@Output()` are read with limits, see [Decorator inputs and outputs](https://ng-prism.github.io/ng-prism/#/guide/inputs-and-controls?id=decorator-inputs-and-outputs)
 
 ## License
 

@@ -243,7 +243,7 @@ An `@example` block may start and end with a fenced code block. The language aft
  */
 ````
 
-The styleguide registers two languages with highlight.js: `typescript` and `xml`, which also answers to `html`. A fence in another language, such as `scss`, needs that language registered in the styleguide app as well.
+The styleguide highlights two languages: `typescript` and `xml`, which also answers to `html`. No other language is registered, so write a fenced example in one of these two.
 
 ## Parts and compositions
 

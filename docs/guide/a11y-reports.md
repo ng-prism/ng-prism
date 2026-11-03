@@ -62,7 +62,7 @@ A component's entry in `components` covers all its variants and states:
 - `score`: the worst variant's score, not the average. An average hides a variant: a serious violation in one of 19 variants averages to 99.5 and grades ok.
 - `critical`, `serious`, `moderate`, `minor`, `violations`, `passes`, `incomplete`: summed over the variants.
 
-`total` is the library: its `score` is the average the build compares with `thresholds.score`, its counts are summed, and `auditedComponents` and `auditedVariants` say how much the audit covered.
+`total` is the library: its `score` is the average the [gate](#gating) checks, its counts are summed, and `auditedComponents` and `auditedVariants` say how much the audit covered.
 
 ## Report schema
 

@@ -91,7 +91,7 @@ export function todoPlugin(): NgPrismPlugin {
 - **Plain data only.** The manifest that carries `meta` to the browser is generated source code: strings, numbers, booleans, arrays and plain objects arrive as written, functions, dates and class instances do not.
 - **`manifest.meta`** holds values for the whole library, such as the TODO total, which a [header widget](#add-a-header-widget) shows. `onManifestReady` runs once per plugin, after all other hooks. When there is an a11y report, the build adds `meta.a11y` after it, see [What the build adds](guide/a11y-reports.md#what-the-build-adds).
 - **Parts.** A [part](guide/parts.md) goes through `onComponentScanned` as a component with `parentClassName`. A plugin that reports per page, like this one, skips it, since the page of its parent shows the part; one that reads the API of every component keeps it. In `onManifestReady` a part is not in `manifest.components` but in the `parts` of its parent, see [Parts in the Hooks](architecture/plugin-hooks.md#parts-in-the-hooks).
-- **Node.js modules** make this file a Node.js-only file. The config, and the plugin with it, is bundled for the browser too, so a plugin that uses them gets a second, browser entry, see [Node and browser entry points](#node-and-browser-entry-points).
+- **Node.js modules** make this file a Node.js-only file. The config, and the plugin with it, is bundled for the browser too, so a plugin that uses them gets a second, browser entry. The styleguide build fails until you split the entries, which [Node and browser entry points](#node-and-browser-entry-points) does after the panel below.
 - **A hook that throws** fails the build with [`ng-prism: plugin "<name>" failed in <hook> for <target>`](api/build-warnings.md#a-plugin-hook-failed).
 
 The other hooks follow the same pattern. [`onServiceScanned`](api/ng-prism-plugin.md#onservicescanned) and [`onPipeScanned`](api/ng-prism-plugin.md#onpipescanned) get each service and pipe, but only while some plugin shows them with a [view panel](#panels-for-services-and-pipes). [`onPageScanned`](api/ng-prism-plugin.md#onpagescanned) gets each entry of `pages` in the config, a `CustomPage`; a component page registered with `providePrism()` never reaches it. A hook or a panel that reads `component.api` sets [`componentApi: true`](api/ng-prism-plugin.md#componentapi).
@@ -296,7 +296,7 @@ export class TodoHeaderBadgeComponent {
 }
 ```
 
-`PrismManifestService.manifest()` follows a rescan of `serve`; the [`PRISM_MANIFEST`](api/services.md#injection-tokens) token keeps the manifest the styleguide started with. On a phone the widgets sit in strips that scroll sideways once the brand name has shortened as far as it can, so keep a widget to one compact pill, as the metric badge draws it, see [On a phone](guide/styleguide-ui.md#on-a-phone).
+When `updateManifest()` replaces the manifest in place, `PrismManifestService.manifest()` follows it, while the [`PRISM_MANIFEST`](api/services.md#injection-tokens) token keeps the manifest the styleguide started with. On a phone the widgets sit in strips that scroll sideways once the brand name has shortened as far as it can, so keep a widget to one compact pill, as the metric badge draws it, see [On a phone](guide/styleguide-ui.md#on-a-phone).
 
 ## Decorate the navigation
 

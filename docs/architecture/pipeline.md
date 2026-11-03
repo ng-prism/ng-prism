@@ -177,7 +177,7 @@ The styleguide renders a part through the variants of its parent, so the manifes
 
 `writeManifestIfChanged()` reads the existing manifest and compares it string-for-string with the new content. If identical, the write is skipped and `result.written` is `false`.
 
-When the file must be written, it is overwritten in place: truncated and written again, with the same inode. A temporary file that is renamed over the manifest would create a new inode every time, and Vite's watcher loses a file that lives in a cache directory outside the project's source root, so a change to a `@Showcase` would stop triggering HMR. The manifest is a few kilobytes, so a bundler that sees a partial write is unlikely.
+When the file must be written, it is overwritten in place: truncated and written again, with the same inode. A temporary file that is renamed over the manifest would create a new inode every time, and Vite's watcher loses a file that lives in a cache directory outside the project's source root, so a change to a `@Showcase` would stop triggering a rebuild. The manifest is a few kilobytes, so a bundler that sees a partial write is unlikely.
 
 ### Manifest Output Location
 

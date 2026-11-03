@@ -56,7 +56,7 @@ export default defineConfig({
 
 ### Serving the images
 
-The report references images by path. Those files must be reachable from the built styleguide, which means copying them in via the `assets` array of your Prism app's `angular.json` target, the same way you already surface `coverage-summary.json` or `a11y-report.json`.
+The report references images by path. Those files must be reachable from the built styleguide, which means copying them in via the `assets` array of your Prism app's `angular.json` target.
 
 ```jsonc
 // angular.json: my-lib-prism build target

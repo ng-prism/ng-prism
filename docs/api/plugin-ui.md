@@ -1,6 +1,6 @@
 # Plugin UI Kit
 
-The components, functions and constants of `@ng-prism/core` that a plugin builds its panels, header widgets and controls from, so that they look and behave like the built-in ones in both themes. How to lay out a panel with them is described in [Panel Design](plugins/panel-design.md), where they plug in in [NgPrismPlugin](api/ng-prism-plugin.md).
+The components, functions and constants of `@ng-prism/core` that a plugin builds its panels, header widgets and controls from, so that they look and behave like the built-in ones in both themes. [Panel Design](plugins/panel-design.md) describes how to lay out a panel with them, and [NgPrismPlugin](api/ng-prism-plugin.md) where they plug in.
 
 The components are exported from `@ng-prism/core` only. They are `@Component` classes, and `@ng-prism/core/plugin` leaves them out so that it stays loadable in Node.js, where the builder evaluates a plugin's Node entry. The functions and constants are exported from `@ng-prism/core/plugin` and from `@ng-prism/core`, except `toneForStatus`, which comes from `@ng-prism/core` only.
 
