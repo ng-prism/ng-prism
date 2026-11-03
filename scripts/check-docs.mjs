@@ -21,7 +21,7 @@
  *              section away; the target is checked the same way and names an id, else the browser keeps the old one
  *   stubs      the source of a page redirect stays a stub: at most 10 lines, with the absolute URL of the raw `.md` of
  *              its target, because agents fetch raw Markdown and never run the redirect. An anchor redirect has none
- *   history    release history (`Up to 22.x`, `beta.n`, `now lives` ...) lives on the two upgrade pages only
+ *   history    release history (`Up to 22.x`, `beta.n`, `now lives` ..., in any case) lives on the two upgrade pages only
  *
  * Heading ids must match what docsify 4 renders, so they are computed the way it does: marked renders the heading
  * to HTML, docsify strips its `:id=` config, then slugifies with a counter per page. `--anchors` prints those ids, so
@@ -41,7 +41,7 @@ const HOME = 'README.md';
 const REDIRECTS_ID = 'prism-redirects';
 const STUB_MAX_LINES = 10;
 const STUB_URL_BASE = 'https://ng-prism.github.io/ng-prism/';
-const HISTORY = /Up to 22\.|beta\.[0-9]|before 22|now lives|has moved/;
+const HISTORY = /Up to 22\.|beta\.[0-9]|before 22|now lives|has moved/i;
 const HISTORY_PAGES = new Set(['guide/migration-v22.md', 'guide/upgrade-notes-22.md']);
 
 // Heading ids, the way docsify 4 computes them
@@ -413,7 +413,7 @@ function check(site) {
 // Output
 
 function printOutline(site) {
-    console.log('| Seite | Ebene | Überschrift | Zeile | Verbleib | Task |');
+    console.log('| Page | Level | Heading | Line | Destination | Task |');
     console.log('| --- | --- | --- | --- | --- | --- |');
     for (const page of site.pages.values()) {
         for (const heading of page.headings) {
