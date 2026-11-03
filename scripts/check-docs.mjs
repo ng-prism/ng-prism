@@ -16,9 +16,11 @@
  *   links      every other link resolves to a page or file, and its `#anchor` is a heading id of that page
  *   redirects  the JSON in `<script type="application/json" id="prism-redirects">` of `index.html` maps
  *              `/<old-route>` to `/<new-route>[?id=<anchor>]`; the old route has a file, the new one has a file, an
- *              anchor and a sidebar entry
- *   stubs      a redirect source stays a stub: at most 10 lines, with the absolute URL of the raw `.md` of its target,
- *              because agents fetch raw Markdown and never run the redirect
+ *              anchor and a sidebar entry. A key `/<route>?id=<old-anchor>` sends one section of a page that stays to
+ *              its new place: the page exists and no longer has that anchor, else the redirect would take a live
+ *              section away; the target is checked the same way
+ *   stubs      the source of a page redirect stays a stub: at most 10 lines, with the absolute URL of the raw `.md` of
+ *              its target, because agents fetch raw Markdown and never run the redirect. An anchor redirect has none
  *   history    release history (`Up to 22.x`, `beta.n`, `now lives` ...) lives on the two upgrade pages only
  *
  * Heading ids must match what docsify 4 renders, so they are computed the way it does: marked renders the heading
@@ -340,13 +342,20 @@ function check(site) {
         for (const [from, to] of Object.entries(map ?? {})) {
             const where = `"${from}": "${to}"`;
             const line = firstLine + block[2].slice(0, Math.max(block[2].indexOf(`"${from}"`), 0)).split('\n').length - 1;
-            if (!/^\/[^?#]+$/.test(from) || from.endsWith('.md')) {
-                fail('redirects', 'index.html', line, `${where}: the key must be a route like /guide/x, without .md`);
+            const key = /^\/([^?#]+?)(?:\?id=([^&#?]+))?$/.exec(from);
+            if (!key || key[1].endsWith('.md')) {
+                fail('redirects', 'index.html', line, `${where}: the key must be a route like /guide/x or /guide/x?id=old-anchor, without .md`);
                 continue;
             }
-            const sourceFile = `${from.slice(1)}.md`;
+            const sourceFile = `${key[1]}.md`;
+            const oldAnchor = key[2];
             if (!pages.has(sourceFile)) {
-                fail('redirects', 'index.html', line, `${where}: ${sourceFile} does not exist, the stub is missing`);
+                const missing = oldAnchor ? 'an anchor redirect needs the page' : 'the stub is missing';
+                fail('redirects', 'index.html', line, `${where}: ${sourceFile} does not exist, ${missing}`);
+                continue;
+            }
+            if (oldAnchor && anchorsOf(sourceFile).has(oldAnchor)) {
+                fail('redirects', 'index.html', line, `${where}: ${sourceFile} still has a heading with the id "${oldAnchor}", the redirect would hide it`);
                 continue;
             }
             const target =
@@ -357,7 +366,7 @@ function check(site) {
                 fail('redirects', 'index.html', line, `${where}: ${target.error}`);
                 continue;
             }
-            sources.set(sourceFile, target.file);
+            if (!oldAnchor) sources.set(sourceFile, target.file);
             if (!pages.has(target.file)) {
                 fail('redirects', 'index.html', line, `${where}: ${target.file} does not exist`);
             } else {
