@@ -184,8 +184,8 @@ follow the rules the built-ins follow:
 - Content padded 16 × 18 px on a 12 px grid, following the dragged panel height; images and charts fit.
 - Background `--prism-bg-surface`, embeds too. Actions right in the toolbar, `prismButton` `sm`, secondary before
   primary.
-- Colours only through `--prism-*` tokens, so the panel works in both themes; `plugins/writing-plugins.md`
-  (Panel Guidelines) has a full example.
+- Colours only through `--prism-*` tokens, so the panel works in both themes; `plugins/panel-design.md` has a full
+  example.
 - On a phone (since 22.7.0) a panel is about 390 px wide. Lay it out with container queries on its own width
   (`container-type: inline-size` on its root), not with media queries on the viewport.
 - Header widgets sit in a strip that scrolls sideways on a phone: keep one to a compact pill, as
@@ -241,6 +241,7 @@ doesn't reload it.
 
 ## Guides
 
-- `plugins/writing-plugins.md`, `architecture/plugin-hooks.md`, `api/ng-prism-plugin.md`, `api/services.md`,
+- `plugins/writing-plugins.md`, `plugins/panel-design.md`, `architecture/plugin-hooks.md`, `api/ng-prism-plugin.md`,
+  `api/plugin-ui.md`, `api/services.md`,
   `api/types.md` (`ScannedComponent`, `ComponentApi`, `ComponentComposition`, `ScannedService`, `ServiceApi`, `ScannedPipe`, `PipeApi`),
-  `guide/showcasing-services.md`, `guide/showcasing-pipes.md`
+  `guide/services-and-pipes.md`

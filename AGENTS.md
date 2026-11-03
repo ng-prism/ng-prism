@@ -142,8 +142,8 @@ Three things are easy to get wrong and are worth repeating here:
 - Tests run in Jest's `node` environment. In `packages/ng-prism`, a test that
   needs the DOM is named `*.browser.spec.ts`, which puts it in the jsdom project
   of its `jest.config.cjs`.
-- A change to public API or behaviour updates the matching pages under `docs/` in the same PR, and the consumer
-  plugin's skills under `.agents/plugins/claude/skills/` where they describe it.
+- A change to public API or behaviour updates the owner page under `docs/` (see `CONTRIBUTING.md` › Documentation) in
+  the same PR, and the consumer plugin's skills under `.agents/plugins/claude/skills/` where they describe it.
 - ng-prism majors track Angular majors. A breaking change inside the current
   Angular major ships as a minor release, with `@deprecated` (since and removal
   version) and a migration note.

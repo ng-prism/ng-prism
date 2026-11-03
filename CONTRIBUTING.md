@@ -11,6 +11,7 @@ Thank you for your interest in contributing to ng-prism! This guide will help yo
 - [Development Workflow](#development-workflow)
 - [Coding Standards](#coding-standards)
 - [Testing](#testing)
+- [Documentation](#documentation)
 - [Commit Guidelines](#commit-guidelines)
 - [Pull Request Process](#pull-request-process)
 - [Plugin Development](#plugin-development)
@@ -459,6 +460,66 @@ npx nx run-many -t test
 - Use descriptive test names that read as specifications
 - Keep test fixtures minimal and focused
 
+## Documentation
+
+`docs/` is the published docsify site. Every topic is described in full on exactly one page, its owner page; any other page gives it a sentence at most and links there. A change to public API or behaviour updates the owner page in the same PR.
+
+### Page Roles
+
+- **Reference** (`docs/api/`) is complete and terse: type, values, default, restrictions, warnings, since and deprecated, at most one short example and a link to the owner page of the topic. No reasoning at length, no how-tos.
+- **Guides** (`docs/guide/`) explain a task or a concept with examples. A field they use links to the reference instead of repeating its type and default.
+- **Architecture** (`docs/architecture/`) explains the internals for contributors and plugin authors. Whatever a user needs to use ng-prism is on a guide or a reference page; an architecture page links to it at most.
+- Nothing internal on a user page: no spec file names, internal constants or measurements from development.
+- English and factual, without chains of dashes. `defineConfig` is always imported from `@ng-prism/core/config`, as `ng add` writes it, and example URLs use port 4400.
+- The prerequisites are spelled out once, in [Installation › Prerequisites](docs/guide/installation.md#prerequisites), and read the same everywhere else: Angular 22, Node.js 22+.
+
+### Versions
+
+- Guides and reference say only "since x.y" and "deprecated since x.y, removed in z". Anything else about how a release changed things ("Up to 22.5.0 …", "before …", "now lives …", "has moved …") goes under that release in [Upgrade Notes 22.x](docs/guide/upgrade-notes-22.md), or is dropped.
+- What was never in a stable release does not exist: a note that only concerns users of a beta is dropped.
+
+### Owner Pages
+
+| Topic                                                                                            | Owner page                                                                                             |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Type, default and rules of a `@Showcase` field                                                   | [api/showcase-config.md](docs/api/showcase-config.md)                                                  |
+| Shape of a type (`Variant`, `ShowcaseState`, `CanvasBg`, the discovery types …)                  | [api/types.md](docs/api/types.md)                                                                      |
+| Sidebar order (`category`, `section`, the order fields, `tags`, `status`)                        | [guide/showcase-decorator.md](docs/guide/showcase-decorator.md)                                        |
+| Input types and their controls, defaults, inheritance, aliases, `InputsOf`                       | [guide/inputs-and-controls.md](docs/guide/inputs-and-controls.md)                                      |
+| States, pseudo states, when a state fits a variant, exclusion reasons                            | [guide/states.md](docs/guide/states.md)                                                                |
+| `bg` and `canvasLayout`: behaviour, both defaults, the `checker` deprecation                     | [api/showcase-config.md](docs/api/showcase-config.md)                                                  |
+| Viewport width, canvas tools, the names of the UI parts, the phone layout                        | [guide/styleguide-ui.md](docs/guide/styleguide-ui.md)                                                  |
+| `content`                                                                                        | [guide/content-projection.md](docs/guide/content-projection.md)                                        |
+| `template`, host template, `imports`                                                             | [guide/compositions.md](docs/guide/compositions.md)                                                    |
+| `host` as a string or an object, `DirectiveHost`                                                 | [guide/directive-hosting.md](docs/guide/directive-hosting.md)                                          |
+| Composition, `renderPage` or component page: which to use                                        | [guide/component-pages.md](docs/guide/component-pages.md)                                              |
+| `partOf` and how parts behave                                                                    | [guide/parts.md](docs/guide/parts.md)                                                                  |
+| What the scanner can read statically                                                             | [guide/scanner-reads.md](docs/guide/scanner-reads.md)                                                  |
+| Every build message, with its cause and fix                                                      | [api/build-warnings.md](docs/api/build-warnings.md)                                                    |
+| The contract for external tools: anchors, render marker, capture mode, the room for a focus ring | [guide/external-tooling.md](docs/guide/external-tooling.md)                                            |
+| CI patterns: report, gate, deploy                                                                | [guide/ci.md](docs/guide/ci.md)                                                                        |
+| A11y report schema                                                                               | [guide/a11y-reports.md](docs/guide/a11y-reports.md)                                                    |
+| VRT report schema                                                                                | [plugins/visual-regression.md](docs/plugins/visual-regression.md)                                      |
+| Config fields, deprecated ones included                                                          | [api/ng-prism-config.md](docs/api/ng-prism-config.md)                                                  |
+| Theme tokens, the `theme` example                                                                | [guide/theming.md](docs/guide/theming.md)                                                              |
+| Builder options, `entryPoint`, `cacheDir`, the watcher                                           | [api/builders.md](docs/api/builders.md)                                                                |
+| Where the manifest is written, path mapping                                                      | [architecture/pipeline.md](docs/architecture/pipeline.md) (the setup snippet in Installation may stay) |
+| `ng add` of the plugins                                                                          | [plugins/overview.md](docs/plugins/overview.md)                                                        |
+| Hook signatures, the types that define a plugin                                                  | [api/ng-prism-plugin.md](docs/api/ng-prism-plugin.md)                                                  |
+| Hook order, the services and pipes gate, Node and browser, the two-zone principle                | [architecture/plugin-hooks.md](docs/architecture/plugin-hooks.md)                                      |
+| Badge, icon, UI primitives, status grading                                                       | [api/plugin-ui.md](docs/api/plugin-ui.md)                                                              |
+| How a panel looks                                                                                | [plugins/panel-design.md](docs/plugins/panel-design.md)                                                |
+| What the JSDoc plugin reads: tags, overloads, members                                            | [plugins/jsdoc.md](docs/plugins/jsdoc.md)                                                              |
+| URL parameters                                                                                   | [guide/url-state.md](docs/guide/url-state.md)                                                          |
+| `ng-prism-strip`                                                                                 | [guide/library-publishing.md](docs/guide/library-publishing.md)                                        |
+| Breaking changes, deprecations, version history                                                  | [guide/upgrade-notes-22.md](docs/guide/upgrade-notes-22.md)                                            |
+
+### Adding and Moving Pages
+
+- A new page gets its entry in `docs/_sidebar.md`.
+- A page that moves or is merged into another keeps its old URL working until the next major: a redirect in the `prism-redirects` block of `docs/index.html`, and a stub at the old path that links the absolute URL of the new page's raw `.md`, because agents fetch raw Markdown and never run the redirect.
+- `npm run check:docs` checks links and anchors, the sidebar, the redirects, the stubs and version history outside the upgrade pages. It must report no errors before a PR that touches `docs/` is merged.
+
 ## Commit Guidelines
 
 This project follows **Conventional Commits**.
@@ -531,21 +592,11 @@ ng-prism has a plugin architecture. Plugins live under `packages/plugin-*/` and 
 
 ### Plugin Hooks
 
-| Hook                 | Phase   | Purpose                                                |
-| -------------------- | ------- | ------------------------------------------------------ |
-| `onComponentScanned` | Build   | Enrich component metadata                              |
-| `onServiceScanned`   | Build   | Enrich service metadata (since 22.7.0)                 |
-| `onPipeScanned`      | Build   | Enrich pipe metadata (since 22.7.0)                    |
-| `onPageScanned`      | Build   | Modify or add pages                                    |
-| `onManifestReady`    | Build   | Read or change the whole manifest before it is written |
-| `panels`             | Runtime | Add custom panels to the UI                            |
+Which hooks there are, in which order and where they run is described in [Plugin Hooks](docs/architecture/plugin-hooks.md), their signatures in [NgPrismPlugin](docs/api/ng-prism-plugin.md).
 
 ### Plugin Conventions
 
-- Use `peerDependencies` for Angular and ng-prism (never bundle them)
-- Build with `ngc` and depend on `ng-prism:build`
-- Keep runtime components lazy-loaded to avoid Node.js/browser conflicts
-- Provide configuration through `@Showcase({ meta: { ... } })`
+An official plugin builds with `ngc` and depends on `ng-prism:build`; how a plugin declares its peer dependencies, splits its Node and browser entry points, keeps its runtime components lazy-loaded and reads options per component from `@Showcase({ meta })` is described in [Writing a Plugin](docs/plugins/writing-plugins.md).
 
 Refer to existing plugins (e.g., `plugin-figma`, `plugin-jsdoc`) as reference implementations.
 

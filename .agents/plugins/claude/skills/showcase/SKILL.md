@@ -363,7 +363,9 @@ Tooling API; `window.__PRISM_MANIFEST__` lists every component, its variants and
 
 ## Guides
 
-- `guide/showcase-decorator.md`, `guide/variants.md`, `guide/content-projection.md`, `guide/directive-hosting.md`,
-  `guide/component-pages.md`, `guide/showcasing-services.md` (services and `setup`), `guide/showcasing-pipes.md`,
+- `guide/showcase-decorator.md`, `guide/variants.md`, `guide/inputs-and-controls.md`, `guide/states.md`,
+  `guide/content-projection.md`, `guide/compositions.md`, `guide/directive-hosting.md`, `guide/parts.md`,
+  `guide/component-pages.md`, `guide/services-and-pipes.md` (services, pipes and `setup`), `guide/scanner-reads.md`,
   `plugins/jsdoc.md`
-- `api/showcase-config.md` (every field), `guide/external-tooling.md` (URL parameters, render marker, capture mode)
+- `api/showcase-config.md` (every field), `api/build-warnings.md` (every build message),
+  `guide/external-tooling.md` (URL parameters, render marker, capture mode)
