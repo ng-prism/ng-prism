@@ -93,6 +93,10 @@ You will see:
 
 [Tour of the UI](guide/styleguide-ui.md) names every part of the screen, and shows how the styleguide works [on a phone](guide/styleguide-ui.md#on-a-phone). While `ng run my-lib:prism` runs, a change to the component or its `@Showcase` reaches the styleguide by itself, see [Watching and reloading](api/builders.md#watching-and-reloading).
 
+## Before You Publish
+
+The built library still calls `@Showcase` and imports `@ng-prism/core`. Run `npm run strip-showcase` after `ng build my-lib` to remove both, see [Publishing Libraries](guide/library-publishing.md).
+
 ## Next Steps
 
 - [@Showcase](guide/showcase-decorator.md): what the decorator does, how to order the sidebar, and every field.

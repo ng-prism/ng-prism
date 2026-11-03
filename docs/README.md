@@ -69,6 +69,8 @@ After `ng add @ng-prism/core`, run the styleguide:
 ng run my-lib:prism
 ```
 
+Before you publish your library, strip `@Showcase` from its build, see [Publishing Libraries](guide/library-publishing.md).
+
 ## Where to Go Next
 
 One starting point for each part of these docs:
