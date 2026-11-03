@@ -15,12 +15,12 @@
 - **Compositions**: show a component with the parts it works with, such as a form field with its input, as a compiled Angular template with `template`, `host: { template }` and `imports`
 - **Services and pipes**: `@Showcase` on a service or pipe gives it an API page, no canvas needed
 - **Parts**: a component that only works inside another, such as an option in a select, names its parent with `partOf` and shows on the parent's page
-- **Plugin architecture**: JSDoc, A11y, Figma, Performance, Box Model, Coverage
+- **Plugin architecture**: JSDoc, Figma, Performance, Box Model, Coverage, Visual Regression
 - **Live Controls**: auto-generated input controls with type-aware editors
 - **Code Snippets**: live-updating Angular template snippets per variant
 - **Component Pages**: free-form demo pages for complex components
 - **Deep-linking**: URL state sync for sharing specific component/variant/view
-- **Themeable**: full CSS custom property system, replaceable UI sections
+- **Themeable**: full CSS custom property system, and plugins add panels, header widgets and controls of their own
 
 ## Quick Start
 
@@ -118,7 +118,7 @@ export class TooltipDirective { ... }
 
 ## Component Pages
 
-For complex components that need template projections or mock data:
+For a demo that needs providers or state of its own, or more than one subject (most demos need no page, see [Composition, renderPage or a component page?](https://ng-prism.github.io/ng-prism/#/guide/component-pages?id=composition-renderpage-or-a-component-page)):
 
 ```typescript
 providePrism(PRISM_RUNTIME_MANIFEST, config, {
