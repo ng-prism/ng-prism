@@ -6,7 +6,7 @@
     "properties": {
         "entryPoint": {
             "type": "string",
-            "description": "Library directory or barrel file to scan, relative to the workspace root. The installation guide's Builder Options describe how each is scanned."
+            "description": "Library directory or barrel file to scan, relative to the workspace root. How each is scanned: https://ng-prism.github.io/ng-prism/#/api/builders?id=entrypoint"
         },
         "prismProject": {
             "type": "string",
