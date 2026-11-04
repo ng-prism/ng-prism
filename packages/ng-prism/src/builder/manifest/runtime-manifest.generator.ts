@@ -7,6 +7,7 @@ import { VOID_ELEMENTS } from '../../shared/void-elements.js';
 import { compositionClassName, generateCompositionClass } from './composition-wrapper.generator.js';
 import { parseHostString } from './host-parser.js';
 import { localName, ManifestImports } from './manifest-imports.js';
+import { formatArray, formatObject, indent, inlineValue, json } from './manifest-value.js';
 import { firstSelectorAttribute, selectorElement } from './selector-element.js';
 import { escapeTemplateLiteral } from './template-literal.js';
 
@@ -37,6 +38,8 @@ function inputTypeAnnotation(input: InputMeta): string {
     if (input.type === 'string') return 'string';
     if (input.type === 'array') return 'unknown[]';
     if (input.type === 'object') return 'Record<string, unknown>';
+    // As in the composition wrapper: the binding then checks against `Date`, `Date | null` and `Date | undefined` alike.
+    if (input.type === 'date') return 'any';
     return 'unknown';
 }
 
@@ -47,7 +50,9 @@ function formatInputDeclaration(input: InputMeta): string {
         return `input.required<${typeAnnotation}>()`;
     }
 
-    const def = input.defaultValue !== undefined ? JSON.stringify(input.defaultValue) : "''";
+    if (input.type === 'date') return `input<any>(${inlineValue(input.defaultValue)})`;
+
+    const def = input.defaultValue !== undefined ? inlineValue(input.defaultValue) : "''";
     const needsAnnotation = input.type === 'union' && input.values;
 
     if (needsAnnotation) {
@@ -62,6 +67,8 @@ function isBindableInput(input: InputMeta): boolean {
     if (input.type === 'string' || input.type === 'number' || input.type === 'boolean' || input.type === 'union') {
         return true;
     }
+    // Without a default a date starts out `undefined`, which the wrapper declares; one it could not read stays the directive's.
+    if (input.type === 'date') return !input.defaultUnreadable;
     return input.defaultValue !== undefined;
 }
 
@@ -182,8 +189,8 @@ function generateWrapperClass(comp: ScannedComponent, warn: Warn, localNames: Re
  * the host wrappers and of the composition wrappers, which take an alias where another class has the name.
  */
 function collectImports(components: ScannedComponent[], libraryImportPath: string): ManifestImports {
-    // What the module declares or imports besides the classes: no class may take these identifiers.
-    const imports = new ManifestImports(['Component', 'computed', 'input', 'output', 'RuntimeManifest', 'PRISM_RUNTIME_MANIFEST']);
+    // What the module declares, imports or writes values with besides the classes: no class may take these identifiers.
+    const imports = new ManifestImports(['Component', 'computed', 'input', 'output', 'RuntimeManifest', 'PRISM_RUNTIME_MANIFEST', 'Date']);
 
     for (const comp of components) {
         imports.keep(comp.importPath ?? libraryImportPath, comp.className);
@@ -310,19 +317,6 @@ function pushDataEntries(lines: string[], key: 'services' | 'pipes', items: Scan
     lines.push('  ],');
 }
 
-function json(value: unknown): string {
-    return JSON.stringify(value);
-}
-
-function indent(depth: number): string {
-    return ' '.repeat(depth);
-}
-
-/** `'aria-label'` and content slots like `'[card-header]'` are only valid keys in quotes. */
-function formatKey(key: string): string {
-    return /^[A-Za-z_$][\w$]*$/.test(key) ? key : JSON.stringify(key);
-}
-
 function formatMeta(comp: ScannedComponent, baseIndent: number): string {
     const inner = baseIndent + 2;
     const lines = [
@@ -353,36 +347,4 @@ function formatMeta(comp: ScannedComponent, baseIndent: number): string {
     }
 
     return `{\n${lines.join('\n')}\n${indent(baseIndent)}}`;
-}
-
-function formatObject(obj: Record<string, unknown>, baseIndent: number): string {
-    const entries = Object.entries(obj).filter(([, v]) => v !== undefined);
-
-    if (entries.length === 0) return '{}';
-
-    const inner = baseIndent + 2;
-    const lines = entries.map(([key, value]) => {
-        const formatted = Array.isArray(value)
-            ? formatArray(value, inner)
-            : typeof value === 'object' && value !== null
-              ? formatObject(value as Record<string, unknown>, inner)
-              : json(value);
-
-        return `${indent(inner)}${formatKey(key)}: ${formatted},`;
-    });
-
-    return `{\n${lines.join('\n')}\n${indent(baseIndent)}}`;
-}
-
-function formatArray(arr: unknown[], baseIndent: number): string {
-    if (arr.length === 0) return '[]';
-
-    const inner = baseIndent + 2;
-    const items = arr.map((item) => {
-        const formatted = typeof item === 'object' && item !== null && !Array.isArray(item) ? formatObject(item as Record<string, unknown>, inner) : json(item);
-
-        return `${indent(inner)}${formatted},`;
-    });
-
-    return `[\n${items.join('\n')}\n${indent(baseIndent)}]`;
 }

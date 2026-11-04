@@ -15,6 +15,7 @@ module.exports = {
             testEnvironment: 'node',
             testPathIgnorePatterns: [
                 '\\.browser\\.spec\\.ts$',
+                '\\.tz\\.spec\\.ts$',
                 'prism-url-state\\.service\\.spec\\.ts$',
                 'prism-renderer\\.service\\.spec\\.ts$',
                 'prism-persistence\\.service\\.spec\\.ts$',
@@ -50,6 +51,23 @@ module.exports = {
             transformIgnorePatterns: ['node_modules/(?!.*\\.mjs$|@angular)'],
             moduleFileExtensions: ['ts', 'js', 'mjs', 'html'],
             coverageDirectory: 'test-output/jest/coverage'
-        }
+        },
+        // What a Date does depends on the time zone: the same specs west and east of UTC.
+        ...[
+            ['tz-new-york', 'America/New_York'],
+            ['tz-berlin', 'Europe/Berlin']
+        ].map(([name, timezone]) => ({
+            displayName: `ng-prism:${name}`,
+            preset: '../../jest.preset.js',
+            testEnvironment: '<rootDir>/jest.timezone-environment.cjs',
+            testEnvironmentOptions: { timezone },
+            testMatch: ['**/*.tz.spec.ts'],
+            transform: {
+                '^.+\\.[mc]?[tj]s$': ['@swc/jest', swcJestConfig]
+            },
+            transformIgnorePatterns: ['node_modules/(?!.*\\.mjs$|@angular)'],
+            moduleFileExtensions: ['ts', 'js', 'mjs', 'html'],
+            coverageDirectory: 'test-output/jest/coverage'
+        }))
     ]
 };

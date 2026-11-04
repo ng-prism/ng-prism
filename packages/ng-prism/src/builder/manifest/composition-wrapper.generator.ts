@@ -2,6 +2,7 @@ import { relative } from 'node:path';
 import type { ComponentComposition, CompositionCase, InputMeta, ScannedComponent } from '../../plugin/plugin.types.js';
 import { COMPOSITION_SUBJECT_ATTR, COMPOSITION_SUBJECT_SLOT, PRISM_VARIANT_INPUT } from '../../shared/composition.js';
 import { localName } from './manifest-imports.js';
+import { inlineValue } from './manifest-value.js';
 import { escapeTemplateLiteral } from './template-literal.js';
 
 /** The member the template switches on: the case of the variant the wrapper is set to. */
@@ -14,7 +15,7 @@ export function compositionClassName(className: string): string {
 
 /** `input<any>()`: the wrapper declares every input untyped, as the template of a case binds it to the subject, which checks it. */
 function formatInputDeclaration(input: InputMeta): string {
-    return input.required ? 'input.required<any>()' : `input<any>(${JSON.stringify(input.defaultValue)})`;
+    return input.required ? 'input.required<any>()' : `input<any>(${inlineValue(input.defaultValue)})`;
 }
 
 /**
