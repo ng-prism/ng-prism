@@ -272,6 +272,18 @@ The key of each part of a component (since 22.7.0, experimental until 23.0.0), f
 const keys = partKeys((activeComponent()?.parts ?? []).map((part) => part.meta.className));
 ```
 
+### `formatDateValue`
+
+```typescript
+function formatDateValue(date: Date): string;
+```
+
+A `Date` as the styleguide shows it (since 22.8.0): in the local time of the browser, the day alone at midnight, `2026-04-28`, else with the time, `2026-04-28 14:30`, seconds and milliseconds only when there are some, and `Invalid Date` for an invalid one. The Events panel, the parts popover and the API page of the JSDoc plugin show a `Date` with it; a plugin that shows a default or a payload shows one the same way.
+
+```typescript
+formatDateValue(new Date(2026, 3, 28)); // '2026-04-28'
+```
+
 ### Backgrounds
 
 | Export               | Type                                                          | Description                                                                                                                                                                                                                                                                                  |

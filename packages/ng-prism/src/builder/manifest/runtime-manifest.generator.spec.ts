@@ -1,9 +1,10 @@
 import ts from 'typescript';
 import type { DirectiveHost, Variant } from '../../decorator/showcase.types.js';
 import type { ScannedPipe } from '../../plugin/pipe.types.js';
-import type { ScannedComponent } from '../../plugin/plugin.types.js';
+import type { InputMeta, ScannedComponent } from '../../plugin/plugin.types.js';
 import type { ScannedService } from '../../plugin/service.types.js';
 import { COMPOSITION_SUBJECT_SLOT } from '../../shared/composition.js';
+import { StaticDate } from '../scanner/static-date.js';
 import { evaluateManifest, extractTemplate, FRAME, manifestMeta } from './__test-utils__/composition-fixtures.js';
 import { templateErrors } from './__test-utils__/template-errors.js';
 import { generateRuntimeManifest } from './runtime-manifest.generator.js';
@@ -235,9 +236,15 @@ describe('generateRuntimeManifest', () => {
             }
         });
 
-        expect(source).toContain('meta:');
-        expect(source).toContain('"coverage"');
-        expect(source).toContain('"score": 87');
+        expect((evaluateManifest(source) as { meta?: unknown }).meta).toEqual({ coverage: { total: { score: 87, found: true }, thresholds: { lines: 80 } } });
+    });
+
+    it('writes a Date in manifest-level meta as a Date', () => {
+        const source = generateRuntimeManifest({ components: [], libraryImportPath: 'my-lib', meta: { report: { at: new Date(0) } } });
+        const { meta } = evaluateManifest(source) as { meta?: { report: { at: unknown } } };
+
+        expect(meta?.report.at).toBeInstanceOf(Date);
+        expect((meta?.report.at as Date).getTime()).toBe(0);
     });
 
     it('should omit meta when empty', () => {
@@ -1292,5 +1299,115 @@ describe('parts', () => {
     it('writes nothing new for a component without parts', () => {
         expect(manifest([SELECT, BUTTON])).not.toContain('parts:');
         expect(manifest([{ ...SELECT, parts: [] }])).not.toContain('parts:');
+    });
+});
+
+describe('Date values', () => {
+    const local = () => new StaticDate([2026, 3, 28]);
+
+    function withValues(inputs: Record<string, unknown>, meta?: Record<string, unknown>): ScannedComponent {
+        return { ...BUTTON, showcaseConfig: { ...BUTTON.showcaseConfig, meta, variants: [{ name: 'Dated', inputs }] } };
+    }
+
+    function manifest(components: ScannedComponent[]): string {
+        return generateRuntimeManifest({ components, libraryImportPath: 'my-lib', warn: () => undefined });
+    }
+
+    function variantInputs(source: string): Record<string, unknown> {
+        return manifestMeta(source).showcaseConfig.variants![0].inputs!;
+    }
+
+    it('writes a Date with the arguments the source gave it', () => {
+        const source = manifest([withValues({ local: local(), utc: new StaticDate(['2026-04-28']) })]);
+
+        expect(source).toContain('local: new Date(2026, 3, 28),');
+        expect(source).toContain('utc: new Date("2026-04-28"),');
+    });
+
+    it('makes a real Date of it when the manifest runs', () => {
+        const { local: value } = variantInputs(manifest([withValues({ local: local() })])) as { local: Date };
+
+        expect(value).toBeInstanceOf(Date);
+        expect([value.getFullYear(), value.getMonth(), value.getDate()]).toEqual([2026, 3, 28]);
+    });
+
+    it('writes a Date nested in objects, arrays, arrays in arrays and meta', () => {
+        const source = manifest([withValues({ range: { from: local() }, days: [local()], ranges: [[local(), local()]] }, { released: local() })]);
+        const inputs = variantInputs(source) as { range: { from: Date }; days: Date[]; ranges: Date[][] };
+
+        expect(inputs.range.from).toBeInstanceOf(Date);
+        expect(inputs.days[0]).toBeInstanceOf(Date);
+        expect(inputs.ranges[0][1]).toBeInstanceOf(Date);
+        expect(manifestMeta(source).showcaseConfig.meta!['released']).toBeInstanceOf(Date);
+    });
+
+    it('writes a Date a plugin made by its time', () => {
+        expect(manifest([withValues({ at: new Date(0) })])).toContain('at: new Date(0),');
+    });
+
+    it('declares a Date default in the composition wrapper', () => {
+        const composed: ScannedComponent = { ...FRAME, inputs: [{ name: 'since', type: 'date', defaultValue: new StaticDate([2026, 0, 1]), required: false }] };
+
+        expect(manifest([composed])).toContain('since = input<any>(new Date(2026, 0, 1));');
+    });
+
+    it('does not let a class named Date take the name the manifest writes Dates with', () => {
+        const composed: ScannedComponent = { ...FRAME, composition: { ...FRAME.composition!, imports: [{ name: 'Date', from: 'my-lib/calendar' }] } };
+
+        expect(manifest([composed])).toContain('import { Date as Date__2 } from "my-lib/calendar";');
+    });
+});
+
+describe('Date inputs of a directive host', () => {
+    function hostWith(input: Partial<InputMeta>): string {
+        const directive: ScannedComponent = { ...HIGHLIGHT, inputs: [{ name: 'value', type: 'date', required: false, ...input }] };
+
+        return generateRuntimeManifest({ components: [directive], libraryImportPath: 'my-lib', warn: () => undefined });
+    }
+
+    // `input<any>`, as in the composition wrapper, so that the binding checks against Date, Date | null and Date | undefined.
+    it('declares a Date input without a default as undefined and binds it', () => {
+        const source = hostWith({});
+
+        expect(source).toContain('value = input<any>(undefined);');
+        expect(source).toContain('[value]="value()"');
+    });
+
+    it('declares a Date default with its arguments', () => {
+        expect(hostWith({ defaultValue: new StaticDate([2026, 0, 1]) })).toContain('value = input<any>(new Date(2026, 0, 1));');
+    });
+
+    it('declares a required Date input', () => {
+        expect(hostWith({ required: true })).toContain('value = input.required<any>();');
+    });
+
+    it('leaves a Date input with a default it could not read to the directive', () => {
+        const source = hostWith({ defaultUnreadable: true });
+
+        expect(source).not.toContain('value = input');
+        expect(source).not.toContain('[value]');
+    });
+});
+
+describe('model() inputs of a directive host', () => {
+    function hostWith(input: Partial<InputMeta>): string {
+        const directive: ScannedComponent = { ...HIGHLIGHT, inputs: [{ name: 'value', type: 'date', required: false, model: true, ...input }] };
+
+        return generateRuntimeManifest({ components: [directive], libraryImportPath: 'my-lib', warn: () => undefined });
+    }
+
+    it('passes on the change of a model it binds', () => {
+        const source = hostWith({});
+
+        expect(source).toContain('  valueChange = output<any>();');
+        expect(extractTemplate(source)).toContain('(valueChange)="valueChange.emit($event)"');
+    });
+
+    it('listens under the alias Angular gives the change output', () => {
+        expect(extractTemplate(hostWith({ alias: 'date' }))).toContain('(dateChange)="valueChange.emit($event)"');
+    });
+
+    it('passes on nothing for a model it leaves to the directive', () => {
+        expect(hostWith({ defaultUnreadable: true })).not.toContain('valueChange');
     });
 });

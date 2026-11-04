@@ -681,6 +681,57 @@ describe('scanComponents with @Showcase values it cannot evaluate', () => {
     });
 });
 
+describe('scanComponents with Date values', () => {
+    let checker: ts.TypeChecker;
+    let exports: ts.Symbol[];
+    let warnSpy: jest.SpyInstance;
+
+    beforeAll(() => {
+        const entryFile = path.join(FIXTURES_DIR, 'date-api.ts');
+        const result = resolveEntryPointExports([{ entryFile, importPath: 'fixture' }], compilerOptions);
+
+        checker = result.program.getTypeChecker();
+        exports = result.entries[0].exports;
+    });
+
+    beforeEach(() => {
+        warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+    });
+
+    afterEach(() => {
+        warnSpy.mockRestore();
+    });
+
+    function scan() {
+        const diagnostics: string[] = [];
+        const [component] = scanComponents(findShowcasedClasses(exports, checker), checker, { diagnostics });
+
+        return { component, diagnostics };
+    }
+
+    it('keeps a Date with static arguments in a variant, with the arguments as written', () => {
+        const variants = scan().component.showcaseConfig.variants!;
+        const args = (name: string, input = 'value') => (variants.find((v) => v.name === name)!.inputs![input] as { args: unknown }).args;
+
+        expect(args('Local')).toEqual([2026, 3, 28]);
+        expect(args('UTC string')).toEqual(['2026-04-28']);
+        expect(args('Timestamp')).toEqual([1777334400000]);
+        expect(args('Constant')).toEqual([2026, 3, 28]);
+        expect(args('Constant', 'min')).toEqual([2026, 3, 28]);
+    });
+
+    it('drops new Date() as the current time and says how to write it instead', () => {
+        const { component, diagnostics } = scan();
+
+        expect(component.showcaseConfig.variants!.find((v) => v.name === 'Now')!.inputs).toEqual({});
+        expect(diagnostics).toEqual([
+            expect.stringMatching(
+                /^DateValuesComponent › variants\[4\] "Now" › inputs\.value — "new Date\(\)" \(.*date-values\.component\.ts:16:41\) is the current time, which differs in every build and every visual regression run, so it was dropped; write the date out instead, such as new Date\(2026, 3, 28\)\.$/
+            )
+        ]);
+    });
+});
+
 describe('scanComponents with base classes', () => {
     let checker: ts.TypeChecker;
     let exports: ts.Symbol[];

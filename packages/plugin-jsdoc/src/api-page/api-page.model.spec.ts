@@ -204,6 +204,8 @@ describe('componentApiPage', () => {
                     { name: 'tabs', type: 'TabItem[]', required: false, defaultValue: [] },
                     { name: 'ids', type: 'string[]', required: false, defaultValue: ['a', 'b'] },
                     { name: 'config', type: 'Config', required: false, defaultValue: { size: 'm' } },
+                    { name: 'since', type: 'date', required: false, defaultValue: new Date(2026, 0, 1) },
+                    { name: 'range', type: 'object', required: false, defaultValue: { from: new Date(2026, 0, 1) } },
                     { name: 'label', type: 'string', required: false }
                 ]
             },
@@ -218,6 +220,8 @@ describe('componentApiPage', () => {
             '[]',
             '["a","b"]',
             '{"size":"m"}',
+            '2026-01-01',
+            '{"from":"2026-01-01"}',
             undefined
         ]);
     });

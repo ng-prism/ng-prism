@@ -95,6 +95,8 @@ Diagnostic · `builder/scanner/showcase-diagnostics.ts`
     - `: <name> is declared without a value, as in a .d.ts file or with declare`
     - `: <name> refers back to itself`
     - `: <name> is a function or class, which only exists at runtime`
+    - `: new Date() is the current time, which differs in every build`, for a constant that holds `new Date()`
+    - `: new Date(…) is an invalid date`, for a constant that holds one
 - **Fix:** write the value out, such as `maxFileSize: 5 * 1024 * 1024` instead of `megabytes(5)`, or keep it in a `const` built from literals, enum members and arithmetic.
 
 ### A runtime value
@@ -105,8 +107,30 @@ Diagnostic · `builder/scanner/showcase-diagnostics.ts`
 
 Diagnostic · `builder/scanner/showcase-diagnostics.ts`
 
-- **Cause:** an arrow function, a function or class expression, a `new …` or a method in an object literal. The manifest is static data and cannot hold it.
+- **Cause:** an arrow function, a function or class expression, a `new …` other than a `new Date(…)`, or a method in an object literal. The manifest is static data and cannot hold it.
 - **Fix:** remove it. A demo that needs code renders through a [component page](guide/component-pages.md); `setup` on a service or a pipe is the one function the scan reads, see [`setup`](api/showcase-config.md#setup).
+
+### The current time
+
+```
+⚠ ng-prism: <Class> › <path> — "new Date()" (<file>:<line>:<col>) is the current time, which differs in every build and every visual regression run, so it was dropped; write the date out instead, such as new Date(2026, 3, 28).
+```
+
+Diagnostic · `builder/scanner/showcase-diagnostics.ts`
+
+- **Cause:** `new Date()` without arguments (since 22.8.0). A variant would show a different moment in every build, and a visual regression baseline would never match.
+- **Fix:** write the date out, see [Dates](guide/variants.md#dates).
+
+### An invalid date
+
+```
+⚠ ng-prism: <Class> › <path> — "<source>" (<file>:<line>:<col>) is an invalid date and was dropped.
+```
+
+Diagnostic · `builder/scanner/showcase-diagnostics.ts`
+
+- **Cause:** the arguments of a `new Date(…)` make no valid date, such as `new Date('soon')` (since 22.8.0).
+- **Fix:** write a date the `Date` constructor reads, such as `new Date('2026-04-28')` or `new Date(2026, 3, 28)`.
 
 ### An argument that cannot be evaluated
 

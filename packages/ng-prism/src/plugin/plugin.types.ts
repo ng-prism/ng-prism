@@ -313,9 +313,15 @@ export interface InputMeta {
     name: string;
     /** The public name Angular binds the input by, when an `alias` makes it differ from `name`. */
     alias?: string;
-    type: 'string' | 'number' | 'boolean' | 'union' | 'array' | 'object' | 'unknown';
+    /** `'date'` is the runtime's `Date`, also with `null` or `undefined` (`Date | null`), since 22.8.0. */
+    type: 'string' | 'number' | 'boolean' | 'union' | 'date' | 'array' | 'object' | 'unknown';
     rawType?: string;
     values?: string[];
+    /**
+     * For a `'date'`: what an emptied date control writes, `'null'` when the type allows `null`, else `'undefined'` when
+     * it allows `undefined`. Not set when it allows neither, so the date cannot be emptied. Since 22.8.0.
+     */
+    emptyValue?: 'null' | 'undefined';
     defaultValue?: unknown;
     /**
      * The input starts out with a value the scan could not evaluate, such as the result of a function call: it has a

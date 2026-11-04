@@ -142,7 +142,8 @@ Three things are easy to get wrong and are worth repeating here:
   `ngc`, which inlines styles verbatim, so SCSS would reach the browser unparsed.
 - Tests run in Jest's `node` environment. In `packages/ng-prism`, a test that
   needs the DOM is named `*.browser.spec.ts`, which puts it in the jsdom project
-  of its `jest.config.cjs`.
+  of its `jest.config.cjs`. One whose `Date`s depend on the time zone is named
+  `*.tz.spec.ts`, which runs it once in New York and once in Berlin.
 - A change to public API or behaviour updates the owner page under `docs/` (see `CONTRIBUTING.md` › Documentation) in
   the same PR, and the consumer plugin's skills under `.agents/plugins/claude/skills/` where they describe it.
 - ng-prism majors track Angular majors. A breaking change inside the current

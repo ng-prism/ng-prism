@@ -157,6 +157,8 @@ export function notesPlugin(): NgPrismPlugin {
 - Grade a figure with `statusFor(value, { ok, warn, direction? })` or `thresholdFromTarget(target)` from
   `@ng-prism/core/plugin` (warn down to 75 % of the target, danger below), and `worstTone()` for several. The header
   badge, the sidebar and the built-in panels grade the same way, so a plugin that does too never disagrees with them.
+- Show a `Date` (an input default, a payload, a value) with `formatDateValue(date)` from `@ng-prism/core/plugin`
+  (since 22.8.0): the local day, plus the time when there is one, as the Events panel and the API page show it.
 
 - Panel ids are not deduplicated: prefix yours and avoid the built-in `overview`, `controls`, `events` and `a11y`.
 - Decoration ids are deduplicated: built-ins first (only `a11y`), then plugins in registration order. The first

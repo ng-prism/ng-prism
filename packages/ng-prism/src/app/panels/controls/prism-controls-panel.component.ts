@@ -2,6 +2,7 @@ import { NgComponentOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import type { ControlDefinition, InputMeta, RuntimeComponent } from '../../../plugin/plugin.types.js';
 import { BooleanControlComponent } from '../../controls/boolean-control.component.js';
+import { DateControlComponent } from '../../controls/date-control.component.js';
 import { JsonControlComponent } from '../../controls/json-control.component.js';
 import { NumberControlComponent } from '../../controls/number-control.component.js';
 import { StringControlComponent } from '../../controls/string-control.component.js';
@@ -23,6 +24,7 @@ import { nonEditableReason } from './non-editable-input-types.js';
         StringControlComponent,
         NumberControlComponent,
         UnionControlComponent,
+        DateControlComponent,
         JsonControlComponent,
         PrismPanelToolbarComponent,
         PrismButtonComponent

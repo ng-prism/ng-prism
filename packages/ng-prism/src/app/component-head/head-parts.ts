@@ -1,4 +1,5 @@
 import type { InputMeta, RuntimePart } from '../../plugin/plugin.types.js';
+import { formatDateValue } from '../../shared/date-value.js';
 import { modelChangeOutput } from '../../shared/model-outputs.js';
 import { partKeys } from '../../shared/part-keys.js';
 import { type StatusBadge, statusBadge } from './status-badge.js';
@@ -34,16 +35,24 @@ export interface PartChip {
 
 /**
  * The default of an input as it is written in a template: a string in single
- * quotes, its quotes and backslashes escaped, anything else as JSON. `undefined`
- * for an input that starts out without one, and `…` for one that has a default
- * the scan could not evaluate.
+ * quotes, its quotes and backslashes escaped, a `Date` as its day, anything else
+ * as JSON. `undefined` for an input that starts out without one, and `…` for one
+ * that has a default the scan could not evaluate.
  */
 export function formatPartDefault(input: InputMeta): string | undefined {
     if (input.defaultUnreadable) return '…';
     const value = input.defaultValue;
 
     if (value === undefined) return undefined;
-    return typeof value === 'string' ? `'${value.replace(/[\\']/g, '\\$&')}'` : JSON.stringify(value);
+    if (value instanceof Date) return formatDateValue(value);
+    return typeof value === 'string' ? `'${value.replace(/[\\']/g, '\\$&')}'` : JSON.stringify(value, readableDates);
+}
+
+/** A `Date` inside a default as its day, not as the UTC time `toISOString()` would give it. */
+function readableDates(this: Record<string, unknown>, key: string, value: unknown): unknown {
+    const raw = this[key];
+
+    return raw instanceof Date ? formatDateValue(raw) : value;
 }
 
 /**

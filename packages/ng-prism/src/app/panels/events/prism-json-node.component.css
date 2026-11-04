@@ -63,7 +63,8 @@
     color: var(--prism-code-attr);
 }
 
-.json-number {
+.json-number,
+.json-date {
     color: var(--prism-warn);
 }
 

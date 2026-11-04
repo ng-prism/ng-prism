@@ -10,7 +10,7 @@ What the builder scans and writes, and what the styleguide app runs on. `PrismMa
 
 ### `PrismManifest`
 
-The build-time manifest: what the scan found, after the plugin hooks. Plain JSON data, no class references. `onManifestReady` receives it, and the builder writes the runtime manifest from it.
+The build-time manifest: what the scan found, after the plugin hooks. Plain data, `Date`s included, no class references. `onManifestReady` receives it, and the builder writes the runtime manifest from it.
 
 ```typescript
 interface PrismManifest {
@@ -87,9 +87,10 @@ One input of a component or directive, as the scanner reads it: a signal input (
 interface InputMeta {
     name: string;
     alias?: string;
-    type: 'string' | 'number' | 'boolean' | 'union' | 'array' | 'object' | 'unknown';
+    type: 'string' | 'number' | 'boolean' | 'union' | 'date' | 'array' | 'object' | 'unknown';
     rawType?: string;
     values?: string[];
+    emptyValue?: 'null' | 'undefined';
     defaultValue?: unknown;
     defaultUnreadable?: true;
     required: boolean;
@@ -102,10 +103,11 @@ interface InputMeta {
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`              | The class member; variants and controls use it                                                                                                                                                                               |
 | `alias`             | The public name from `alias` (or `@Input('x')`), when it differs from `name`                                                                                                                                                 |
-| `type`              | The type category that selects a control, see [Inputs & Controls](guide/inputs-and-controls.md#input-types-and-controls)                                                                                                     |
+| `type`              | The type category that selects a control, see [Inputs & Controls](guide/inputs-and-controls.md#input-types-and-controls). `'date'` is the runtime's `Date`, also with `null` or `undefined` (since 22.8.0)                   |
 | `rawType`           | The TypeScript type as text (e.g. `'primary' \| 'danger'`)                                                                                                                                                                   |
 | `values`            | For a union of literals: the individual member values                                                                                                                                                                        |
-| `defaultValue`      | The initial value, such as the argument of `input(defaultValue)`                                                                                                                                                             |
+| `emptyValue`        | For a `'date'`: what a cleared date field sets (since 22.8.0), see [Input types and controls](guide/inputs-and-controls.md#input-types-and-controls)                                                                         |
+| `defaultValue`      | The initial value, such as the argument of `input(defaultValue)`. A `new Date(…)` default is a `Date`                                                                                                                        |
 | `defaultUnreadable` | `true` when the input starts out with a value the scan could not evaluate, such as the result of a function call (since 22.7.0). `defaultValue` is missing then. Not set for `input<string>()`, which starts out `undefined` |
 | `required`          | `true` for a required input: `input.required()`, `model.required()` or `@Input({ required: true })`                                                                                                                          |
 | `doc`               | The JSDoc comment of the property, as written: `{@link X \| text}` keeps its bar (since 22.7.0), so a reader can tell the target from the text                                                                               |

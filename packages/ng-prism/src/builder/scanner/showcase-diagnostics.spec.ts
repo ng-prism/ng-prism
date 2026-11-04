@@ -1,5 +1,6 @@
 import ts from 'typescript';
-import { describeShowcaseIssue } from './showcase-diagnostics.js';
+import { evaluateStatic, type UnevaluableIssue } from './ast-utils.js';
+import { describeShowcaseIssue, describeUnevaluable } from './showcase-diagnostics.js';
 
 function configOf(source: string): ts.Expression {
     const file = ts.createSourceFile('showcase.ts', `const config = ${source};`, ts.ScriptTarget.ES2022, true);
@@ -44,5 +45,26 @@ describe('describeShowcaseIssue', () => {
         expect(describeShowcaseIssue('FrameComponent', shared, ['imports', 0], 'expected { name, from }')).toBe(
             'FrameComponent › imports[0] — expected { name, from } (showcase.ts:1:16)'
         );
+    });
+});
+
+describe('describeUnevaluable with Dates', () => {
+    const config = configOf(`{ title: 'Dates', variants: [{ name: 'Bad', inputs: { at: new Date('soon'), since: RELEASE } }] }`);
+    const issues: UnevaluableIssue[] = [];
+
+    evaluateStatic(config, { report: (issue) => issues.push(issue) });
+    const [invalid, reference] = issues;
+
+    it('says that a date is invalid', () => {
+        expect(describeUnevaluable('DateComponent', config, invalid)).toBe(
+            `DateComponent › variants[0] "Bad" › inputs.at — "new Date('soon')" (showcase.ts:1:74) is an invalid date and was dropped.`
+        );
+    });
+
+    it.each([
+        ['current-time', 'is the current time, which differs in every build'],
+        ['invalid-date', 'is an invalid date']
+    ] as const)('names a constant that holds a Date it cannot use, as %s', (kind, text) => {
+        expect(describeUnevaluable('DateComponent', config, { ...reference, cause: { node: reference.node, kind } })).toMatch(new RegExp(`: RELEASE ${text}\\.$`));
     });
 });

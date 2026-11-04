@@ -10,6 +10,21 @@ ng update @ng-prism/core @ng-prism/plugin-jsdoc @ng-prism/plugin-visual-regressi
 
 Everything deprecated in 22.x is removed in 23.0.0, see [Removed in 23.0.0](#removed-in-2300).
 
+## Upgrading to 22.8.0
+
+22.8.0 reads `Date` values in showcases and gives `Date` inputs a date field. No `@Showcase` has to change.
+
+**Breaking.**
+
+- **A `Date` input is `type: 'date'`.** [`InputMeta.type`](api/types.md#inputmeta) was `'object'` for `Date`, `Date | null` and `Date | undefined`. A plugin control whose `matchType` looks for `'object'` no longer gets these inputs, and code that switches over `type` meets a new value.
+- **`model()` changes reach the panels.** Up to 22.7.x a component that set its own `model()` went unheard. Now the Events panel logs the change as `<name>Change`, the control shows the new value, and the input counts as changed, so **Reset** appears and the value is kept across a reload.
+
+**New.**
+
+- **`Date` values.** `new Date(…)` with arguments the scanner can read is a showcase value, in variants and as the default of an input. `new Date()` without arguments is dropped with a warning, see [Dates](guide/variants.md#dates).
+- **A date field** for `Date` inputs in the Controls panel, see [Input types and controls](guide/inputs-and-controls.md#input-types-and-controls).
+- **Readable dates** in the Events panel, the JSON editor, the parts popover and the API page of `@ng-prism/plugin-jsdoc`. `formatDateValue` from `@ng-prism/core/plugin` shows a `Date` the same way in a plugin.
+
 ## Upgrading to 22.7.0
 
 22.7.0 adds services and pipes, compositions, parts, a phone layout and a new look. No `@Showcase` of a component or directive has to change. The breaking changes are in types of the public API, in what the manifest lists, and in what a few directives and the view tabs render.

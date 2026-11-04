@@ -440,6 +440,7 @@ Tests use **Jest 30** with **SWC** for fast TypeScript transformation.
 - Test fixtures go in `__fixtures__/` directories
 - Helpers that several specs share go in `__test-utils__/` directories. Both are left out of the library build and of the declared-dependencies check (`npm run check:deps`), so a fixture or helper may import a package that only the root `package.json` declares, as a devDependency
 - Test environment is `node` (not `jsdom`) unless specifically required
+- In `packages/ng-prism`, a spec whose `Date`s depend on the time zone is named `*.tz.spec.ts`: `jest.config.cjs` runs it in two projects, `America/New_York` and `Europe/Berlin`, through `jest.timezone-environment.cjs`, which sets `TZ` before the spec runs and gives the zone to the spec as `__PRISM_TIMEZONE__`
 
 ### Running Tests
 

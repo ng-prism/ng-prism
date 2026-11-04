@@ -45,7 +45,7 @@ On the Playground:
 
 - The **variant ribbon** has one tab per [variant](guide/variants.md), and ‹ › for the previous and the next one. While a [state](#state-switch) is on, the ribbon shows it as a chip; a component without variants shows the ribbon only for that chip.
 - The **canvas** renders the selected variant, see [Canvas rail and tools](#canvas-rail-and-tools).
-- The **addons panel** has the tabs **Controls** (the inputs, see [Inputs & Controls](guide/inputs-and-controls.md)), **Events** (what the outputs emit), **A11y** (see [Accessibility Panel](guide/accessibility.md)) and those of your plugins. A tab can carry a badge, such as the number of open a11y violations. Drag the edge between the canvas and the panel to change its height, between 200 and 560 pixels. The panel belongs to the Playground: the Overview and the API tab have none.
+- The **addons panel** has the tabs **Controls** (the inputs, see [Inputs & Controls](guide/inputs-and-controls.md)), **Events** (what the outputs emit, and each change of a `model()`), **A11y** (see [Accessibility Panel](guide/accessibility.md)) and those of your plugins. A tab can carry a badge, such as the number of open a11y violations. Drag the edge between the canvas and the panel to change its height, between 200 and 560 pixels. The panel belongs to the Playground: the Overview and the API tab have none.
 
 A service or a pipe has no Playground and no Overview; its page shows the view tabs that apply to it, see [Services & Pipes](guide/services-and-pipes.md#in-the-styleguide). A page renders its own component, without a component head or tabs.
 

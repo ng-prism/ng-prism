@@ -42,6 +42,7 @@ import { PrismVariantBgService } from '../services/prism-variant-bg.service.js';
 import { PRISM_RENDERER_HOOKS } from '../tokens/prism-tokens.js';
 import { activeCase, type RenderSignature, renderSignature, renderTypeFor, sameRender } from './composition.js';
 import { buildInputBindings, unboundInputs } from './input-bindings.js';
+import { modelChangeSources } from './model-changes.js';
 import { resolveOverlay } from './overlay-resolver.js';
 import { parseContentToNodes } from './projectable-content.js';
 import { resolveExcludedReason, resolveRenderedKey } from './rendered-key.js';
@@ -322,18 +323,18 @@ export class PrismRendererComponent {
             projectableNodes
         });
 
+        const instance = this.componentRef.instance as Record<string, unknown>;
+
         for (const output of comp.meta.outputs) {
-            const emitter = (this.componentRef.instance as Record<string, unknown>)[output.name];
-
-            if (emitter && typeof (emitter as { subscribe?: unknown }).subscribe === 'function') {
-                const sub = (
-                    emitter as {
-                        subscribe(fn: (v: unknown) => void): { unsubscribe(): void };
-                    }
-                ).subscribe((v: unknown) => this.eventLogService.log(output.name, v));
-
-                this.outputSubscriptions.push(sub);
-            }
+            this.subscribeTo(instance[output.name], (v) => this.eventLogService.log(output.name, v));
+        }
+        // A `model()` the component changes itself: the change is an event, and the control follows the value. No loop:
+        // the model emits only for `set` and `update`, never for `setInput`.
+        for (const source of modelChangeSources(comp, variantIndex)) {
+            this.subscribeTo(instance[source.member], (v) => {
+                this.eventLogService.log(source.event, v);
+                this.rendererService.updateInput(source.input, v);
+            });
         }
 
         if (composed) this.componentRef.setInput(PRISM_VARIANT_INPUT, variantIndex);
@@ -364,6 +365,13 @@ export class PrismRendererComponent {
             } else if (!unbound.has(key)) {
                 console.warn(`[ng-prism] Unknown input "${key}" on <${comp.meta.componentMeta.selector}>, skipping. Remove it from @Showcase variants.`);
             }
+        }
+    }
+
+    /** Subscribes `next` to `emitter` when it is an output or a model signal, until the next render cleans up. */
+    private subscribeTo(emitter: unknown, next: (v: unknown) => void): void {
+        if (emitter && typeof (emitter as { subscribe?: unknown }).subscribe === 'function') {
+            this.outputSubscriptions.push((emitter as { subscribe(fn: (v: unknown) => void): { unsubscribe(): void } }).subscribe(next));
         }
     }
 

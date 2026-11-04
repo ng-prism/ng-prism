@@ -5,6 +5,7 @@ import {
     type ApiSetupEntry,
     type ApiTypeDoc,
     type ApiTypeRef,
+    formatDateValue,
     type InputMeta,
     partKeys,
     type ScannedComponent,
@@ -217,12 +218,20 @@ function valueChip(label: string, value: string | undefined): ApiPageChip[] {
 }
 
 /**
- * As the code writes a default: a string in single quotes with its quotes and backslashes escaped, an array or object
- * as JSON (`String()` would give `a,b` and `[object Object]`), anything else by its `String()`.
+ * As the code writes a default: a string in single quotes with its quotes and backslashes escaped, a `Date` as its
+ * day, an array or object as JSON (`String()` would give `a,b` and `[object Object]`), anything else by its `String()`.
  */
 function formatDefault(value: InputMeta['defaultValue']): string {
     if (typeof value === 'string') return `'${value.replace(/[\\']/g, '\\$&')}'`;
-    return typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
+    if (value instanceof Date) return formatDateValue(value);
+    return typeof value === 'object' && value !== null ? JSON.stringify(value, readableDates) : String(value);
+}
+
+/** A `Date` inside a default as its day, not as the UTC time `toISOString()` would give it. */
+function readableDates(this: Record<string, unknown>, key: string, value: unknown): unknown {
+    const raw = this[key];
+
+    return raw instanceof Date ? formatDateValue(raw) : value;
 }
 
 /** A method of the jsdoc plugin's data as a signature: it knows no more of the types than their names. */

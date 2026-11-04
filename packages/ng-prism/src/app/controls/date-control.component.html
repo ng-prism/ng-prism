@@ -1,0 +1,8 @@
+<input
+    #field
+    type="date"
+    class="ctl-date"
+    [value]="text()"
+    [required]="!emptyValue()"
+    [style.color-scheme]="colorScheme()"
+    (change)="onChange(field)" />

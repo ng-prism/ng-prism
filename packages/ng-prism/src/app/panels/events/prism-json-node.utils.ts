@@ -1,9 +1,23 @@
+import { formatDateValue } from '../../../shared/date-value.js';
+
+export type JsonNodeType = 'string' | 'number' | 'boolean' | 'null' | 'undefined' | 'date' | 'object' | 'array';
+
+/** How a node shows `val`: a `Date` is a value of its own, which as an object would show as `{}`. */
+export function jsonNodeType(val: unknown): JsonNodeType {
+    if (val === null) return 'null';
+    if (val === undefined) return 'undefined';
+    if (Array.isArray(val)) return 'array';
+    if (val instanceof Date) return 'date';
+    return typeof val as JsonNodeType;
+}
+
 export function summarizeValue(val: unknown, depth = 0, visited = new WeakSet<object>()): string {
     if (depth > 3) return '…';
     if (val === undefined) return 'undefined';
     if (val === null) return 'null';
     if (typeof val === 'string') return `"${val}"`;
     if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+    if (val instanceof Date) return formatDateValue(val);
     if (typeof val === 'object') {
         if (visited.has(val)) return '[Circular]';
         visited.add(val);

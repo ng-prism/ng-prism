@@ -348,4 +348,50 @@ describe('PrismPersistenceService', () => {
             expect(() => service.init()).not.toThrow();
         });
     });
+
+    describe('Date values', () => {
+        const comp = createComponent({
+            className: 'DateField',
+            inputs: [{ name: 'value', type: 'date', required: false, defaultValue: null }],
+            variants: [{ name: 'A' }]
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
+        it('restores a stored Date as a Date', () => {
+            const date = new Date(2026, 3, 28);
+
+            sessionStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify({ version: 1, inputs: { DateField: { variantIndex: 0, values: { value: { $prismDate: date.getTime() } } } } })
+            );
+            const service = setup({ components: [comp] });
+            const rendererService = TestBed.inject(PrismRendererService);
+
+            TestBed.inject(PrismNavigationService).select(comp);
+            service.init();
+
+            const value = rendererService.inputValues()['value'];
+
+            expect(value).toBeInstanceOf(Date);
+            expect((value as Date).getTime()).toBe(date.getTime());
+        });
+
+        it('writes a Date so that it reads back as one', () => {
+            jest.useFakeTimers();
+            const date = new Date(2026, 3, 28);
+            const service = setup({ components: [comp] });
+            const rendererService = TestBed.inject(PrismRendererService);
+
+            service.init();
+            TestBed.inject(PrismNavigationService).select(comp);
+            rendererService.inputValues.set({ value: date });
+            TestBed.inject(ApplicationRef).tick();
+            jest.advanceTimersByTime(250);
+
+            expect(JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? 'null').inputs.DateField.values).toEqual({ value: { $prismDate: date.getTime() } });
+        });
+    });
 });

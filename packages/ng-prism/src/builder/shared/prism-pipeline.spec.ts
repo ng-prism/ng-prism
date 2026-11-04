@@ -255,7 +255,7 @@ export class RulesComponent {}
             const content = readManifest(tmp);
 
             expect(content).toContain('variant: "danger"');
-            expect(content).toMatch(/"thresholds": \{[^}]*"serious": 0/);
+            expect(content).toMatch(/thresholds: \{[^}]*serious: 0/);
         });
 
         it('gates with the grading thresholds while gate is not set, and names gate in the error', async () => {
@@ -275,7 +275,7 @@ export class RulesComponent {}
 
             await runPrismPipeline(defaultOptions, createMockContext(tmp), createPipelineState());
 
-            expect(readManifest(tmp)).toMatch(/"thresholds": \{[^}]*"serious": 0/);
+            expect(readManifest(tmp)).toMatch(/thresholds: \{[^}]*serious: 0/);
         });
 
         it('warns instead of failing in warn mode, and still writes the report data', async () => {

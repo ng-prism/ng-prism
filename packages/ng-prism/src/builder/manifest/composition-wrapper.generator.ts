@@ -2,6 +2,8 @@ import { relative } from 'node:path';
 import type { ComponentComposition, CompositionCase, InputMeta, ScannedComponent } from '../../plugin/plugin.types.js';
 import { COMPOSITION_SUBJECT_ATTR, COMPOSITION_SUBJECT_SLOT, PRISM_VARIANT_INPUT } from '../../shared/composition.js';
 import { localName } from './manifest-imports.js';
+import { inlineValue } from './manifest-value.js';
+import { forwardedModels } from './model-changes.js';
 import { escapeTemplateLiteral } from './template-literal.js';
 
 /** The member the template switches on: the case of the variant the wrapper is set to. */
@@ -14,19 +16,22 @@ export function compositionClassName(className: string): string {
 
 /** `input<any>()`: the wrapper declares every input untyped, as the template of a case binds it to the subject, which checks it. */
 function formatInputDeclaration(input: InputMeta): string {
-    return input.required ? 'input.required<any>()' : `input<any>(${JSON.stringify(input.defaultValue)})`;
+    return input.required ? 'input.required<any>()' : `input<any>(${inlineValue(input.defaultValue)})`;
 }
 
 /**
- * What goes where {@link COMPOSITION_SUBJECT_SLOT} stands: the marker of the subject, its inputs this case binds, and
- * every output. The members are read with `this.`, so that a variable the author's markup declares around the subject
- * (`@for (label of …)`, `@let label`, `#label`) cannot take the place of the wrapper's own `label`.
+ * What goes where {@link COMPOSITION_SUBJECT_SLOT} stands: the marker of the subject, its inputs this case binds, every
+ * output, and the change of each `model()` it binds. The members are read with `this.`, so that a variable the author's
+ * markup declares around the subject (`@for (label of …)`, `@let label`, `#label`) cannot take the place of the
+ * wrapper's own `label`.
  */
 function subjectBindings(comp: ScannedComponent, unbound: ReadonlySet<string>): string {
-    const inputs = comp.inputs.filter((input) => !unbound.has(input.name)).map((input) => ` [${input.alias ?? input.name}]="this.${input.name}()"`);
+    const bound = comp.inputs.filter((input) => !unbound.has(input.name));
+    const inputs = bound.map((input) => ` [${input.alias ?? input.name}]="this.${input.name}()"`);
     const outputs = comp.outputs.map((output) => ` (${output.alias ?? output.name})="this.${output.name}.emit($event)"`);
+    const models = forwardedModels(comp, bound).map(({ member, event }) => ` (${event})="this.${member}.emit($event)"`);
 
-    return ` ${COMPOSITION_SUBJECT_ATTR}${inputs.join('')}${outputs.join('')}`;
+    return ` ${COMPOSITION_SUBJECT_ATTR}${inputs.join('')}${outputs.join('')}${models.join('')}`;
 }
 
 /** The `@case` of one composition: where it comes from as an HTML comment, then its markup with the subject's bindings in the slot. */
@@ -53,9 +58,11 @@ export function generateCompositionClass(comp: ScannedComponent, composition: Co
     const template = `@switch (${CASE_MEMBER}()) {\n${cases.map((entry, index) => formatCase(comp, entry, index)).join('\n')}\n}`;
     const isBound = (input: InputMeta) => cases.some(({ unbound }) => !unbound.some(({ name }) => name === input.name));
 
+    const bound = comp.inputs.filter(isBound);
     const members = [
-        ...comp.inputs.filter(isBound).map((input) => `  ${input.name} = ${formatInputDeclaration(input)};`),
+        ...bound.map((input) => `  ${input.name} = ${formatInputDeclaration(input)};`),
         ...comp.outputs.map((output) => `  ${output.name} = output<any>();`),
+        ...forwardedModels(comp, bound).map(({ member }) => `  ${member} = output<any>();`),
         `  ${PRISM_VARIANT_INPUT} = input(0);`,
         `  protected ${CASE_MEMBER} = computed(() => [${variantCases.join(', ')}][this.${PRISM_VARIANT_INPUT}()]);`
     ];
