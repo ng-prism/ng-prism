@@ -2,6 +2,7 @@ import ts from 'typescript';
 import type { InputMeta, OutputMeta } from '../../plugin/plugin.types.js';
 import { evaluateExpression, evaluateStatic, findDecorator, getDecoratorArgument, getJsDocComment, UNEVALUABLE } from './ast-utils.js';
 import { type ClassHierarchy, getClassHierarchy } from './class-hierarchy.js';
+import { isGlobalDate } from './static-date.js';
 
 /**
  * Extract all @Input(), input() and model() signal metadata from a class
@@ -130,7 +131,7 @@ function readInput(
         const initial = readInitialValue(member, checker);
         const doc = getJsDocComment(member, checker);
         const instantiated = subclass && usesTypeParameters(member.type ?? member.initializer, owner, checker) ? getInstantiatedType(name, subclass, checker) : undefined;
-        const { type, values, rawType } = instantiated ? mapType(instantiated, checker) : resolveDecoratorInputType(member, checker);
+        const { type, values, rawType, emptyValue } = instantiated ? mapType(instantiated, checker) : resolveDecoratorInputType(member, checker);
 
         return {
             name,
@@ -139,6 +140,7 @@ function readInput(
             rawType,
             required,
             ...(values && { values }),
+            ...(emptyValue && { emptyValue }),
             ...defaultFields(initial),
             ...(doc && { doc })
         };
@@ -157,7 +159,9 @@ function readInput(
     // A signal is a getter function, so its call signature returns the value type.
     const instantiated =
         subclass && usesTypeParameters(declaredType, owner, checker) ? getInstantiatedType(name, subclass, checker)?.getCallSignatures()[0]?.getReturnType() : undefined;
-    const { type, values, rawType } = instantiated ? mapType(instantiated, checker) : resolveSignalInputType(signalCall, checker);
+    const { type, values, rawType, emptyValue: written } = instantiated ? mapType(instantiated, checker) : resolveSignalInputType(signalCall, checker);
+    // `input<Date>()` is an `InputSignal<Date | undefined>`, which the type argument alone does not say.
+    const emptyValue = type === 'date' && !required && signalCall.arguments.length === 0 ? (written ?? 'undefined') : written;
 
     return {
         name,
@@ -166,6 +170,7 @@ function readInput(
         rawType,
         required,
         ...(values && { values }),
+        ...(emptyValue && { emptyValue }),
         ...defaultFields(initial),
         ...(doc && { doc }),
         ...(isModelInput(member) && { model: true as const })
@@ -325,7 +330,15 @@ function isOutputSignal(member: ts.PropertyDeclaration): boolean {
     return ts.isIdentifier(expr) && expr.text === 'output';
 }
 
-function resolveSignalInputType(callExpr: ts.CallExpression, checker: ts.TypeChecker): { type: InputMeta['type']; values?: string[]; rawType: string } {
+/** What the type of an input says about it, as {@link InputMeta} carries it. */
+interface MappedType {
+    type: InputMeta['type'];
+    values?: string[];
+    rawType: string;
+    emptyValue?: InputMeta['emptyValue'];
+}
+
+function resolveSignalInputType(callExpr: ts.CallExpression, checker: ts.TypeChecker): MappedType {
     if (callExpr.typeArguments && callExpr.typeArguments.length > 0) {
         const typeNode = callExpr.typeArguments[0];
         const resolved = checker.getTypeFromTypeNode(typeNode);
@@ -355,7 +368,7 @@ function isDecoratorInputRequired(decorator: ts.Decorator): boolean {
     return false;
 }
 
-function resolveDecoratorInputType(member: ts.PropertyDeclaration, checker: ts.TypeChecker): { type: InputMeta['type']; values?: string[]; rawType: string } {
+function resolveDecoratorInputType(member: ts.PropertyDeclaration, checker: ts.TypeChecker): MappedType {
     const tsType = checker.getTypeAtLocation(member);
     const declaredText = member.type ? normalizeTypeText(member.type.getText()) : undefined;
 
@@ -383,7 +396,7 @@ function getRawTypeLabel(tsType: ts.Type, checker: ts.TypeChecker): string {
     return checker.typeToString(tsType);
 }
 
-function mapType(tsType: ts.Type, checker: ts.TypeChecker, rawTypeOverride?: string): { type: InputMeta['type']; values?: string[]; rawType: string } {
+function mapType(tsType: ts.Type, checker: ts.TypeChecker, rawTypeOverride?: string): MappedType {
     const rawType = rawTypeOverride ?? getRawTypeLabel(tsType, checker);
 
     if (tsType.flags & ts.TypeFlags.BooleanLike) {
@@ -407,7 +420,15 @@ function mapType(tsType: ts.Type, checker: ts.TypeChecker, rawTypeOverride?: str
         }
 
         if (filtered.length === 1) {
-            return { ...mapType(filtered[0], checker), rawType };
+            const mapped = { ...mapType(filtered[0], checker), rawType };
+
+            if (mapped.type !== 'date') return mapped;
+
+            // What the union lets an emptied date control write, `null` first.
+            const allows = (flag: ts.TypeFlags) => tsType.types.some((t) => t.flags & flag);
+            const emptyValue = allows(ts.TypeFlags.Null) ? 'null' : allows(ts.TypeFlags.Undefined) ? 'undefined' : undefined;
+
+            return emptyValue ? { ...mapped, emptyValue } : mapped;
         }
 
         return { type: 'unknown', rawType };
@@ -423,6 +444,10 @@ function mapType(tsType: ts.Type, checker: ts.TypeChecker, rawTypeOverride?: str
 
     if (checker.isArrayType(tsType)) {
         return { type: 'array', rawType };
+    }
+
+    if (tsType.flags & ts.TypeFlags.Object && tsType.symbol && isGlobalDate(tsType.symbol, checker)) {
+        return { type: 'date', rawType };
     }
 
     if (tsType.flags & ts.TypeFlags.Object) {
