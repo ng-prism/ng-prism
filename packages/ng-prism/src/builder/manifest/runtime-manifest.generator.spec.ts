@@ -1382,3 +1382,26 @@ describe('Date inputs of a directive host', () => {
         expect(source).not.toContain('[value]');
     });
 });
+
+describe('model() inputs of a directive host', () => {
+    function hostWith(input: Partial<InputMeta>): string {
+        const directive: ScannedComponent = { ...HIGHLIGHT, inputs: [{ name: 'value', type: 'date', required: false, model: true, ...input }] };
+
+        return generateRuntimeManifest({ components: [directive], libraryImportPath: 'my-lib', warn: () => undefined });
+    }
+
+    it('passes on the change of a model it binds', () => {
+        const source = hostWith({});
+
+        expect(source).toContain('  valueChange = output<any>();');
+        expect(extractTemplate(source)).toContain('(valueChange)="valueChange.emit($event)"');
+    });
+
+    it('listens under the alias Angular gives the change output', () => {
+        expect(extractTemplate(hostWith({ alias: 'date' }))).toContain('(dateChange)="valueChange.emit($event)"');
+    });
+
+    it('passes on nothing for a model it leaves to the directive', () => {
+        expect(hostWith({ defaultUnreadable: true })).not.toContain('valueChange');
+    });
+});

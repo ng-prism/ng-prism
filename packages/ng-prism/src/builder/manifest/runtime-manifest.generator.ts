@@ -8,6 +8,7 @@ import { compositionClassName, generateCompositionClass } from './composition-wr
 import { parseHostString } from './host-parser.js';
 import { localName, ManifestImports } from './manifest-imports.js';
 import { formatArray, formatObject, indent, inlineValue, json } from './manifest-value.js';
+import { forwardedModels } from './model-changes.js';
 import { firstSelectorAttribute, selectorElement } from './selector-element.js';
 import { escapeTemplateLiteral } from './template-literal.js';
 
@@ -141,7 +142,12 @@ function generateWrapperClass(comp: ScannedComponent, warn: Warn, localNames: Re
     // The wrapper declares its inputs and outputs under the member names and binds the directive's public ones.
     const inputBindings = bindableInputs.map((i) => ` [${i.alias ?? i.name}]="${i.name}()"`).join('');
 
-    const outputBindings = comp.outputs.map((o) => ` (${o.alias ?? o.name})="${o.name}.emit($event)"`).join('');
+    // The change of each `model()` it binds as well, which the scan lists no output for.
+    const models = forwardedModels(comp, bindableInputs);
+    const outputBindings = [
+        ...comp.outputs.map((o) => ` (${o.alias ?? o.name})="${o.name}.emit($event)"`),
+        ...models.map(({ member, event }) => ` (${event})="${member}.emit($event)"`)
+    ].join('');
 
     const opening = `<${tag}${attrs}${selectorAttributes ? ` ${selectorAttributes}` : ''}${inputBindings}${outputBindings}`;
     let template: string;
@@ -167,6 +173,9 @@ function generateWrapperClass(comp: ScannedComponent, warn: Warn, localNames: Re
     // name a library type the manifest does not import, and `output()` alone takes only `void`.
     for (const o of comp.outputs) {
         members.push(`  ${o.name} = output<any>();`);
+    }
+    for (const { member } of models) {
+        members.push(`  ${member} = output<any>();`);
     }
     members.push(`  __prismContent__ = input(${JSON.stringify(hostContentDefault)});`);
 
