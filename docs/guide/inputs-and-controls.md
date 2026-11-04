@@ -42,12 +42,17 @@ The scanner resolves the type of every input at build time with the TypeScript c
 | `number`                                                                   | Number field; an empty field sets `0` |
 | `boolean`                                                                  | Toggle switch                         |
 | A union of string literals, `'sm' \| 'md' \| 'lg'`                         | One button per value                  |
+| `Date`, also `Date \| null` and `Date \| undefined`                        | Date field                            |
 | An object, an interface, a `Record`, an array                              | JSON editor                           |
 | Anything else, such as a union of numbers, `string \| number` or `unknown` | JSON editor                           |
 
 `null` and `undefined` in a union do not count: `'sm' | 'md' | undefined` gets one button per value, and `string | null` a text field. The JSON editor applies what you type once it parses; while it does not, it says `Invalid JSON` and the input keeps its last value.
 
+The date field shows the day of the value in the time zone of the browser and sets midnight of the day you pick; a time the value had is dropped then. Clearing the field sets `null` when the type allows `null`, else `undefined` when it allows that, and a `Date` that allows neither cannot be cleared. A type that only holds a `Date`, such as `{ from: Date }`, gets the JSON editor, which shows the date as local time with its offset and keeps it a `Date` when you edit something else.
+
 Each control is labelled with the input's member name and its type. Once you change a value, a **Reset** button at the top of the panel sets every input back to what the active variant gives it.
+
+An input declared with `model()` follows the component. When the component sets it itself, as a date picker does when you click a day, its control shows the new value and the input counts as changed, so **Reset** appears. The Events panel logs the change as `<name>Change`, the output Angular adds for the model.
 
 ```typescript
 @Component({/* ... */})
@@ -72,7 +77,7 @@ A plugin can bring a control of its own for the inputs it recognizes, which then
 
 ## Defaults
 
-The scanner reads an input's default from the source: the first argument of `input()` and `model()`, or the initializer of an `@Input()` property. It evaluates it like a `@Showcase` value, so a literal, a constant or an enum member works, see [What the Scanner Reads](guide/scanner-reads.md).
+The scanner reads an input's default from the source: the first argument of `input()` and `model()`, or the initializer of an `@Input()` property. It evaluates it like a `@Showcase` value, so a literal, a constant, an enum member or a `new Date(2026, 3, 28)` works, see [What the Scanner Reads](guide/scanner-reads.md).
 
 ```typescript
 label = input('Click me'); // default: 'Click me'
@@ -124,7 +129,7 @@ variants: [{ name: 'Large', inputs: { size: 'lg' } }];
 - **Variants and the Controls panel** use the member name: `inputs: { size: 'lg' }`, and the control is labelled `size`.
 - **The rendered component** gets the value by its alias. On a directive, the generated wrapper binds the alias on the host element.
 - **The Angular template** popover writes the alias, `buttonSize="lg"`, as a consumer of the library would.
-- **Outputs** with an alias are logged in the Events panel under their member name.
+- **Outputs** with an alias are logged in the Events panel under their member name. The change of an aliased `model()` is logged as `<alias>Change`, the name Angular gives it.
 
 The scanner reads an alias from the options of `input()`, `input.required()`, `model()` and `output()`, and from `@Input('x')`, `@Input({ alias: 'x' })` and `@Output('x')`. It has to be a string literal or a constant. An alias the scanner cannot evaluate, or one equal to the member name, is ignored.
 

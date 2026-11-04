@@ -4,19 +4,20 @@ The builder never runs your code. It reads the `@Showcase` argument from the sou
 
 ## Values the scanner evaluates
 
-| Works                                            | Example                                                               |
-| ------------------------------------------------ | --------------------------------------------------------------------- |
-| Strings, numbers, booleans, `null`, `undefined`  | `'Save'`, `42`, `-1`, `true`                                          |
-| Arithmetic and string concatenation              | `5 * 1024 * 1024`, `'Step ' + 2`, `2 ** 10`                           |
-| Template literals, with placeholders             | `` `${2 * 3} files` ``                                                |
-| Unary `-`, `+` and `!`                           | `-SPACING`, `!DISABLED`                                               |
-| Type-only syntax, which it sees through          | `['pdf', 'png'] as const`, `x satisfies Size`, `value!`               |
-| Array and object literals, nested                | `{ inputs: { tags: ['a', 'b'] } }`                                    |
-| `const` constants, also imported                 | `MAX_FILES`, `5 * MB`                                                 |
-| Enum members                                     | `Size.Medium`                                                         |
-| Properties and indices of constants              | `TOKENS.size.m`, `SIZES[1]`, `tokens.MAX_FILES` on a namespace import |
-| Spread and shorthand of constants                | `{ ...SHARED_META }`, `{ label }`                                     |
-| Computed keys that resolve to a string or number | `{ ['aria-label']: 'Close' }`, `{ [KEY]: 1 }`                         |
+| Works                                            | Example                                                                |
+| ------------------------------------------------ | ---------------------------------------------------------------------- |
+| Strings, numbers, booleans, `null`, `undefined`  | `'Save'`, `42`, `-1`, `true`                                           |
+| Arithmetic and string concatenation              | `5 * 1024 * 1024`, `'Step ' + 2`, `2 ** 10`                            |
+| Template literals, with placeholders             | `` `${2 * 3} files` ``                                                 |
+| Unary `-`, `+` and `!`                           | `-SPACING`, `!DISABLED`                                                |
+| Type-only syntax, which it sees through          | `['pdf', 'png'] as const`, `x satisfies Size`, `value!`                |
+| Array and object literals, nested                | `{ inputs: { tags: ['a', 'b'] } }`                                     |
+| `const` constants, also imported                 | `MAX_FILES`, `5 * MB`                                                  |
+| Enum members                                     | `Size.Medium`                                                          |
+| Properties and indices of constants              | `TOKENS.size.m`, `SIZES[1]`, `tokens.MAX_FILES` on a namespace import  |
+| Spread and shorthand of constants                | `{ ...SHARED_META }`, `{ label }`                                      |
+| Computed keys that resolve to a string or number | `{ ['aria-label']: 'Close' }`, `{ [KEY]: 1 }`                          |
+| Dates with arguments it can read                 | `new Date(2026, 3, 28)`, `new Date('2026-04-28')`, `new Date(RELEASE)` |
 
 Each of these works as long as every part of it does: `5 * MB` works while `MB` is a `const` with a readable value.
 
@@ -24,22 +25,24 @@ Each of these works as long as every part of it does: `5 * MB` works while `MB` 
 - **A spread** merges into the literal around it, and a later key wins over an earlier one, as in JavaScript.
 - **A constant from a compiled package** is read from that package's `.d.ts`, which keeps a value only when it was a plain literal. `export const MAX_FILES = 3` arrives as `MAX_FILES = 3`; `export const MB = 1024 * 1024` arrives as `MB: number` and cannot be read.
 - **A constant is read as its initializer says.** Changes made to it at runtime, such as `OPTIONS.push('pdf')` or `CONFIG.size = 'l'`, never happen for the scanner, so keep showcase values in constants that nothing changes.
+- **A `Date` keeps the arguments you wrote.** One string or number, or the year, the month and up to five more numbers. The styleguide makes the `Date` when it loads, in the time zone of the browser, so it is the `Date` your code makes, see [Dates](guide/variants.md#dates).
 
 ## What it drops
 
 Anything else would need the code to run, so the scanner drops it:
 
-| Does not work                                 | Example                                                                    |
-| --------------------------------------------- | -------------------------------------------------------------------------- |
-| `let` and `var` variables                     | `let retries = 3`                                                          |
-| Constants without a value                     | `declare const MB: number`, a compiled package's `MB` above                |
-| Conditions, comparisons and logical operators | `dark ? 'dark' : 'light'`, `label ?? 'OK'`, `a === b`                      |
-| Function and method calls                     | `megabytes(5)`, `items.map(toOption)`                                      |
-| Functions, classes and instances              | `(value) => value.length > 0`, `new Date()`, a method in an object literal |
-| A result JSON cannot hold                     | `1 / 0`, `0 / 0`                                                           |
-| Constants that refer back to themselves       | `A` in one file built from `B` in another, which is built from `A`         |
+| Does not work                                 | Example                                                                   |
+| --------------------------------------------- | ------------------------------------------------------------------------- |
+| `let` and `var` variables                     | `let retries = 3`                                                         |
+| Constants without a value                     | `declare const MB: number`, a compiled package's `MB` above               |
+| Conditions, comparisons and logical operators | `dark ? 'dark' : 'light'`, `label ?? 'OK'`, `a === b`                     |
+| Function and method calls                     | `megabytes(5)`, `items.map(toOption)`                                     |
+| Functions, classes and instances              | `(value) => value.length > 0`, `new Map()`, a method in an object literal |
+| `new Date()` without arguments                | `new Date()`, the current time, which would differ in every build         |
+| A result JSON cannot hold                     | `1 / 0`, `0 / 0`                                                          |
+| Constants that refer back to themselves       | `A` in one file built from `B` in another, which is built from `A`        |
 
-Functions, classes and instances are a limit of the approach, not of the scanner: they only exist once code runs, and the static manifest has no way to hold them. The one function that is read is [`setup: () => [...]`](api/showcase-config.md#setup) on a service or a pipe: the scanner reads the array literal it returns from the source and never calls it.
+Functions, classes and instances are a limit of the approach, not of the scanner: they only exist once code runs, and the static manifest has no way to hold them. A `Date` is the one instance it reads, since its arguments say all there is to it. The one function that is read is [`setup: () => [...]`](api/showcase-config.md#setup) on a service or a pipe: the scanner reads the array literal it returns from the source and never calls it.
 
 Only the value that cannot be read is lost. A property, an array element or a spread is dropped, and the object or array around it keeps everything else. A property or index read from a constant fails as well when something it depends on was dropped from that constant, rather than reading a wrong value. Each drop prints a warning naming the class, where the value sat in the config, the source text and its location, and, when a reference failed, why:
 

@@ -27,6 +27,25 @@ export class AlertComponent {
 
 Variant values are read from the source without running it, so a `let` variable or a function call is dropped with a warning, while constants and enum members work, see [What the Scanner Reads](guide/scanner-reads.md). The type argument `@Showcase<AlertComponent>` checks the `inputs` against the component, see [Type-safe inputs](guide/inputs-and-controls.md#type-safe-inputs).
 
+## Dates
+
+A `Date` is a value like any other, as long as the scanner can read its arguments: `new Date(2026, 3, 28)`, `new Date('2026-04-28')` or `new Date(1777334400000)`, written out or in a constant. ng-prism keeps the arguments as you wrote them, and the styleguide makes the `Date` when it loads, in the time zone of the browser. A variant shows the day your code shows, whether the styleguide was built in CI or on your machine.
+
+```typescript
+@Showcase<DateFieldComponent>({
+    title: 'Date field',
+    variants: [
+        { name: 'With value', inputs: { value: new Date(2026, 3, 28) } },
+        { name: 'Min and max', inputs: { value: new Date(2026, 3, 28), min: new Date(2026, 3, 1), max: new Date(2026, 3, 30) } }
+    ]
+})
+```
+
+- **For a day without a time, write the local form,** `new Date(2026, 3, 28)`: midnight of the 28th in every time zone. The month counts from 0, so `3` is April. `new Date('2026-04-28')` is midnight in UTC, which west of UTC is still the 27th: a date picker in New York shows the day before.
+- **`new Date()` without arguments is dropped with a warning.** It is the current time, which would differ in every build and every visual regression run. Write the date out instead, see [The current time](api/build-warnings.md#the-current-time).
+
+How the Controls panel edits a `Date` input is under [Input types and controls](guide/inputs-and-controls.md#input-types-and-controls).
+
 ## Explicit keys
 
 A variant sets only the inputs it lists. Every other input starts at its default, or `undefined` without one:

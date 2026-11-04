@@ -87,7 +87,7 @@ The nesting also decides what the pipeline counts: the `Generated manifest with 
 
 ### 6. Runtime Manifest Generation
 
-`generateRuntimeManifest()` converts the `PrismManifest` (plain JSON-safe data) into a TypeScript source string that the styleguide app can import. The generated file contains real `import` statements:
+`generateRuntimeManifest()` converts the `PrismManifest` (plain data, `Date`s included) into a TypeScript source string that the styleguide app can import. The generated file contains real `import` statements:
 
 ```typescript
 // ng-prism-cache/<prism-project>/prism-manifest.ts (generated)
@@ -104,6 +104,8 @@ export const PRISM_RUNTIME_MANIFEST: RuntimeManifest = {
 ```
 
 This avoids JSON serialization of Angular class references and keeps tree-shaking intact. The manifest is a named export, `PRISM_RUNTIME_MANIFEST`, which `main.ts` passes to `providePrism()`.
+
+Values are written as JSON (`manifest-value.ts`), except a `Date`: the generator writes the `new Date(…)` it was read from, with the arguments of its `StaticDate`, and a `Date` without them, as a plugin may add one, as `new Date(<time>)`. The browser makes the `Date` when the module loads, in its own time zone, so `new Date(2026, 3, 28)` is local midnight where the styleguide is open, not where it was built.
 
 **Wrappers.** Two kinds of showcase need a class that the library does not have, so the manifest declares one next to the imports. Both are standalone components that Angular compiles with the Prism app, ahead of time, which is why their templates are real Angular templates and not strings parsed in the browser.
 

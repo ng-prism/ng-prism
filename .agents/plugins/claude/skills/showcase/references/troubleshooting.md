@@ -15,8 +15,11 @@ These count for `strictShowcase: true`, which ends the build with
 - **`… cannot be evaluated statically, so the component is skipped`**: the argument of `@Showcase(…)` as a whole isn't
   an object literal the builder can read, e.g. `@Showcase(makeConfig())`. Write the object literally.
 - **`… is a runtime value (function, class or instance) and cannot be part of the static manifest; it was dropped`**: a
-  function, class, `new …` or object method in the config. Remove it; behaviour that needs code belongs in a component
-  page.
+  function, class, `new …` (other than `new Date(…)`) or object method in the config. Remove it; behaviour that needs
+  code belongs in a component page.
+- **`… is the current time, which differs in every build and every visual regression run, so it was dropped; …`**: a
+  `new Date()` without arguments. Write the date out, `new Date(2026, 3, 28)` for a day at local midnight.
+- **`… is an invalid date and was dropped`**: the arguments of a `new Date(…)` make no valid date. Fix them.
 - The dropped-value lines can end with the reason a constant couldn't be read:
     - **`… is declared with let; only const declarations can be read`** (or `var`): make it `const`.
     - **`… is declared without a value, as in a .d.ts file or with declare`**: a `declare`d value, or a constant from a
