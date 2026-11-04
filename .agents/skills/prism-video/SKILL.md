@@ -14,15 +14,16 @@ voice, build, render and deliver it. The films are public and meant to catch peo
 There are two kinds of film, a **release clip** for every minor and the **tour** on the docs start page. They look and
 sound the same, open on the same title and close on the same end card. Only this differs:
 
-|                    | Release clip                                                           | Tour                                                                        |
-| ------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `<film>`           | the minor, e.g. `22.8`                                                 | `tour`                                                                      |
-| `line` (title)     | the minor, `'22.8'` (set in mono)                                      | the slogan `'Your components, in **full spectrum.**'` (Inter)               |
-| Beats              | the release's features, in the order of its release notes              | what ng-prism does, from annotating a component to its API page             |
-| `command` (end)    | `ng update @ng-prism/core`                                             | `ng add @ng-prism/core`                                                     |
-| Title's voice line | "What's new in twenty-two point eight." (`sub: "What's new in 22.8."`) | the slogan                                                                  |
-| Delivered          | web version attached to the GitHub release (< 10 MB), YouTube version  | YouTube version; the web version also replaces `docs/assets/video/tour.mp4` |
-| Sources in         | `.videos/reference/<version>/`                                         | `.videos/reference/tour/`                                                   |
+|                       | Release clip                                                           | Tour                                                                        |
+| --------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `<film>`              | the minor, e.g. `22.8`                                                 | `tour`                                                                      |
+| `line` (title)        | the minor, `'22.8'` (set in mono)                                      | the slogan `'Your components, in **full spectrum.**'` (Inter)               |
+| Beats                 | the release's features, in the order of its release notes              | what ng-prism does, from annotating a component to its API page             |
+| `command` (end)       | `ng update @ng-prism/core`                                             | `ng add @ng-prism/core`                                                     |
+| End card's voice line | "Update now."                                                          | "One command, and you're set."                                              |
+| Title's voice line    | "What's new in twenty-two point eight." (`sub: "What's new in 22.8."`) | the slogan                                                                  |
+| Delivered             | web version attached to the GitHub release (< 10 MB), YouTube version  | YouTube version; the web version also replaces `docs/assets/video/tour.mp4` |
+| Sources in            | `.videos/reference/<version>/`                                         | `.videos/reference/tour/`                                                   |
 
 `.videos/` at the repo root is gitignored and belongs to the maintainer:
 
@@ -41,7 +42,7 @@ sound the same, open on the same title and close on the same end card. Only this
 | title                | `title`                     | 5.6 s    | `line` (table above) and the title's voice line |
 | one beat per feature | `app`, `code`, `tourCode`   | 5.5–10 s | everything                                      |
 | 1–2 interstitials    | `slash`, `split`, `kinetic` | 1.5–3 s  | text and objects; no voice line                 |
-| end                  | `end`                       | 5.5 s    | `command` (table above); voice "Try it out!"    |
+| end                  | `end`                       | 5.5 s    | `command` and its voice line (table above)      |
 | music, sound effects | `film.music`, automatic     | the film | the track and where it comes in                 |
 
 Never change the title, the end card or the sonic logo unasked; a film only sets their text.
@@ -91,7 +92,9 @@ Never change the title, the end card or the sonic logo unasked; a film only sets
   (clicks, keys, whooshes, bass impacts) come with the beats.
 - **Narration:** it opens with the sonic logo, `templates/sonic-logo.flac` (the ElevenLabs voice Lily whispering "N G
   prism" in a hall), 0.45 s into the title, added automatically. Everything after it is the ElevenLabs voice Chris, an
-  advertising read: the title's line, one line per beat, "Try it out!" on the end card, which never speaks the logo.
+  advertising read: the title's line, one line per beat, and on the end card the line that goes with its command
+  ("Update now." for a release, "One command, and you're set." for the tour); the end card never speaks the logo. No
+  thanks for watching: the last word is the one thing to do.
 - **Never:** twinkling stars, ray bursts, the macOS system voices. Effects without a link to the brand or the
   product, and effects that push the feature out of the picture, are kitsch too.
 
@@ -149,7 +152,7 @@ tour_ first.
     | `kind`     | Fields                                                                                                                                                                                                                                                                                                                                                  |
     | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
     | `title`    | `dur: 5.6`, the title's voice line at 2.9 s                                                                                                                                                                                                                                                                                                             |
-    | `end`      | `dur: 5.5`, `vo: { at: 1.55, text: 'Try it out!' }`                                                                                                                                                                                                                                                                                                     |
+    | `end`      | `dur: 5.5`, `vo: { at: 1.55, text: 'Update now.' }` (the tour: "One command, and you're set.")                                                                                                                                                                                                                                                          |
     | `app`      | `wins: [['build/state', alt?]…]` (a window per state; `alt` is HTML or a function that changes the lifted HTML), `cap`, `cam: [{ t, cx, cy, z, hold?, drift? }]`, `cur: [{ t, x, y }]`, `vis: [in0, in1, out0?, out1?]`, `clicks`, `fades: [{ win, at }]`, `his: [{ name, box, at }]`, `scan`, `light: [t0, t1]` (the header's sheen), `extra(tl, sfx)` |
     | `code`     | `file`, `src` (lines, verbatim), `typedLine`, `t0`, `cap`, `win: { states: [before, after], hide?, after?, cam? }` (each state a ref or `[ref, alt]`; `hide`: selectors hidden in the before window; the window fades at `after`, by default 0.1 s after the line is typed), `veil`, `width` (832; 700 for a narrow card)                               |
     | `tourCode` | `file`, `src`, `typed` (lines), `t0`, `seconds`, `cap`                                                                                                                                                                                                                                                                                                  |
