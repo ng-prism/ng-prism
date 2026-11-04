@@ -1,4 +1,5 @@
 import ts from 'typescript';
+import { type DateArguments, isGlobalDate, StaticDate } from './static-date.js';
 
 /**
  * What {@link evaluateStatic} returns for a root it cannot evaluate. A symbol,
@@ -8,17 +9,18 @@ export const UNEVALUABLE: unique symbol = Symbol('ng-prism.unevaluable');
 
 export type EvaluationPath = ReadonlyArray<string | number>;
 
-/** A reference in the source whose declaration has no value the evaluator can use. */
+/** A reference in the source whose declaration has no value the evaluator can use, or a `Date` that has none. */
 export interface UnresolvedReference {
-    /** The identifier, shorthand property or property access that did not resolve. */
+    /** The identifier, shorthand property or property access that did not resolve, or the `new Date(…)`. */
     node: ts.Node;
     /**
      * `let` and `var` are not constants. `no-value` is a declaration without an
      * initializer: `declare const`, a compiled package's `.d.ts`, or a global
      * of the JavaScript runtime such as `Math`. `cycle` is a constant that refers back to itself, and
-     * `runtime-value` a function or class.
+     * `runtime-value` a function or class. `current-time` is `new Date()` without arguments, and `invalid-date` a
+     * `new Date(…)` whose arguments make no valid date.
      */
-    kind: 'let' | 'var' | 'no-value' | 'cycle' | 'runtime-value';
+    kind: 'let' | 'var' | 'no-value' | 'cycle' | 'runtime-value' | 'current-time' | 'invalid-date';
 }
 
 export interface UnevaluableIssue {
@@ -26,8 +28,11 @@ export interface UnevaluableIssue {
     path: EvaluationPath;
     /** The expression, spread or property that could not be evaluated. */
     node: ts.Node;
-    /** `runtime-value` marks functions, classes and instances, which no static evaluation can ever capture. */
-    reason: 'unsupported' | 'runtime-value';
+    /**
+     * `runtime-value` marks functions, classes and instances, which no static evaluation can ever capture.
+     * `current-time` and `invalid-date` mark a `new Date(…)` that is the dropped part itself, as in {@link UnresolvedReference}.
+     */
+    reason: 'unsupported' | 'runtime-value' | 'current-time' | 'invalid-date';
     /** The innermost reference that failed, when one is what made `node` unevaluable. */
     cause?: UnresolvedReference;
 }
@@ -109,7 +114,15 @@ function guard(node: ts.Node, path: EvaluationPath, context: Context, evaluate: 
     const value = evaluate();
 
     if (value === UNEVALUABLE) {
-        context.report({ path, node, reason: isRuntimeValue(node) ? 'runtime-value' : 'unsupported', cause: trace.cause });
+        // Set by `evaluate`, which the compiler does not see after the reset above.
+        const cause = trace.cause as UnresolvedReference | undefined;
+
+        if (cause && (cause.kind === 'current-time' || cause.kind === 'invalid-date') && cause.node === skipParentheses(node)) {
+            // The `Date` is the member itself: naming it again as its own cause would only repeat it.
+            context.report({ path, node, reason: cause.kind });
+        } else {
+            context.report({ path, node, reason: isRuntimeValue(node, context.checker) ? 'runtime-value' : 'unsupported', cause });
+        }
     }
     trace.cause = outer;
     return value;
@@ -179,7 +192,43 @@ function evaluateNode(node: ts.Expression, path: EvaluationPath, context: Contex
         return evaluateObject(node, path, context);
     }
 
+    if (ts.isNewExpression(node) && isDateConstruction(node, context.checker)) {
+        return evaluateDate(node, context);
+    }
+
     return UNEVALUABLE;
+}
+
+/** `new Date(…)` with the runtime's `Date`, not a class of the project by that name. */
+function isDateConstruction(node: ts.NewExpression, checker: ts.TypeChecker | undefined): boolean {
+    return ts.isIdentifier(node.expression) && node.expression.text === 'Date' && isGlobalDate(checker?.getSymbolAtLocation(node.expression), checker);
+}
+
+/**
+ * A {@link StaticDate} from arguments the evaluator can read: one string, number or other such `Date`, or two to
+ * seven numbers, as the year, the month and the rest. Without arguments it is the current time, which would differ in
+ * every build.
+ */
+function evaluateDate(node: ts.NewExpression, context: Context): unknown {
+    const written = node.arguments ?? [];
+
+    if (written.length === 0) return fail(node, 'current-time', context);
+
+    const values = written.map((argument) => evaluateNode(argument, [], silent(context)));
+
+    if (values.includes(UNEVALUABLE)) return UNEVALUABLE;
+
+    const [first] = values;
+    let args: DateArguments;
+
+    if (values.length === 1 && first instanceof StaticDate) args = first.args;
+    else if (values.length === 1 && (typeof first === 'string' || typeof first === 'number')) args = [first];
+    else if (values.length >= 2 && values.length <= 7 && values.every((value): value is number => typeof value === 'number')) args = values;
+    else return UNEVALUABLE;
+
+    const date = new StaticDate(args);
+
+    return Number.isNaN(date.getTime()) ? fail(node, 'invalid-date', context) : date;
 }
 
 /**
@@ -225,7 +274,22 @@ function evaluateReference(symbol: ts.Symbol | undefined, reference: ts.Node, pa
         return UNEVALUABLE;
     }
     // A copy per reference, so that two of them never share an object a plugin could change through either.
-    return structuredClone(resolved.value);
+    return copy(resolved.value);
+}
+
+/**
+ * A deep copy of an evaluated value, which holds primitives, arrays, plain objects and {@link StaticDate}s.
+ * `structuredClone` would turn a `StaticDate` into a plain `Date` without its arguments.
+ */
+function copy(value: unknown): unknown {
+    if (value instanceof StaticDate) return new StaticDate(value.args);
+    if (Array.isArray(value)) return value.map(copy);
+    if (!isRecord(value)) return value;
+
+    const result: Record<string, unknown> = {};
+
+    for (const [key, item] of Object.entries(value)) setOwn(result, key, copy(item));
+    return result;
 }
 
 /**
@@ -476,10 +540,16 @@ function setOwn(target: Record<string, unknown>, key: string, value: unknown): v
     Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
 }
 
-function isRuntimeValue(node: ts.Node): boolean {
-    if (ts.isParenthesizedExpression(node)) return isRuntimeValue(node.expression);
+function isRuntimeValue(node: ts.Node, checker: ts.TypeChecker | undefined): boolean {
+    const inner = skipParentheses(node);
 
-    return ts.isArrowFunction(node) || ts.isFunctionExpression(node) || ts.isClassExpression(node) || ts.isNewExpression(node);
+    if (ts.isNewExpression(inner)) return !isDateConstruction(inner, checker);
+
+    return ts.isArrowFunction(inner) || ts.isFunctionExpression(inner) || ts.isClassExpression(inner);
+}
+
+function skipParentheses(node: ts.Node): ts.Node {
+    return ts.isParenthesizedExpression(node) ? skipParentheses(node.expression) : node;
 }
 
 /**
