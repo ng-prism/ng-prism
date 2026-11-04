@@ -14,6 +14,7 @@ export { SpinnerComponent, type SpinnerSizeType } from './lib/components/spinner
 export { TooltipDirective, type TooltipDirectivePositionType } from './lib/directives/tooltip/tooltip.directive.js';
 export { type CopyFailure, CopyToClipboardDirective } from './lib/directives/copy-to-clipboard/copy-to-clipboard.directive.js';
 export { DividerComponent, type DividerOrientationType, type DividerVariantType } from './lib/components/divider/divider.component.js';
+export { DateFieldComponent } from './lib/components/date-field/date-field.component.js';
 export { FormFieldComponent } from './lib/components/form-field/form-field.component.js';
 export { InputDirective } from './lib/components/form-field/input.directive.js';
 export { LIB_FORM_FIELD, LIB_FORM_FIELD_CONTROL, type LibFormField, type LibFormFieldControl } from './lib/components/form-field/form-field.tokens.js';
