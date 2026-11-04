@@ -652,6 +652,31 @@ describe('PrismRendererService', () => {
             expect(renderer.activeVariantIndex()).toBe(1);
         });
 
+        // A model() the component set, on an input no variant sets and without a default: it started out undefined,
+        // so Reset has to say so to the component, not just drop the key.
+        it('sets an input without a default that no variant sets back to undefined', () => {
+            const comp = createComponent({
+                inputs: [
+                    { name: 'selected', type: 'string', required: false, model: true },
+                    { name: 'options', type: 'array', defaultUnreadable: true, required: false }
+                ],
+                variants: [{ name: 'Default' }]
+            });
+            const { renderer, navigation } = setup({ components: [comp] });
+
+            navigation.select(comp);
+            renderer.resetForComponent(comp);
+            renderer.updateInput('selected', 'b');
+            renderer.updateInput('options', ['x']);
+            expect(renderer.dirtyInputCount()).toBe(2);
+
+            renderer.resetInputsToVariantDefaults();
+
+            expect(renderer.inputValues()).toEqual({ selected: undefined });
+            expect('selected' in renderer.inputValues()).toBe(true);
+            expect(renderer.dirtyInputCount()).toBe(0);
+        });
+
         it('should treat deep-equal objects as not dirty', () => {
             const comp = createComponent({
                 inputs: [{ name: 'data', type: 'object', defaultValue: { a: 1 }, required: false }]

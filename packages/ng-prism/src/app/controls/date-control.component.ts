@@ -29,6 +29,9 @@ export class DateControlComponent {
         const date = fromDateInputValue(field.value);
         const empty = this.emptyValue();
 
+        // A part of the day cleared by the keyboard: the field reads empty, but nobody emptied it.
+        if (!date && field.validity.badInput) return;
+
         if (date) this.valueChange.emit(date);
         else if (empty) this.valueChange.emit(empty === 'null' ? null : undefined);
         // A date that cannot be emptied: the field shows it again.

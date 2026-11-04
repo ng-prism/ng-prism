@@ -244,7 +244,18 @@ export class PrismRendererService {
         const comp = this.navigationService.activeComponent();
 
         if (!comp) return;
+        const changed = this.inputValues();
+
         this.applyVariant(this.activeVariantIndex(), comp);
+
+        // A key the variant state leaves out, set by a control or by a `model()` of the component, was set on the
+        // instance: it goes back to the `undefined` the input started with. Not for a default the scan could not read,
+        // which `undefined` would not restore, nor for a required input.
+        const restorable = comp.meta.inputs.filter((input) => !input.required && !input.defaultUnreadable && input.name in changed).map((input) => input.name);
+        const values = this.inputValues();
+        const cleared = restorable.filter((name) => !(name in values));
+
+        if (cleared.length > 0) this.inputValues.set({ ...values, ...Object.fromEntries(cleared.map((name) => [name, undefined])) });
     }
 
     private applyVariant(index: number, comp: RuntimeComponent): void {

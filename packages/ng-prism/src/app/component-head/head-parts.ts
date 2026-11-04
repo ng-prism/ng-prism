@@ -45,7 +45,14 @@ export function formatPartDefault(input: InputMeta): string | undefined {
 
     if (value === undefined) return undefined;
     if (value instanceof Date) return formatDateValue(value);
-    return typeof value === 'string' ? `'${value.replace(/[\\']/g, '\\$&')}'` : JSON.stringify(value);
+    return typeof value === 'string' ? `'${value.replace(/[\\']/g, '\\$&')}'` : JSON.stringify(value, readableDates);
+}
+
+/** A `Date` inside a default as its day, not as the UTC time `toISOString()` would give it. */
+function readableDates(this: Record<string, unknown>, key: string, value: unknown): unknown {
+    const raw = this[key];
+
+    return raw instanceof Date ? formatDateValue(raw) : value;
 }
 
 /**

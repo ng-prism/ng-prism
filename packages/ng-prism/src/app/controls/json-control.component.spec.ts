@@ -1,4 +1,4 @@
-import { highlightJson, parseForJsonControl, stringifyForJsonControl } from './json-control.component.js';
+import { applyJsonEdit, followJsonValue, highlightJson, parseForJsonControl, stringifyForJsonControl } from './json-control.component.js';
 
 describe('highlightJson', () => {
     it('wraps JSON tokens in classed spans', () => {
@@ -81,5 +81,43 @@ describe('Dates in the JSON control', () => {
 
     it('throws for text that is no JSON, as the control expects', () => {
         expect(() => parseForJsonControl('{', value)).toThrow();
+    });
+});
+
+describe('an edit in the JSON control', () => {
+    const value = { at: new Date(2026, 3, 28) };
+    const text = stringifyForJsonControl(value);
+    // One digit of the day deleted: still JSON, but no date, so the control emits it as a string.
+    const midway = text.replace('2026-04-28T', '2026-04-2T');
+
+    it('keeps a Date through keystrokes that pass through text that is no date', () => {
+        const first = applyJsonEdit(null, midway, value);
+
+        expect(typeof (first.parsed as { at: unknown }).at).toBe('string');
+
+        const second = applyJsonEdit(first.edit, text, first.parsed);
+
+        expect((second.parsed as { at: unknown }).at).toBeInstanceOf(Date);
+        expect((second.parsed as typeof value).at.getTime()).toBe(value.at.getTime());
+    });
+
+    it('keeps its text while the value is the one it emitted', () => {
+        const { edit, parsed } = applyJsonEdit(null, text, value);
+
+        expect(followJsonValue(edit, parsed)).toBe(edit);
+    });
+
+    it('lets go of its text when the value comes from elsewhere, as after Reset or a model() change', () => {
+        const { edit } = applyJsonEdit(null, text, value);
+
+        expect(followJsonValue(edit, { at: new Date(2026, 4, 1) })).toBeNull();
+    });
+
+    it('keeps the value it started from when the text does not parse', () => {
+        const { edit, error } = applyJsonEdit(null, '{', value);
+
+        expect(error).toBe(true);
+        expect(followJsonValue(edit, value)).toBe(edit);
+        expect(edit.text).toBe('{');
     });
 });

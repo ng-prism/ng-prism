@@ -236,9 +236,15 @@ describe('generateRuntimeManifest', () => {
             }
         });
 
-        expect(source).toContain('meta:');
-        expect(source).toContain('"coverage"');
-        expect(source).toContain('"score": 87');
+        expect((evaluateManifest(source) as { meta?: unknown }).meta).toEqual({ coverage: { total: { score: 87, found: true }, thresholds: { lines: 80 } } });
+    });
+
+    it('writes a Date in manifest-level meta as a Date', () => {
+        const source = generateRuntimeManifest({ components: [], libraryImportPath: 'my-lib', meta: { report: { at: new Date(0) } } });
+        const { meta } = evaluateManifest(source) as { meta?: { report: { at: unknown } } };
+
+        expect(meta?.report.at).toBeInstanceOf(Date);
+        expect((meta?.report.at as Date).getTime()).toBe(0);
     });
 
     it('should omit meta when empty', () => {

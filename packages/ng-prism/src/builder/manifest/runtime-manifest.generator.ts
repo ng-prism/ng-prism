@@ -281,12 +281,8 @@ export function generateRuntimeManifest(options: RuntimeManifestOptions): string
     }
 
     if (meta && Object.keys(meta).length > 0) {
-        const metaJson = JSON.stringify(meta, null, 2)
-            .split('\n')
-            .map((l, i) => (i === 0 ? l : '  ' + l))
-            .join('\n');
-
-        lines.push(`  meta: ${metaJson},`);
+        // Like every other value: a `Date` a plugin put here reaches the browser as a `Date`.
+        lines.push(`  meta: ${formatObject(meta, 2)},`);
     }
 
     lines.push('};');

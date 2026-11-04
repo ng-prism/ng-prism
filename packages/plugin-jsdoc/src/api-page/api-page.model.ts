@@ -224,7 +224,14 @@ function valueChip(label: string, value: string | undefined): ApiPageChip[] {
 function formatDefault(value: InputMeta['defaultValue']): string {
     if (typeof value === 'string') return `'${value.replace(/[\\']/g, '\\$&')}'`;
     if (value instanceof Date) return formatDateValue(value);
-    return typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
+    return typeof value === 'object' && value !== null ? JSON.stringify(value, readableDates) : String(value);
+}
+
+/** A `Date` inside a default as its day, not as the UTC time `toISOString()` would give it. */
+function readableDates(this: Record<string, unknown>, key: string, value: unknown): unknown {
+    const raw = this[key];
+
+    return raw instanceof Date ? formatDateValue(raw) : value;
 }
 
 /** A method of the jsdoc plugin's data as a signature: it knows no more of the types than their names. */

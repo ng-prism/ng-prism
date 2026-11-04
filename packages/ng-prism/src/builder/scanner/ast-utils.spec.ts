@@ -563,6 +563,19 @@ describe('evaluateStatic with new Date', () => {
         expect(b.getDate()).toBe(28);
     });
 
+    it('keeps the arguments of a Date constant that is imported and spread', () => {
+        const files = {
+            '/dates.ts': 'export const RELEASE = new Date(2026, 3, 28);',
+            '/main.ts': "import { RELEASE } from './dates';\nconst BASE = { at: RELEASE };\nexport const subject = { ...BASE, again: RELEASE };"
+        };
+        const { value, issues } = evaluateInProgram(files);
+        const { at, again } = value as { at: StaticDate; again: StaticDate };
+
+        expect(issues).toEqual([]);
+        expect(at.args).toEqual([2026, 3, 28]);
+        expect(again.args).toEqual([2026, 3, 28]);
+    });
+
     it('takes the arguments of a Date constant passed to new Date', () => {
         const { value } = evaluateWithLib('const RELEASE = new Date(2026, 3, 28);\nexport const subject = new Date(RELEASE);');
 

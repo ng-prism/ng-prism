@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, ElementRef, input, output, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, input, linkedSignal, output, viewChild } from '@angular/core';
 import { toLocalIsoString } from '../../shared/date-value.js';
 
 export function highlightJson(json: unknown): string {
@@ -63,6 +63,37 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/** What the control keeps while someone types: the text, the value the edit started from, and what it emitted last. */
+export interface JsonEdit {
+    text: string;
+    /** Where its Dates were decides where a string becomes a `Date` again, whatever the keystrokes in between emitted. */
+    base: unknown;
+    emitted: unknown;
+    /** The text does not parse, so it emitted nothing. */
+    error: boolean;
+}
+
+/** One keystroke on `edit`, `null` when it starts one on `value`: the edit after it, and the value to emit unless the text does not parse. */
+export function applyJsonEdit(edit: JsonEdit | null, raw: string, value: unknown): { edit: JsonEdit; parsed?: unknown; error: boolean } {
+    const base = edit ? edit.base : value;
+
+    try {
+        const parsed = parseForJsonControl(raw, base);
+
+        return { edit: { text: raw, base, emitted: parsed, error: false }, parsed, error: false };
+    } catch {
+        return { edit: { text: raw, base, emitted: edit ? edit.emitted : value, error: true }, error: true };
+    }
+}
+
+/**
+ * The edit once `value` comes in: kept while it is what the edit emitted, gone for a value from elsewhere, such as Reset,
+ * another variant or a `model()` the component set, so that the control shows that value.
+ */
+export function followJsonValue(edit: JsonEdit | null, value: unknown): JsonEdit | null {
+    return edit && edit.emitted === value ? edit : null;
+}
+
 @Component({
     selector: 'prism-json-control',
     standalone: true,
@@ -76,31 +107,24 @@ export class JsonControlComponent {
     readonly typeName = input('');
     readonly valueChange = output<unknown>();
 
-    readonly parseError = signal(false);
-    readonly localText = signal<string | null>(null);
+    private readonly edit = linkedSignal<unknown, JsonEdit | null>({
+        source: this.value,
+        computation: (value, previous) => followJsonValue(previous?.value ?? null, value)
+    });
+    readonly parseError = computed(() => this.edit()?.error ?? false);
 
     private readonly textareaEl = viewChild<ElementRef<HTMLTextAreaElement>>('textareaEl');
     private readonly preEl = viewChild<ElementRef<HTMLPreElement>>('preEl');
 
-    readonly displayText = computed(() => {
-        const local = this.localText();
-
-        if (local !== null) return local;
-        return stringifyForJsonControl(this.value());
-    });
+    readonly displayText = computed(() => this.edit()?.text ?? stringifyForJsonControl(this.value()));
 
     readonly highlightedHtml = computed(() => highlightJson(this.displayText()));
 
     onInput(raw: string): void {
-        this.localText.set(raw);
-        try {
-            const parsed = parseForJsonControl(raw, this.value());
+        const { edit, parsed, error } = applyJsonEdit(this.edit(), raw, this.value());
 
-            this.parseError.set(false);
-            this.valueChange.emit(parsed);
-        } catch {
-            this.parseError.set(true);
-        }
+        this.edit.set(edit);
+        if (!error) this.valueChange.emit(parsed);
     }
 
     syncScroll(): void {

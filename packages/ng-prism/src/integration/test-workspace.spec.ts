@@ -121,7 +121,7 @@ describe('test-workspace integration', () => {
 
         const result = await runPrismPipeline(pipelineOptions, ctx, createPipelineState());
 
-        expect(result.componentCount).toBe(21);
+        expect(result.componentCount).toBe(22);
     });
 
     it('should write prism-manifest.ts into prism project', async () => {
@@ -188,10 +188,10 @@ describe('test-workspace integration', () => {
 
         const result = await runPrismPipeline(pipelineOptions, ctx, createPipelineState());
 
-        expect(result.componentCount).toBe(21);
+        expect(result.componentCount).toBe(22);
         expect(ctx.reportStatus).toHaveBeenCalledWith('Loading ng-prism config...');
         expect(ctx.reportStatus).toHaveBeenCalledWith('Running plugin hooks...');
-        expect(ctx.logger.info).toHaveBeenCalledWith(expect.stringContaining('Generated manifest with 21 component(s)'));
+        expect(ctx.logger.info).toHaveBeenCalledWith(expect.stringContaining('Generated manifest with 22 component(s)'));
     });
 
     it('should compile the compositions of the form field, input, radio group and radio showcases', async () => {

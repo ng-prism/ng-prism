@@ -123,7 +123,7 @@ On a directive, `content` is a string and is written as text: markup in it shows
 
 ## Inputs the Wrapper Does Not Bind
 
-The wrapper of a string host, an object host or no host binds an input when its type is a string, a number, a boolean or a union of string literals, or when the scanner read a default for it. Any other input, such as an object without a default or a `TemplateRef`, stays unbound: a value from a variant or the Controls panel does not reach the directive. A variant with a [composition](guide/compositions.md), a `template` or a host template, renders through another wrapper, which binds those inputs as well.
+The wrapper of a string host, an object host or no host binds an input when its type is a string, a number, a boolean or a union of string literals, or when the scanner read a default for it. A `Date` input is bound as well (since 22.8.0), unless it has a default the scanner could not read, such as `model<Date>(new Date())`, which the directive keeps. Any other input, such as an object without a default or a `TemplateRef`, stays unbound: a value from a variant or the Controls panel does not reach the directive. A variant with a [composition](guide/compositions.md), a `template` or a host template, renders through another wrapper, which binds those inputs as well.
 
 An input whose type names `TemplateRef`, `ElementRef` or `ViewContainerRef` shows `Not editable` in the Controls panel, see [What the Controls panel cannot edit](guide/inputs-and-controls.md#what-the-controls-panel-cannot-edit).
 
