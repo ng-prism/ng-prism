@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, input, output, signal, viewChild } from '@angular/core';
+import { toLocalIsoString } from '../../shared/date-value.js';
 
 export function highlightJson(json: unknown): string {
     if (typeof json !== 'string') return '';
@@ -15,9 +16,17 @@ export function highlightJson(json: unknown): string {
     );
 }
 
+/** A `Date` as local time with its offset: `toISOString()`, which `JSON.stringify` calls, would show the day of UTC. */
+function localDates(this: Record<string, unknown>, key: string, value: unknown): unknown {
+    const raw = this[key];
+
+    if (!(raw instanceof Date)) return value;
+    return Number.isNaN(raw.getTime()) ? null : toLocalIsoString(raw);
+}
+
 export function stringifyForJsonControl(val: unknown): string {
     try {
-        const serialized = JSON.stringify(val, null, 2);
+        const serialized = JSON.stringify(val, localDates, 2);
 
         // JSON.stringify returns `undefined` (the value, not a string) for
         // `undefined`, functions, and symbols. Surface that as visible text so the
@@ -26,6 +35,32 @@ export function stringifyForJsonControl(val: unknown): string {
     } catch {
         return String(val);
     }
+}
+
+/**
+ * The value of the control's text, as `JSON.parse` reads it, which throws for text that is no JSON. JSON has no dates:
+ * a string where `previous` holds a `Date` becomes a `Date` again when it reads as one, so an edit elsewhere in the
+ * value does not turn the date into text.
+ */
+export function parseForJsonControl(raw: string, previous: unknown): unknown {
+    return reviveDates(JSON.parse(raw), previous);
+}
+
+function reviveDates(value: unknown, previous: unknown): unknown {
+    if (previous instanceof Date) {
+        const date = typeof value === 'string' ? new Date(value) : undefined;
+
+        return date && !Number.isNaN(date.getTime()) ? date : value;
+    }
+    if (Array.isArray(value) && Array.isArray(previous)) return value.map((item, index) => reviveDates(item, previous[index]));
+    if (isRecord(value) && isRecord(previous)) {
+        return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, reviveDates(item, Object.hasOwn(previous, key) ? previous[key] : undefined)]));
+    }
+    return value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 @Component({
@@ -59,7 +94,7 @@ export class JsonControlComponent {
     onInput(raw: string): void {
         this.localText.set(raw);
         try {
-            const parsed = JSON.parse(raw);
+            const parsed = parseForJsonControl(raw, this.value());
 
             this.parseError.set(false);
             this.valueChange.emit(parsed);
