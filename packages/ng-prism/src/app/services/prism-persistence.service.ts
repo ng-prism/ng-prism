@@ -3,6 +3,7 @@ import type { NgPrismConfig } from '../../plugin/plugin.types.js';
 import { A11yPanelStateService, type A11ySubTab } from '../panels/a11y/a11y-panel-state.service.js';
 import { type A11yPerspectiveMode, A11yPerspectiveService } from '../panels/a11y/a11y-perspective.service.js';
 import { PRISM_CONFIG } from '../tokens/prism-tokens.js';
+import { parsePersisted, stringifyPersisted } from './persisted-values.js';
 import { PrismCaptureService } from './prism-capture.service.js';
 import { PrismNavigationService } from './prism-navigation.service.js';
 import { PrismRendererService } from './prism-renderer.service.js';
@@ -52,7 +53,7 @@ export class PrismPersistenceService {
 
         try {
             raw = sessionStorage.getItem(STORAGE_KEY);
-            if (raw) parsed = JSON.parse(raw) as PrismPersistedState;
+            if (raw) parsed = parsePersisted(raw) as PrismPersistedState;
         } catch {
             parsed = null;
             raw = null;
@@ -117,7 +118,7 @@ export class PrismPersistenceService {
         this.writeTimer = setTimeout(() => {
             this.writeTimer = null;
             const state = this.serialize();
-            const next = JSON.stringify(state);
+            const next = stringifyPersisted(state);
 
             if (next === this.lastSerialized) return;
             try {
@@ -138,7 +139,7 @@ export class PrismPersistenceService {
 
         if (this.lastSerialized) {
             try {
-                const prev = JSON.parse(this.lastSerialized) as PrismPersistedState;
+                const prev = parsePersisted(this.lastSerialized) as PrismPersistedState;
 
                 if (prev.version === SCHEMA_VERSION) inputs = { ...prev.inputs };
             } catch {
