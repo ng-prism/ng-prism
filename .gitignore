@@ -44,6 +44,8 @@ Thumbs.db
 
 .nx/cache
 .nx/workspace-data
+# Angular CLI build cache, wherever a build writes it (repo root or test-workspace)
+.angular/
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 
@@ -57,7 +59,6 @@ test-output
 # test libs and both prism apps are committed, generated files are not.
 test-workspace/node_modules
 test-workspace/dist
-test-workspace/.angular
 test-workspace/.env
 test-workspace/package-lock.json
 test-workspace/ng-prism.config.ts
