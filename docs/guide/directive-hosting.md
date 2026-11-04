@@ -129,7 +129,7 @@ An input whose type names `TemplateRef`, `ElementRef` or `ViewContainerRef` show
 
 ## Outputs
 
-The generated wrapper re-emits every output of the directive, and the Events panel logs each emission with its payload. A payload of any type passes, also one whose type the library does not export.
+The generated wrapper re-emits every output of the directive and each change of a `model()` it binds, and the Events panel logs each emission with its payload. A payload of any type passes, also one whose type the library does not export.
 
 ## Examples
 

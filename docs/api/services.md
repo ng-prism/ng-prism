@@ -123,7 +123,7 @@ interface EventLogEntry {
 }
 ```
 
-The canvas calls `log()` for every output of the component it renders. It does not for the component of a page that [`renderPage`](api/showcase-config.md#renderpage) opens, so such a page calls `log()` itself to fill the Events panel. `EventLogEntry` is exported from `@ng-prism/core` as a type.
+The canvas calls `log()` for every output of the component it renders, and as `<name>Change` for each change of a `model()` it binds. It does not for the component of a page that [`renderPage`](api/showcase-config.md#renderpage) opens, so such a page calls `log()` itself to fill the Events panel. `EventLogEntry` is exported from `@ng-prism/core` as a type.
 
 ## PrismLayoutService
 

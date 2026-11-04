@@ -10,7 +10,7 @@ What the builder scans and writes, and what the styleguide app runs on. `PrismMa
 
 ### `PrismManifest`
 
-The build-time manifest: what the scan found, after the plugin hooks. Plain JSON data, no class references. `onManifestReady` receives it, and the builder writes the runtime manifest from it.
+The build-time manifest: what the scan found, after the plugin hooks. Plain data, `Date`s included, no class references. `onManifestReady` receives it, and the builder writes the runtime manifest from it.
 
 ```typescript
 interface PrismManifest {
@@ -106,7 +106,7 @@ interface InputMeta {
 | `type`              | The type category that selects a control, see [Inputs & Controls](guide/inputs-and-controls.md#input-types-and-controls). `'date'` is the runtime's `Date`, also with `null` or `undefined` (since 22.8.0)                   |
 | `rawType`           | The TypeScript type as text (e.g. `'primary' \| 'danger'`)                                                                                                                                                                   |
 | `values`            | For a union of literals: the individual member values                                                                                                                                                                        |
-| `emptyValue`        | For a `'date'`: what a cleared date field sets, `'null'` when the type allows `null`, else `'undefined'` when it allows `undefined` (since 22.8.0). Missing when it allows neither                                           |
+| `emptyValue`        | For a `'date'`: what a cleared date field sets (since 22.8.0), see [Input types and controls](guide/inputs-and-controls.md#input-types-and-controls)                                                                         |
 | `defaultValue`      | The initial value, such as the argument of `input(defaultValue)`. A `new Date(…)` default is a `Date`                                                                                                                        |
 | `defaultUnreadable` | `true` when the input starts out with a value the scan could not evaluate, such as the result of a function call (since 22.7.0). `defaultValue` is missing then. Not set for `input<string>()`, which starts out `undefined` |
 | `required`          | `true` for a required input: `input.required()`, `model.required()` or `@Input({ required: true })`                                                                                                                          |

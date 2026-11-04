@@ -26,6 +26,9 @@ These count for `strictShowcase: true`, which ends the build with
       compiled package that isn't a plain literal there. Use a local `const` or the literal.
     - **`… refers back to itself`**: a circular constant. Break the cycle.
     - **`… is a function or class, which only exists at runtime`**: use a value, not a function or class.
+    - **`: new Date() is the current time, which differs in every build`**: the constant holds `new Date()`. Write the
+      date out.
+    - **`: new Date(…) is an invalid date`**: the constant holds a `new Date(…)` whose arguments make no date.
 - **`<Class> declares @Showcase providers (…), which are deprecated and will be removed in 23.0.0; …`**: move them to
   `defineConfig({ appProviders })` in `ng-prism.config.ts`, or use a component page.
 - **`<Class> has @Showcase without a "title" field, skipping. …`**: add a `title`.

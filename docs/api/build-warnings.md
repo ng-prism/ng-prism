@@ -119,7 +119,7 @@ Diagnostic · `builder/scanner/showcase-diagnostics.ts`
 Diagnostic · `builder/scanner/showcase-diagnostics.ts`
 
 - **Cause:** `new Date()` without arguments (since 22.8.0). A variant would show a different moment in every build, and a visual regression baseline would never match.
-- **Fix:** write the date out. For a day without a time, the local form `new Date(2026, 3, 28)` is midnight of that day in every time zone, see [Dates](guide/variants.md#dates).
+- **Fix:** write the date out, see [Dates](guide/variants.md#dates).
 
 ### An invalid date
 

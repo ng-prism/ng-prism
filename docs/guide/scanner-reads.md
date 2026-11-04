@@ -25,7 +25,7 @@ Each of these works as long as every part of it does: `5 * MB` works while `MB` 
 - **A spread** merges into the literal around it, and a later key wins over an earlier one, as in JavaScript.
 - **A constant from a compiled package** is read from that package's `.d.ts`, which keeps a value only when it was a plain literal. `export const MAX_FILES = 3` arrives as `MAX_FILES = 3`; `export const MB = 1024 * 1024` arrives as `MB: number` and cannot be read.
 - **A constant is read as its initializer says.** Changes made to it at runtime, such as `OPTIONS.push('pdf')` or `CONFIG.size = 'l'`, never happen for the scanner, so keep showcase values in constants that nothing changes.
-- **A `Date` keeps the arguments you wrote.** One string or number, or the year, the month and up to five more numbers. The styleguide makes the `Date` when it loads, in the time zone of the browser, so it is the `Date` your code makes, see [Dates](guide/variants.md#dates).
+- **A `Date` takes one string or number,** or the year, the month and up to five more numbers. Which form to write is under [Dates](guide/variants.md#dates).
 
 ## What it drops
 
