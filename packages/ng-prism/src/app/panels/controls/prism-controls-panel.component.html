@@ -57,6 +57,12 @@
                                             [value]="asString(rendererService.inputValues()[input.name])"
                                             (valueChange)="rendererService.updateInput(input.name, $event)" />
                                     }
+                                    @case ('date') {
+                                        <prism-date-control
+                                            [value]="rendererService.inputValues()[input.name]"
+                                            [emptyValue]="input.emptyValue"
+                                            (valueChange)="rendererService.updateInput(input.name, $event)" />
+                                    }
                                     @default {
                                         <prism-json-control
                                             [value]="rendererService.inputValues()[input.name]"
