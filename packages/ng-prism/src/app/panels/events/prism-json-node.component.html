@@ -71,6 +71,9 @@
     @case ('number') {
         <span class="json-number">{{ value() }}</span>
     }
+    @case ('date') {
+        <span class="json-date">{{ dateText() }}</span>
+    }
     @case ('boolean') {
         <span class="json-boolean">{{ value() }}</span>
     }

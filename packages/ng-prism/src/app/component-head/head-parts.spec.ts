@@ -140,6 +140,10 @@ describe('formatPartDefault', () => {
         expect(formatPartDefault(input({ defaultValue: 'a\\b' }))).toBe("'a\\\\b'");
     });
 
+    it('shows a Date default as its day', () => {
+        expect(formatPartDefault(input({ type: 'date', defaultValue: new Date(2026, 0, 1) }))).toBe('2026-01-01');
+    });
+
     it('shows … for a default the scan could not read', () => {
         expect(formatPartDefault(input({ defaultUnreadable: true }))).toBe('…');
     });
