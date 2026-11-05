@@ -74,8 +74,9 @@
 
    It scrolls with the content, the background it copies does not. The
    renderer keeps the scroll position in two properties while the layer is
-   drawn (pinGroundLayer), and the translation puts it back over the part on
-   screen. */
+   drawn, and the translation puts it back over the part on screen. Moved
+   there, it holds the scroll range open, so pinGroundLayer lets the stage
+   clamp whenever the canvas changes size or zoom. */
 .prism-canvas-stage[data-sim-vision]::before {
     position: absolute;
     inset: 0;

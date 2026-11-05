@@ -132,6 +132,7 @@ export class PrismRendererComponent {
         read: ViewContainerRef
     });
     private readonly stage = viewChild.required<ElementRef<HTMLElement>>('stage');
+    private readonly demoWrap = viewChild.required<ElementRef<HTMLElement>>('demoWrap');
     private componentRef: ComponentRef<unknown> | null = null;
     private outputSubscriptions: Array<{ unsubscribe(): void }> = [];
     /** What the instance on the canvas renders, `null` without one: a variant switch to another render creates a new instance. */
@@ -275,8 +276,9 @@ export class PrismRendererComponent {
             if (!this.visionGround()) return;
 
             const stage = this.stage().nativeElement;
+            const content = this.demoWrap().nativeElement;
 
-            onCleanup(untracked(() => pinGroundLayer(stage)));
+            onCleanup(untracked(() => pinGroundLayer(stage, content)));
         });
 
         // What the layers and the toggles of the tools menu depend on. Written from the marker alone and never
