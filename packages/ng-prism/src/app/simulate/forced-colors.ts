@@ -184,12 +184,13 @@ const COLORS: readonly string[] = [
 const GROUND: readonly string[] = ['background-color: Canvas', 'box-shadow: none'];
 
 /**
- * The elements the CDK overlay lays out around a panel: a wrapper as large as the viewport for a
- * dialog or a toast, a box around a connected panel, a backdrop. All transparent on purpose, and all
- * large and positioned, so a ground on one covers the page, the shell included. The panel inside,
- * where the content is, is painted.
+ * The elements the CDK overlay lays out around a panel: the popover that hosts every overlay in the
+ * top layer, a wrapper as large as the viewport for a dialog or a toast, a box around a connected
+ * panel, a backdrop. All transparent on purpose, and all large and positioned, so a ground on one
+ * covers the page, the shell included. Without a position strategy the popover is all there is
+ * around the panel. The panel inside, where the content is, is painted.
  */
-const OVERLAY_STRUCTURE = ':not(:where(.cdk-global-overlay-wrapper, .cdk-overlay-connected-position-bounding-box, .cdk-overlay-backdrop))';
+const OVERLAY_STRUCTURE = ':not(:where(.cdk-overlay-popover, .cdk-global-overlay-wrapper, .cdk-overlay-connected-position-bounding-box, .cdk-overlay-backdrop))';
 
 // The tail of a selector for the elements a user agent colors on its own. Nothing but `:where()`
 // weighs more than the universal selector, so each of them weighs nothing.

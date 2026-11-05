@@ -30,7 +30,7 @@ function mediaGroup(...rules: object[]): object {
 
 const NONE: ForcedColorRules = { exempt: [], gradients: [] };
 
-const OVERLAY_STRUCTURE = ':not(:where(.cdk-global-overlay-wrapper, .cdk-overlay-connected-position-bounding-box, .cdk-overlay-backdrop))';
+const OVERLAY_STRUCTURE = ':not(:where(.cdk-overlay-popover, .cdk-global-overlay-wrapper, .cdk-overlay-connected-position-bounding-box, .cdk-overlay-backdrop))';
 
 describe('collectForcedColorRules', () => {
     afterEach(() => {
@@ -269,6 +269,7 @@ describe('forcedColorsCss', () => {
                     <div class="cdk-overlay-backdrop" id="backdrop"></div>
                     <div class="cdk-global-overlay-wrapper" id="wrapper"><div class="cdk-overlay-pane" id="dialog"><p id="dialog-text">t</p></div></div>
                     <div class="cdk-overlay-connected-position-bounding-box" id="bounding-box"><div class="cdk-overlay-pane" id="menu-pane"></div></div>
+                    <div class="cdk-overlay-popover" popover="manual" id="popover"><div class="cdk-overlay-pane" id="bare-pane"><p id="bare-text">t</p></div></div>
                 </div>
                 <div id="shell"><button id="shell-button">s</button></div>`;
             document.body.appendChild(root);
@@ -299,7 +300,8 @@ describe('forcedColorsCss', () => {
         });
 
         it('leaves the layout elements of the CDK overlay unpainted, which are as large as the viewport and transparent on purpose', () => {
-            for (const selector of ['#wrapper', '#bounding-box', '#backdrop']) {
+            // The popover is the host of every overlay; without a position strategy nothing else lies between it and the pane.
+            for (const selector of ['#wrapper', '#bounding-box', '#backdrop', '#popover']) {
                 const forced = forcedOn(css, at(selector));
 
                 expect(forced['color']).toBe('CanvasText');
@@ -309,7 +311,7 @@ describe('forcedColorsCss', () => {
         });
 
         it('paints the panel inside the wrapper and what is in it', () => {
-            for (const selector of ['#dialog', '#menu-pane', '#dialog-text']) {
+            for (const selector of ['#dialog', '#menu-pane', '#dialog-text', '#bare-pane', '#bare-text']) {
                 expect(forcedOn(css, at(selector))).toMatchObject({
                     color: 'CanvasText',
                     'background-color': 'Canvas',
