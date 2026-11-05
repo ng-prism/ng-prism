@@ -12,18 +12,41 @@ Everything deprecated in 22.x is removed in 23.0.0, see [Removed in 23.0.0](#rem
 
 ## Upgrading to 22.8.0
 
-22.8.0 reads `Date` values in showcases and gives `Date` inputs a date field. No `@Showcase` has to change.
+22.8.0 reads `Date` values in showcases, gives `Date` inputs a date field, and lets the canvas simulate reduced motion, a color scheme, forced colors and colour vision deficiencies, with a new tools menu around it. No `@Showcase` has to change, and nothing in the config either.
 
 **Breaking.**
 
 - **A `Date` input is `type: 'date'`.** [`InputMeta.type`](api/types.md#inputmeta) was `'object'` for `Date`, `Date | null` and `Date | undefined`. A plugin control whose `matchType` looks for `'object'` no longer gets these inputs, and code that switches over `type` meets a new value.
 - **`model()` changes reach the panels.** Up to 22.7.x a component that set its own `model()` went unheard. Now the Events panel logs the change as `<name>Change`, the control shows the new value, and the input counts as changed, so **Reset** appears and the value is kept across a reload.
+- **The tools menu has new names.** Its first group is **Background** instead of **Canvas**, and the menu and the sliders button on the canvas rail are named `Background, state, zoom, width and simulate` instead of `Canvas, state, zoom and width`; the button's name appends what is set, such as `(simulation on)`. The choices are chips and segments now, most of them with a preview, and `Light` and `Dark` appear twice, under Background and under Color scheme. Only an end-to-end test that finds the button, a group or a choice by its name is affected. See [Canvas rail and tools](guide/styleguide-ui.md#canvas-rail-and-tools).
+
+**Deprecated.**
+
+- **`data-theme` on `<html>`.** The styleguide sets its theme as `data-prism-theme` (`dark` or `light`) and reads only that. `data-theme` keeps the same value until 23.0.0, so that styles keyed on it still work. It goes because a library whose own theme hangs on `data-theme` follows the styleguide's theme through it. An attribute cannot warn, so search the styles and scripts of your styleguide app (a component page, a global stylesheet, the panel of a plugin of your own) for `data-theme` and replace it with `data-prism-theme`:
+
+    ```css
+    /* before 22.8.0 */
+    :host-context(html[data-theme='light']) .changelog {
+        color: #0f172a;
+    }
+
+    /* from 22.8.0 */
+    :host-context(html[data-prism-theme='light']) .changelog {
+        color: #0f172a;
+    }
+    ```
+
+    See [Dark and Light Themes](guide/theming.md#dark-and-light-themes).
 
 **New.**
 
 - **`Date` values.** `new Date(…)` with arguments the scanner can read is a showcase value, in variants and as the default of an input. `new Date()` without arguments is dropped with a warning, see [Dates](guide/variants.md#dates).
 - **A date field** for `Date` inputs in the Controls panel, see [Input types and controls](guide/inputs-and-controls.md#input-types-and-controls).
 - **Readable dates** in the Events panel, the JSON editor, the parts popover and the API page of `@ng-prism/plugin-jsdoc`. `formatDateValue` from `@ng-prism/core/plugin` shows a `Date` the same way in a plugin.
+- **Simulate in the canvas.** A **Simulate** group in the tools menu shows the component under reduced motion, a light or dark color scheme, an approximation of forced colors and four colour vision deficiencies or a blur: in the Playground, in every Overview cell and in the CDK overlays it opens, never in the styleguide around it. Your `@media` rules and `matchMedia` follow without a change. The simulation stays across variants and components, is kept in the URL (`motion`, `scheme`, `forced`, `vision`) and in the session, and capture mode ignores it. Under a simulated color scheme the canvas takes a light or dark background until you pick one, and the live a11y audit runs again under a simulated color scheme or forced colors and says so. See [Simulate](guide/styleguide-ui.md#simulate), [Links & State](guide/url-state.md#simulation) and [Under a simulation](guide/accessibility.md#under-a-simulation).
+- **`colorScheme`** in the config switches a theme of your library that hangs on a class or an attribute along with the simulated color scheme, see [`colorScheme`](api/ng-prism-config.md#colorscheme).
+- **A tools menu that shows what each choice does:** a swatch per background, painted the way the canvas paints it, an icon per pseudo-class, a bar to scale over each width, and a preview of each simulated condition.
+- **Four more icons** in `ICON_NAMES`, for a plugin: `mouse-pointer`, `mouse-pointer-click`, `scan` and `keyboard`, see [Plugin UI Kit: Icons](api/plugin-ui.md#icons).
 
 ## Upgrading to 22.7.0
 
@@ -286,5 +309,6 @@ No breaking changes and no deprecations.
 | `--prism-spectrum`, `--prism-primary-from`, `--prism-primary-to`                                                                                | 22.7.0 | `--prism-brand-gradient`, and `--prism-primary-fill` for fills                                                | [`theme`](api/ng-prism-config.md#theme), [Theming: Brand](guide/theming.md#brand)                              |
 | `variants`, `states`, `providers`, `bg`, `canvasLayout`, `host`, `imports` or `renderPage` on a class with `@Injectable`, `@Service` or `@Pipe` | 22.7.0 | Remove the fields; move a demo to a component page                                                            | [Services and pipes](api/showcase-config.md#services-and-pipes)                                                |
 | A `@Pipe` with `standalone: false` and one of those fields                                                                                      | 22.7.0 | Make the pipe standalone                                                                                      | [An NgModule pipe that is still a component](api/build-warnings.md#an-ngmodule-pipe-that-is-still-a-component) |
+| `data-theme` on `<html>`                                                                                                                        | 22.8.0 | `data-prism-theme`                                                                                            | [Dark and Light Themes](guide/theming.md#dark-and-light-themes)                                                |
 
 From 23.0.0 a class with `@Injectable` or `@Service` and one of those fields is shown as a service and a standalone `@Pipe` as a pipe, with the fields dropped; a pipe declared in an NgModule is not shown at all.

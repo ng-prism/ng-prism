@@ -111,5 +111,6 @@ Colours, fonts and the density of the styleguide are CSS custom properties. Over
 
 - [`urlState`](api/ng-prism-config.md#urlstate) and [`persistState`](api/ng-prism-config.md#persiststate) switch off what the styleguide keeps in the URL and across reloads, see [Links & State](guide/url-state.md).
 - [`a11y`](api/ng-prism-config.md#a11y) points the build at a library-wide a11y report and sets its limits, see [A11y Reports](guide/a11y-reports.md).
+- [`colorScheme`](api/ng-prism-config.md#colorscheme) switches a theme of your library that hangs on a class or an attribute along with the color scheme the canvas simulates, see [Simulate](guide/styleguide-ui.md#simulate).
 - [`strictShowcase`](api/ng-prism-config.md#strictshowcase) fails the build when the scan has to drop a `@Showcase` value, see [Build Warnings](api/build-warnings.md).
 - `themeStylesheet`, `ui`, `headless` and `appComponent` have no effect, see [Deprecated options](api/ng-prism-config.md#deprecated-options).

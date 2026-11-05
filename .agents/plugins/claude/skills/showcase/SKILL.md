@@ -309,6 +309,12 @@ node "${CLAUDE_SKILL_DIR}/scripts/screenshot.mjs" --pipe TimeAgoPipe
 
 - By default it opens the variant in capture mode (`?capture=1`: the component alone on its background, motion
   frozen) and screenshots `.demo-wrap`. `--shell` takes the whole window, styleguide UI included.
+- Capture mode never simulates (since 22.8): the tools menu's Simulate group and its URL parameters `motion`,
+  `scheme`, `forced` and `vision` don't reach a capture, which shows the component under the browser's own
+  conditions. To look at a variant under reduced motion, a light or dark color scheme, approximated forced colors or a
+  colour vision deficiency, open it without `capture=1` and with the parameter in a browser tool, e.g.
+  `http://localhost:4400/?component=<ClassName>&variant=<index>&scheme=dark` (or `motion=reduce`, `forced=active`,
+  `vision=deuteranopia`).
 - A variant without `bg`, or with `bg: 'transparent'`, comes back with a transparent background (a PNG with alpha).
   Viewers show transparent pixels differently; if a light or dark component is hard to judge, look at `--shell` too.
 - `--state <index>` captures the variant in one of the component's `states` (`@Showcase({ states })`; 0-based, in
