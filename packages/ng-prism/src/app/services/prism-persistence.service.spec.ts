@@ -436,6 +436,37 @@ describe('PrismPersistenceService', () => {
             expect(TestBed.inject(PrismSimulationService).state()).toEqual(DEFAULT_SIMULATION);
         });
 
+        it('writes a change that comes after the first write', () => {
+            jest.useFakeTimers();
+            const service = setup({ components: [] });
+            const sim = TestBed.inject(PrismSimulationService);
+            const appRef = TestBed.inject(ApplicationRef);
+            const stored = (): unknown => JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? 'null')?.simulation;
+
+            service.init();
+            appRef.tick();
+            jest.advanceTimersByTime(250);
+
+            expect(stored()).toEqual(DEFAULT_SIMULATION);
+
+            sim.set({ vision: 'tritanopia' });
+            appRef.tick();
+            jest.advanceTimersByTime(250);
+
+            expect(stored()).toEqual({ ...DEFAULT_SIMULATION, vision: 'tritanopia' });
+        });
+
+        it('restores the session under urlState: false, whatever the query names', () => {
+            // Nothing applies the URL then, so a parameter of the same name that belongs to someone else must not block it.
+            window.history.replaceState({}, '', '/?vision=deuteranopia&motion=reduce');
+            store({ scheme: 'dark' });
+            const service = setup({ components: [] }, { urlState: false });
+
+            service.init();
+
+            expect(TestBed.inject(PrismSimulationService).state()).toEqual({ ...DEFAULT_SIMULATION, scheme: 'dark' });
+        });
+
         it('restores the session where the URL says nothing about the simulation', () => {
             window.history.replaceState({}, '', '/?panel=a11y');
             store({ scheme: 'dark' });

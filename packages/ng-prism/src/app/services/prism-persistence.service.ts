@@ -76,7 +76,10 @@ export class PrismPersistenceService {
                 this.a11yPerspective.mode.set(parsed.a11y.perspective);
             }
             // A link that names the simulation, valid or not, is the reader's choice of the moment: it wins.
-            if (parsed.simulation !== undefined && !hasSimulationParams(new URLSearchParams(window.location.search))) {
+            // Without URL state nothing applies the link, and a parameter of the same name is someone else's.
+            const linked = this.config.urlState !== false && hasSimulationParams(new URLSearchParams(window.location.search));
+
+            if (parsed.simulation !== undefined && !linked) {
                 this.simulationService.set(parseSimulation(parsed.simulation));
             }
 
