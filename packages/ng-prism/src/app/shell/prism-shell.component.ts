@@ -17,11 +17,13 @@ import { PrismMobileLayoutService } from '../services/prism-mobile-layout.servic
 import { PrismNavigationService } from '../services/prism-navigation.service.js';
 import { PrismPanelService } from '../services/prism-panel.service.js';
 import { PrismPersistenceService } from '../services/prism-persistence.service.js';
+import { PrismSimulationService } from '../services/prism-simulation.service.js';
 import { PrismThemeService } from '../services/prism-theme.service.js';
 import { PrismUrlStateService } from '../services/prism-url-state.service.js';
 import { PrismVariantBgService } from '../services/prism-variant-bg.service.js';
 import { PrismLogoComponent } from '../shared/prism-logo.component.js';
 import { PrismSidebarComponent } from '../sidebar/prism-sidebar.component.js';
+import { overlayGround } from '../simulate/ground.js';
 import { PrismSimulationRuntime } from '../simulate/prism-simulation-runtime.service.js';
 import { PrismVisionFiltersComponent } from '../simulate/prism-vision-filters.component.js';
 import { PRISM_CONFIG } from '../tokens/prism-tokens.js';
@@ -71,10 +73,15 @@ export class PrismShellComponent {
     private readonly urlStateService = inject(PrismUrlStateService);
     private readonly persistenceService = inject(PrismPersistenceService);
     private readonly simulationRuntime = inject(PrismSimulationRuntime);
+    private readonly simulation = inject(PrismSimulationService);
     private readonly variantBg = inject(PrismVariantBgService);
 
-    /** Overlays on the canvas follow its ground: light and dark are absolute, the others follow the theme. */
-    protected readonly overlayTokens = computed(() => canvasOverlayTokens(this.variantBg.effective()));
+    /**
+     * Overlays on the canvas follow its ground: light and dark are absolute, the
+     * others follow the theme, and under forced colors the ground is `Canvas` in
+     * their palette.
+     */
+    protected readonly overlayTokens = computed(() => canvasOverlayTokens(overlayGround(this.variantBg.effective(), this.simulation.state())));
 
     protected readonly viewPanels = this.panelService.visibleViewPanels;
 

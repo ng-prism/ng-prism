@@ -40,6 +40,7 @@ import { PrismPseudoStateService } from '../services/prism-pseudo-state.service.
 import { PrismRendererService } from '../services/prism-renderer.service.js';
 import { PrismSimulationService } from '../services/prism-simulation.service.js';
 import { PrismVariantBgService } from '../services/prism-variant-bg.service.js';
+import { pinGroundLayer } from '../simulate/ground-layer.js';
 import { groundSimulation } from '../simulate/ground.js';
 import { keepScopeRoot } from '../simulate/keep-scope-root.js';
 import { PRISM_RENDERER_HOOKS } from '../tokens/prism-tokens.js';
@@ -96,6 +97,8 @@ export class PrismRendererComponent {
 
     /** How the simulation paints the stage's ground; nothing while nothing is simulated, so capture mode never sees it. */
     protected readonly ground = computed(() => groundSimulation(this.simulation.scopeRoot(), this.simulation.forcedActive()));
+    /** Whether the stage draws the vision ground layer; a switch between two settings keeps it. */
+    private readonly visionGround = computed(() => this.ground().vision !== null);
 
     protected readonly VIEWPORT_MIN = VIEWPORT_MIN;
     protected readonly VIEWPORT_MAX = VIEWPORT_MAX;
@@ -128,6 +131,7 @@ export class PrismRendererComponent {
     private readonly outlet = viewChild.required('outlet', {
         read: ViewContainerRef
     });
+    private readonly stage = viewChild.required<ElementRef<HTMLElement>>('stage');
     private componentRef: ComponentRef<unknown> | null = null;
     private outputSubscriptions: Array<{ unsubscribe(): void }> = [];
     /** What the instance on the canvas renders, `null` without one: a variant switch to another render creates a new instance. */
@@ -265,6 +269,15 @@ export class PrismRendererComponent {
 
         // The shown component is the scope root of the simulation in the Playground.
         keepScopeRoot(this.rendererService.renderedElement);
+
+        // The vision ground layer stays over the scrolled-to part of the stage, as long as it is drawn.
+        effect((onCleanup) => {
+            if (!this.visionGround()) return;
+
+            const stage = this.stage().nativeElement;
+
+            onCleanup(untracked(() => pinGroundLayer(stage)));
+        });
 
         // What the layers and the toggles of the tools menu depend on. Written from the marker alone and never
         // read back here: `null` whenever no state layer is applied, so the fit of the previous state cannot linger.

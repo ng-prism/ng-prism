@@ -48,10 +48,17 @@
    there. The stage carries the palette's color-scheme meanwhile (the
    renderer binds it), so this Canvas is the one the component is forced
    against. The class outweighs the [data-bg] rules of CANVAS_BG_STYLES,
-   which come later. The edge stays: it is chrome. */
+   which come later. The edge stays: it is chrome.
+
+   The measurement colours follow the ground, not the background: the canvas
+   wrap carries the overlay tokens of the palette then (overlayGround), and
+   inherit takes them back from the [data-bg] rules that re-point them. */
 .prism-canvas-stage[data-sim-forced] {
     background-color: Canvas;
     background-image: none;
+
+    --prism-measure: inherit;
+    --prism-measure-plate: inherit;
 }
 
 /* The ground under a vision setting: a copy of the stage's background, drawn
@@ -59,9 +66,16 @@
    component is filtered with it. Under forced colors it copies Canvas.
 
    It is the stage's first box and positioned without a z-index, so every
-   child of the stage paints over it, and none of them is filtered with it:
-   all of them are positioned (crosshair, rulers, measure, pills, grips and
-   .demo-wrap). A child that is not would paint under it. */
+   child of the stage paints over it, unfiltered: all of them are positioned
+   (crosshair, rulers, measure, pills, grips and .demo-wrap). A child that is
+   not would paint under it. The stage's own edge, an outline, is painted
+   before positioned boxes and would be covered too; the clip leaves its 1px
+   free.
+
+   It scrolls with the content, the background it copies does not. The
+   renderer keeps the scroll position in two properties while the layer is
+   drawn (pinGroundLayer), and the translation puts it back over the part on
+   screen. */
 .prism-canvas-stage[data-sim-vision]::before {
     position: absolute;
     inset: 0;
@@ -69,6 +83,15 @@
     content: '';
     background: inherit;
     filter: var(--prism-sim-filter);
+    clip-path: inset(1px);
+    transform: translate(var(--prism-sim-scroll-x, 0), var(--prism-sim-scroll-y, 0));
+}
+
+/* axe takes a positioned pseudo-element with a background behind the text as
+   covering it, and leaves every colour contrast undecided. The live audit
+   (canvas-audit.ts) measures against the stage's own ground instead. */
+.prism-canvas-stage[data-sim-vision][data-prism-auditing]::before {
+    content: none;
 }
 
 .stage-crosshair {

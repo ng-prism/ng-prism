@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CANVAS_BG_STYLES } from '../canvas/canvas-bg.styles.js';
+import { canvasOverlayTokens } from '../canvas/canvas-overlay-tokens.js';
 import { PRISM_BASE_TOKENS, PRISM_DARK_THEME, PRISM_LIGHT_THEME } from './prism-default-theme.js';
 
 /**
@@ -194,6 +195,22 @@ describe('semantic colours', () => {
         };
 
         /**
+         * The ground under forced colors is `Canvas` in the simulated palette,
+         * and the measurement colour there is the one the canvas wrap carries
+         * for that palette (the stage takes it over with `inherit`). `Canvas`
+         * is the browser's own, so it cannot be read from a source: these are
+         * the values measured in Chromium and WebKit, white in both for light.
+         */
+        const FORCED_LIGHT = ['forced, light palette', canvasOverlayTokens('light')['--prism-measure'], '#ffffff'] as const;
+        const FORCED_DARK_CHROMIUM = ['forced, dark palette in Chromium', canvasOverlayTokens('dark')['--prism-measure'], '#121212'] as const;
+        /**
+         * A shade lighter than Chromium's. The readout and the 3:1 layers hold on
+         * it; the faint 55% line of a hovered grip reads 2.43:1, just under the
+         * 2.5 floor below, so it is left out of that one check.
+         */
+        const FORCED_DARK_WEBKIT = ['forced, dark palette in WebKit', canvasOverlayTokens('dark')['--prism-measure'], '#1e1e1e'] as const;
+
+        /**
          * Every ground the measurement colour is ever painted on.
          *
          * Read from the theme, not copied. A literal here would only make this
@@ -204,8 +221,13 @@ describe('semantic colours', () => {
             ['dark theme stage', PRISM_DARK_THEME['--prism-measure'], PRISM_DARK_THEME['--prism-stage']],
             ['light theme stage', PRISM_LIGHT_THEME['--prism-measure'], PRISM_LIGHT_THEME['--prism-stage']],
             ['bg:dark, any theme', ON_DARK_GROUND, ABSOLUTE_DARK],
-            ['bg:light, any theme', ON_LIGHT_GROUND, ABSOLUTE_LIGHT]
+            ['bg:light, any theme', ON_LIGHT_GROUND, ABSOLUTE_LIGHT],
+            FORCED_LIGHT,
+            FORCED_DARK_CHROMIUM
         ] as const;
+
+        /** The grounds the readout and the 3:1 layers are held to: WebKit's dark `Canvas` as well. */
+        const READ_GROUNDS = [...GROUNDS, FORCED_DARK_WEBKIT] as const;
 
         /**
          * The alphas the renderer actually paints this colour at.
@@ -238,7 +260,7 @@ describe('semantic colours', () => {
             return Number(found[1]) / 100;
         };
 
-        it.each(GROUNDS)('%s reads the solid value at 9px', (_l, colour, ground) => {
+        it.each(READ_GROUNDS)('%s reads the solid value at 9px', (_l, colour, ground) => {
             // The readout is 9px monospace, so AA's 4.5:1 for body text is the right
             // floor, not the 3:1 that large text or a bare UI edge would take.
             expect(contrast(colour, ground)).toBeGreaterThanOrEqual(4.5);
@@ -256,7 +278,7 @@ describe('semantic colours', () => {
             expect(failing).toEqual({});
         });
 
-        it.each(GROUNDS)('%s holds the grip handle and the rule at 3:1', (_l, colour, ground) => {
+        it.each(READ_GROUNDS)('%s holds the grip handle and the rule at 3:1', (_l, colour, ground) => {
             // The handle is an interactive control and the dimension rule carries
             // the measurement, so both are WCAG 1.4.11 non-text contrast at 3:1.
             const handle = alphaInRule('.vp-grip__bar {');

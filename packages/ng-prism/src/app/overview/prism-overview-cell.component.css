@@ -64,7 +64,11 @@
     position: relative;
 }
 
-/* First box of the stage, so .cell__mount, positioned, paints over it. */
+/* First box of the stage, so .cell__mount, positioned, paints over it. The
+   frame is an outline, painted before it, so the clip leaves its 1px and the
+   rounded corner free. Unlike the Playground's, the layer needs no pin (the
+   cell does not scroll) and no exception for the live audit (it audits the
+   Playground only). */
 .cell__stage[data-sim-vision]::before {
     position: absolute;
     inset: 0;
@@ -72,6 +76,7 @@
     content: '';
     background: inherit;
     filter: var(--prism-sim-filter);
+    clip-path: inset(1px round calc(var(--radius-sm) - 1px));
 }
 
 /* The containing block for whatever the component positions absolutely, as

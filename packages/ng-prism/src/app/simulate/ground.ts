@@ -1,6 +1,7 @@
 import type { CanvasBg } from '../../shared/canvas-bg.type.js';
 import { DEFAULT_VARIANT_BG } from '../../shared/variant-bg.js';
 import type { ScopeRootState } from './scope-root.js';
+import { forcedPalette, type Simulation } from './simulation.js';
 
 /**
  * The background the Playground paints, with the emulated color scheme in the
@@ -36,6 +37,16 @@ export function playgroundGround(o: {
  */
 export function overviewGround(declared: CanvasBg | null, scheme: 'light' | 'dark' | null): CanvasBg {
     return declared ?? scheme ?? DEFAULT_VARIANT_BG;
+}
+
+/**
+ * The ground the overlays on the canvas are coloured for (`canvasOverlayTokens`):
+ * the canvas background, or under forced colors their palette. The ground is
+ * `Canvas` then, whatever the background, so a `light` background under the
+ * dark palette is a dark ground.
+ */
+export function overlayGround(bg: CanvasBg, sim: Simulation): CanvasBg {
+    return forcedPalette(sim) ?? bg;
 }
 
 /**

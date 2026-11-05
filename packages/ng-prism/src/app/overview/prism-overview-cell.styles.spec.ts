@@ -28,4 +28,9 @@ describe('prism-overview-cell layout', () => {
         expect(rule('.cell__stage[data-sim-vision]::before')).toMatch(/position:\s*absolute/);
         expect(rule('.cell__stage[data-sim-vision]')).toMatch(/position:\s*relative/);
     });
+
+    // The frame is an inset outline, painted before the positioned layer: the layer stays inside it.
+    it('should keep the frame visible over the ground layer', () => {
+        expect(rule('.cell__stage[data-sim-vision]::before')).toMatch(/clip-path:\s*inset\(1px round calc\(var\(--radius-sm\) - 1px\)\)/);
+    });
 });

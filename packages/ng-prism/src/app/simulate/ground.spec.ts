@@ -1,6 +1,7 @@
 import { DEFAULT_VARIANT_BG } from '../../shared/variant-bg.js';
-import { groundSimulation, NO_GROUND_SIMULATION, overviewGround, playgroundGround } from './ground.js';
+import { groundSimulation, NO_GROUND_SIMULATION, overlayGround, overviewGround, playgroundGround } from './ground.js';
 import type { ScopeRootState } from './scope-root.js';
+import { DEFAULT_SIMULATION } from './simulation.js';
 
 describe('playgroundGround', () => {
     const base = { override: null, recommended: null, chosen: false, canvasBg: 'dots' as const, scheme: 'dark' as const };
@@ -80,5 +81,22 @@ describe('groundSimulation', () => {
             filter: 'blur(1.5px)',
             colorScheme: 'light'
         });
+    });
+});
+
+describe('overlayGround', () => {
+    const forced = { ...DEFAULT_SIMULATION, forced: 'active' as const };
+
+    it('is the canvas background while forced colors are off', () => {
+        expect(overlayGround('light', DEFAULT_SIMULATION)).toBe('light');
+        expect(overlayGround('dots', { ...DEFAULT_SIMULATION, scheme: 'dark', vision: 'blurred' })).toBe('dots');
+    });
+
+    it('is the palette of forced colors over any background', () => {
+        // The ground is `Canvas` then, so a `light` background under the dark palette is a dark ground.
+        expect(overlayGround('light', forced)).toBe('dark');
+        expect(overlayGround('dots', forced)).toBe('dark');
+        expect(overlayGround('dark', { ...forced, scheme: 'light' })).toBe('light');
+        expect(overlayGround('checker', { ...forced, scheme: 'dark' })).toBe('dark');
     });
 });
