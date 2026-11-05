@@ -14,6 +14,8 @@ import type { MetricVariant } from './head-metrics.js';
 })
 export class PrismStatComponent {
     readonly label = input.required<string>();
+    /** What the value was measured under, small and muted below the label. */
+    readonly note = input<string | null>(null);
     readonly threshold = input('');
     readonly value = input.required<string | number>();
     readonly variant = input<MetricVariant>('ok');

@@ -20,6 +20,8 @@ export interface HeadMetric {
     /** What the value is graded against, for the readout's Threshold column. */
     threshold: string;
     variant: MetricVariant;
+    /** What the value was measured under, when that is not the plain environment: `under Dark scheme`. */
+    note?: string;
 }
 
 /** What the head knows about the component it introduces. */
@@ -29,6 +31,8 @@ export interface HeadMetricInput {
     /** The live audit of the current variant, or `null` before it ran. */
     a11y: A11yScoreResult | null;
     a11yThresholds: A11yThresholds;
+    /** What the canvas simulates while the live audit runs, as the simulation names it, or `null` for the real environment. */
+    a11yCondition: string | null;
 }
 
 interface CoverageMeta {
@@ -76,7 +80,8 @@ export function headMetrics(input: HeadMetricInput): HeadMetric[] {
             label: 'A11y score',
             value: a11y === null ? '—' : String(a11y.score),
             threshold: `≥ ${input.a11yThresholds.score}`,
-            variant: a11y === null ? 'none' : deriveA11ySummary(a11y, input.a11yThresholds).variant
+            variant: a11y === null ? 'none' : deriveA11ySummary(a11y, input.a11yThresholds).variant,
+            ...(input.a11yCondition ? { note: `under ${input.a11yCondition}` } : {})
         },
         {
             id: 'vrt',
@@ -102,6 +107,18 @@ const SEVERITY: Record<MetricVariant, number> = {
     warn: 1,
     danger: 2
 };
+
+/**
+ * The chip's tooltip and the tail of its accessible name: the shown metric's
+ * note first, so a figure measured under a simulation never reads as the plain
+ * one, then how many metrics the readout lists.
+ */
+export function chipTitle(chip: GaugeChip): string {
+    const { metric, measured } = chip;
+    const count = `${measured} ${measured === 1 ? 'metric' : 'metrics'} measured. Show all`;
+
+    return metric.note ? `${metric.note.charAt(0).toUpperCase()}${metric.note.slice(1)}. ${count}` : count;
+}
 
 /**
  * The one metric the chip shows: the worst, ties resolved by source order so

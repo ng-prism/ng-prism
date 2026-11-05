@@ -102,7 +102,8 @@ export class PrismComponentHeadComponent {
         headMetrics({
             meta: this.componentMeta(),
             a11y: this.auditService.scoreResult(),
-            a11yThresholds: this.a11yThresholds()
+            a11yThresholds: this.a11yThresholds(),
+            a11yCondition: this.auditService.condition()
         })
     );
 

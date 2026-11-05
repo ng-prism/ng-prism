@@ -2,7 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { booleanAttribute, ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { toneForStatus } from '../shared/badge.types.js';
 import { PrismBadgeComponent } from '../shared/prism-badge.component.js';
-import { gaugeChip, type HeadMetric } from './head-metrics.js';
+import { chipTitle, gaugeChip, type HeadMetric } from './head-metrics.js';
 import { PrismStatComponent } from './prism-stat.component.js';
 
 /**
@@ -34,7 +34,6 @@ export class PrismHeadGaugeComponent {
     protected readonly title = computed(() => {
         const chip = this.chip();
 
-        if (!chip) return '';
-        return `${chip.measured} ${chip.measured === 1 ? 'metric' : 'metrics'} measured. Show all`;
+        return chip ? chipTitle(chip) : '';
     });
 }

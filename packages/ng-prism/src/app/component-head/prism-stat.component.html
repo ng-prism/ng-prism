@@ -7,8 +7,11 @@
         ><span
             class="stat__dot"
             aria-hidden="true"></span
-        >{{ label() }}</span
-    >
+        >{{ label() }}
+        @if (note()) {
+            <small class="stat__note">{{ note() }}</small>
+        }
+    </span>
     <span class="stat__thr">{{ threshold() }}</span>
     <span class="stat__val">{{ value() }}</span>
 </div>

@@ -24,6 +24,14 @@
     white-space: nowrap;
 }
 
+.stat__note {
+    display: block;
+    margin-left: calc(6px + var(--sp-3));
+    font-size: var(--fs-xs);
+    color: var(--prism-text-muted);
+    white-space: normal;
+}
+
 .stat__thr {
     font-family: var(--font-mono);
     font-size: var(--fs-sm);

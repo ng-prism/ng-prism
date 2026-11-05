@@ -1,4 +1,4 @@
-import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
+import { computed, DestroyRef, inject, Injectable, type Signal, signal } from '@angular/core';
 import type { AxeResults, Result, RunOptions } from 'axe-core';
 import type { A11yAcceptance } from '../../../decorator/showcase.types.js';
 import { withCanvasChromeHidden } from '../../renderer/canvas-audit.js';
@@ -63,6 +63,16 @@ export class A11yAuditService {
     readonly running = signal(false);
     readonly error = signal<string | null>(null);
 
+    private readonly auditedCondition = signal<string | null>(null);
+
+    /**
+     * What the current results were audited under (a simulated scheme or forced
+     * colors, as the simulation names it), or `null` for the real environment.
+     * Set with the results, so a run that lands after the condition changed
+     * keeps the one it audited and never grades a newer one. Since 22.8.0.
+     */
+    readonly condition: Signal<string | null> = this.auditedCondition.asReadonly();
+
     /** The acceptances the current results were audited under: set with them, so a later audit's never grade an earlier result. */
     private readonly acceptances = signal<readonly A11yAcceptance[]>([]);
 
@@ -90,7 +100,8 @@ export class A11yAuditService {
         });
     }
 
-    scheduleAudit(element: Element, config?: A11yCoreConfig, debounceMs = 500): void {
+    /** `condition` names what the canvas simulates while the audit runs, and is kept with its results. */
+    scheduleAudit(element: Element, config?: A11yCoreConfig, debounceMs = 500, condition: string | null = null): void {
         if (this.destroyed) return;
         if (this.timer) clearTimeout(this.timer);
         this.running.set(true);
@@ -101,6 +112,7 @@ export class A11yAuditService {
                 (result) => {
                     if (this.destroyed) return;
                     this.acceptances.set(config?.accept ?? []);
+                    this.auditedCondition.set(condition);
                     this.results.set(result);
                     this.running.set(false);
                 },
@@ -120,6 +132,7 @@ export class A11yAuditService {
         }
         this.results.set(null);
         this.acceptances.set([]);
+        this.auditedCondition.set(null);
         this.running.set(false);
         this.error.set(null);
     }
