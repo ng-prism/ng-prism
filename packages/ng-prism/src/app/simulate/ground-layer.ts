@@ -23,10 +23,11 @@ export const GROUND_SCROLL_Y = '--prism-sim-scroll-y';
  * changes size, or the content is restyled or ends a transition (a zoom eases
  * its `transform`), the layer goes back to the start for a moment, so the
  * browser clamps the position to the content alone, and that position is
- * published.
+ * published. After a change of size that happens in the next frame, once for
+ * all the changes of one frame.
  *
- * Returns what takes it back: the listeners and observers go, and the two
- * properties with them.
+ * Returns what takes it back: the listeners and observers go, a clamp still
+ * waiting for its frame, and the two properties with them.
  */
 export function pinGroundLayer(stage: HTMLElement, content: HTMLElement): () => void {
     const publish = (): void => {
@@ -39,11 +40,24 @@ export function pinGroundLayer(stage: HTMLElement, content: HTMLElement): () => 
         stage.style.setProperty(GROUND_SCROLL_Y, '0px');
         publish();
     };
+    // Not inside the ResizeObserver callback: the clamp changes the scroll range, and with classic
+    // scrollbars the stage's size with it, which the browser reports as a ResizeObserver loop.
+    let frame: number | null = null;
+    const clampNextFrame = (): void => {
+        if (typeof requestAnimationFrame !== 'function') {
+            clamp();
+        } else if (frame === null) {
+            frame = requestAnimationFrame(() => {
+                frame = null;
+                clamp();
+            });
+        }
+    };
     // A transition inside the component bubbles up to the content as well.
     const transitionEnded = (event: Event): void => {
         if (event.target === content) clamp();
     };
-    const resizes = typeof ResizeObserver === 'function' ? new ResizeObserver(clamp) : null;
+    const resizes = typeof ResizeObserver === 'function' ? new ResizeObserver(clampNextFrame) : null;
     const restyles = typeof MutationObserver === 'function' ? new MutationObserver(clamp) : null;
 
     clamp();
@@ -59,6 +73,8 @@ export function pinGroundLayer(stage: HTMLElement, content: HTMLElement): () => 
         content.removeEventListener('transitionend', transitionEnded);
         resizes?.disconnect();
         restyles?.disconnect();
+        if (frame !== null) cancelAnimationFrame(frame);
+        frame = null;
         stage.style.removeProperty(GROUND_SCROLL_X);
         stage.style.removeProperty(GROUND_SCROLL_Y);
     };

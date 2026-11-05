@@ -56,6 +56,18 @@ class FakeResizeObserver {
     }
 }
 
+/** The frames requested with `requestAnimationFrame` and not yet run or cancelled. */
+const frames = new Map<number, FrameRequestCallback>();
+let nextFrame = 1;
+
+/** Runs the frames requested so far, as the browser does before its next paint. */
+function runFrame(): void {
+    const due = Array.from(frames.values());
+
+    frames.clear();
+    for (const callback of due) callback(0);
+}
+
 describe('pinGroundLayer', () => {
     let stage: HTMLElement;
     let content: HTMLElement;
@@ -66,12 +78,21 @@ describe('pinGroundLayer', () => {
         stage.appendChild(content);
         document.body.appendChild(stage);
         Object.defineProperty(window, 'ResizeObserver', { configurable: true, writable: true, value: FakeResizeObserver });
+        jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+            frames.set(nextFrame, callback);
+            return nextFrame++;
+        });
+        jest.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => {
+            frames.delete(id);
+        });
     });
 
     afterEach(() => {
         stage.remove();
         FakeResizeObserver.last = null;
         delete (window as { ResizeObserver?: unknown }).ResizeObserver;
+        frames.clear();
+        jest.restoreAllMocks();
     });
 
     it('publishes where the stage is scrolled to, from the start and on every scroll', () => {
@@ -104,11 +125,29 @@ describe('pinGroundLayer', () => {
             expect(stage.style.getPropertyValue(GROUND_SCROLL_Y)).toBe('218px');
         });
 
-        it('lets the stage clamp when the stage or the content changes size', () => {
+        it('lets the stage clamp in the next frame when the stage or the content changes size', () => {
             expect(FakeResizeObserver.last?.observed).toEqual(new Set([stage, content]));
 
+            // Not inside the observer's callback, where the clamp would resize the stage again.
             FakeResizeObserver.last?.resize();
+            expect(stage.style.getPropertyValue(GROUND_SCROLL_Y)).toBe('218px');
+
+            runFrame();
             expect(stage.style.getPropertyValue(GROUND_SCROLL_Y)).toBe('0px');
+        });
+
+        it('clamps once for all the changes of size in one frame', () => {
+            FakeResizeObserver.last?.resize();
+            FakeResizeObserver.last?.resize();
+            FakeResizeObserver.last?.resize();
+            expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1);
+
+            runFrame();
+            expect(stage.style.getPropertyValue(GROUND_SCROLL_Y)).toBe('0px');
+
+            // The next change asks for a frame of its own.
+            FakeResizeObserver.last?.resize();
+            expect(window.requestAnimationFrame).toHaveBeenCalledTimes(2);
         });
 
         it('lets the stage clamp once a zoom has eased the content to its new scale', () => {
@@ -132,7 +171,12 @@ describe('pinGroundLayer', () => {
 
         const release = pinGroundLayer(stage, content);
 
+        // A clamp still waiting for its frame goes too.
+        FakeResizeObserver.last?.resize();
+        expect(frames.size).toBe(1);
+
         release();
+        expect(frames.size).toBe(0);
         expect(stage.style.getPropertyValue(GROUND_SCROLL_X)).toBe('');
         expect(stage.style.getPropertyValue(GROUND_SCROLL_Y)).toBe('');
         // What else is inline stays.
