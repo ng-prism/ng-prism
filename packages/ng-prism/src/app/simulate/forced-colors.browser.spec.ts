@@ -30,6 +30,8 @@ function mediaGroup(...rules: object[]): object {
 
 const NONE: ForcedColorRules = { exempt: [], gradients: [] };
 
+const OVERLAY_STRUCTURE = ':not(:where(.cdk-global-overlay-wrapper, .cdk-overlay-connected-position-bounding-box, .cdk-overlay-backdrop))';
+
 describe('collectForcedColorRules', () => {
     afterEach(() => {
         document.head.innerHTML = '';
@@ -175,17 +177,23 @@ function parse(css: string): { selector: string; values: Record<string, string> 
 }
 
 /**
- * What the sheet forces on `element`: the declarations of every rule that
- * matches it, a later rule over an earlier one. All of them are `!important` at
- * the same weight, which is how the sheet is written, so the order is all there
+ * What the sheet forces on `element`, or on its `::before` or `::after` for `pseudo`: the
+ * declarations of every rule that matches it, a later rule over an earlier one. All of them are
+ * `!important` at the same weight, which is how the sheet is written, so the order is all there
  * is to the cascade among them.
  */
-function forcedOn(css: string, element: Element): Record<string, string> {
+function forcedOn(css: string, element: Element, pseudo: '' | '::before' | '::after' = ''): Record<string, string> {
     const forced: Record<string, string> = {};
 
     for (const { selector, values } of parse(css)) {
-        // One selector per line, as the sheet writes a list. What lies on a pseudo-element is not on the element.
-        if (!selector.split(',\n').some((part) => !part.includes('::') && element.matches(part))) continue;
+        // One selector per line, as the sheet writes a list.
+        const matches = selector.split(',\n').some((part) => {
+            const own = /::(?:before|after)$/.exec(part)?.[0] ?? '';
+
+            return own === pseudo && element.matches(own === '' ? part : part.slice(0, -own.length));
+        });
+
+        if (!matches) continue;
         for (const [property, value] of Object.entries(values)) forced[property] = value.replace(/\s*!important$/, '');
     }
     return forced;
@@ -204,8 +212,15 @@ describe('forcedColorsCss', () => {
         expect(css).toMatch(/:where\(\.g\)[^{]*\{[^}]*background-image: none !important/);
     });
 
+    it('keeps the layout elements of the CDK overlay out of its grounds, with a selector that weighs nothing', () => {
+        const css = forcedColorsCss(NONE);
+
+        expect(css).toContain(OVERLAY_STRUCTURE);
+        expect(css).toContain('-webkit-text-fill-color: currentColor !important');
+    });
+
     it('has no exemption in its selectors when none was found', () => {
-        expect(forcedColorsCss(NONE)).not.toContain(':not(:where(');
+        expect(forcedColorsCss(NONE).replaceAll(OVERLAY_STRUCTURE, '')).not.toContain(':not(:where(');
         expect(forcedColorsCss(NONE)).not.toContain('background-image');
     });
 
@@ -223,7 +238,7 @@ describe('forcedColorsCss', () => {
 
     describe('applied to a document', () => {
         let root: HTMLElement;
-        const css = forcedColorsCss({ exempt: ['.dot'], gradients: ['.g'] });
+        const css = forcedColorsCss({ exempt: ['.dot'], gradients: ['.g', '.g::before'] });
         const at = (selector: string): Element => {
             const element = root.querySelector(selector);
 
@@ -242,7 +257,12 @@ describe('forcedColorsCss', () => {
                     <div class="dot" id="dot"><span id="in-dot"></span><a href="#x" id="dot-link"></a></div>
                     <svg id="svg"><path id="plain"></path><path id="named" fill="#f00" stroke="blue"></path><path id="open" fill="none" stroke="currentColor"></path><path id="served" fill="url(#g)"></path></svg>
                 </div>
-                <div class="cdk-overlay-container" id="overlay"><div id="pane"><button id="menu-button">m</button></div></div>
+                <div class="cdk-overlay-container" id="overlay">
+                    <div id="pane"><button id="menu-button">m</button></div>
+                    <div class="cdk-overlay-backdrop" id="backdrop"></div>
+                    <div class="cdk-global-overlay-wrapper" id="wrapper"><div class="cdk-overlay-pane" id="dialog"><p id="dialog-text">t</p></div></div>
+                    <div class="cdk-overlay-connected-position-bounding-box" id="bounding-box"><div class="cdk-overlay-pane" id="menu-pane"></div></div>
+                </div>
                 <div id="shell"><button id="shell-button">s</button></div>`;
             document.body.appendChild(root);
         });
@@ -269,6 +289,70 @@ describe('forcedColorsCss', () => {
         it('forces the overlay container and what it holds in the same way', () => {
             expect(forcedOn(css, at('#pane'))).toMatchObject({ color: 'CanvasText', 'background-color': 'Canvas', 'box-shadow': 'none' });
             expect(forcedOn(css, at('#menu-button'))).toMatchObject({ color: 'ButtonText', 'background-color': 'ButtonFace' });
+        });
+
+        it('leaves the layout elements of the CDK overlay unpainted, which are as large as the viewport and transparent on purpose', () => {
+            for (const selector of ['#wrapper', '#bounding-box', '#backdrop']) {
+                const forced = forcedOn(css, at(selector));
+
+                expect(forced['color']).toBe('CanvasText');
+                for (const property of ['background-color', 'box-shadow', 'border-color', 'outline-color']) expect(forced).not.toHaveProperty(property);
+                for (const pseudo of ['::before', '::after'] as const) expect(forcedOn(css, at(selector), pseudo)).not.toHaveProperty('border-color');
+            }
+        });
+
+        it('paints the panel inside the wrapper and what is in it', () => {
+            for (const selector of ['#dialog', '#menu-pane', '#dialog-text']) {
+                expect(forcedOn(css, at(selector))).toMatchObject({
+                    color: 'CanvasText',
+                    'background-color': 'Canvas',
+                    'box-shadow': 'none',
+                    'border-color': 'CanvasText'
+                });
+            }
+        });
+
+        it('keeps the generated content free of a ground and a shadow, which could only hide what it overlays', () => {
+            for (const pseudo of ['::before', '::after'] as const) {
+                for (const selector of ['#text', '#pane', '#dialog']) {
+                    const forced = forcedOn(css, at(selector), pseudo);
+
+                    expect(forced).not.toHaveProperty('background-color');
+                    expect(forced).not.toHaveProperty('box-shadow');
+                }
+            }
+        });
+
+        it('still forces the colors on the generated content, and leaves it to an exempt subtree', () => {
+            for (const pseudo of ['::before', '::after'] as const) {
+                expect(forcedOn(css, at('#text'), pseudo)).toMatchObject({
+                    color: 'CanvasText',
+                    'border-color': 'CanvasText',
+                    'outline-color': 'CanvasText',
+                    'text-decoration-color': 'CanvasText',
+                    'text-shadow': 'none'
+                });
+                expect(forcedOn(css, at('#dot'), pseudo)).toEqual({});
+                expect(forcedOn(css, at('#in-dot'), pseudo)).toEqual({});
+                expect(forcedOn(css, at('#shell'), pseudo)).toEqual({});
+            }
+        });
+
+        it('drops the gradient of a pseudo-element for the rules that said so, and of no other', () => {
+            expect(forcedOn(css, at('#gradient'), '::before')['background-image']).toBe('none');
+            expect(forcedOn(css, at('#gradient'), '::after')).not.toHaveProperty('background-image');
+            expect(forcedOn(css, at('#text'), '::before')).not.toHaveProperty('background-image');
+        });
+
+        it('lets the fill of text follow its color, so that gradient text does not vanish with its gradient', () => {
+            for (const selector of ['#text', '#link', '#button', '#field', '#dialog-text']) {
+                expect(forcedOn(css, at(selector))['-webkit-text-fill-color']).toBe('currentColor');
+            }
+            expect(forcedOn(css, at('#link'))['color']).toBe('LinkText');
+            expect(forcedOn(css, at('#text'), '::before')['-webkit-text-fill-color']).toBe('currentColor');
+            expect(forcedOn(css, at('#stage'))['-webkit-text-fill-color']).toBe('currentColor');
+            expect(forcedOn(css, at('#dot'))).not.toHaveProperty('-webkit-text-fill-color');
+            expect(forcedOn(css, at('#shell'))).not.toHaveProperty('-webkit-text-fill-color');
         });
 
         it('leaves the page outside the scope alone', () => {

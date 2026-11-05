@@ -141,16 +141,24 @@ const ROOTS_AND_INSIDE = `*${SCOPE_IN_SUFFIX}`;
 // The properties of CSS Color Adjust 1, "Properties Affected by Forced Colors Mode", and the
 // ones it lists beside them: what the browser forces for a page in the mode.
 
-/** Inherited, so the roots take them too and the ground of a text without element of its own is right. */
-const INHERITED: readonly string[] = ['color: CanvasText', 'caret-color: CanvasText', 'text-shadow: none', 'accent-color: auto', 'scrollbar-color: auto'];
-
 /**
- * `background-color` loses its alpha: the CSS cannot read what the author set, so a transparent
- * element is `Canvas` here and in the browser it stays transparent. Where it matters is an element
- * that lies over another, which hides it.
+ * Inherited, so the roots take them too and the ground of a text without element of its own is right.
+ *
+ * `-webkit-text-fill-color` follows `color`: text that an author filled with a gradient (a transparent
+ * fill over `background-clip: text`) would vanish once the gradient is gone. As `currentColor` it
+ * keeps a link on `LinkText`.
  */
-const PAINT: readonly string[] = [
-    'background-color: Canvas',
+const INHERITED: readonly string[] = [
+    'color: CanvasText',
+    '-webkit-text-fill-color: currentColor',
+    'caret-color: CanvasText',
+    'text-shadow: none',
+    'accent-color: auto',
+    'scrollbar-color: auto'
+];
+
+/** Colors that nothing can hide behind: they are set on the generated content too. */
+const COLORS: readonly string[] = [
     'border-color: CanvasText',
     'outline-color: CanvasText',
     'text-decoration-color: CanvasText',
@@ -159,9 +167,25 @@ const PAINT: readonly string[] = [
     'row-rule-color: CanvasText',
     'stop-color: CanvasText',
     'flood-color: CanvasText',
-    'lighting-color: CanvasText',
-    'box-shadow: none'
+    'lighting-color: CanvasText'
 ];
+
+/**
+ * What covers an element: a ground and a shadow. `background-color` loses its alpha, since the CSS cannot
+ * read what the author set, so a transparent element is `Canvas` here and in the browser it stays
+ * transparent. Where that matters is an element that lies over another, which it hides: it is
+ * kept off the generated content, where scrims, ripples and focus layers are made, and off the
+ * structure of the CDK overlay ({@link OVERLAY_STRUCTURE}).
+ */
+const GROUND: readonly string[] = ['background-color: Canvas', 'box-shadow: none'];
+
+/**
+ * The elements the CDK overlay lays out around a panel: a wrapper as large as the viewport for a
+ * dialog or a toast, a box around a connected panel, a backdrop. All transparent on purpose, and all
+ * large and positioned, so a ground on one covers the page, the shell included. The panel inside,
+ * where the content is, is painted.
+ */
+const OVERLAY_STRUCTURE = ':not(:where(.cdk-global-overlay-wrapper, .cdk-overlay-connected-position-bounding-box, .cdk-overlay-backdrop))';
 
 // The tail of a selector for the elements a user agent colors on its own. Nothing but `:where()`
 // weighs more than the universal selector, so each of them weighs nothing.
@@ -188,6 +212,9 @@ const colored = (attribute: string): string =>
  * What an exemption names, `forced-color-adjust: none` and `preserve-parent-color`,
  * is left out together with everything below it.
  *
+ * Grounds are `Canvas` only where nothing can be hidden behind them by mistake: not on
+ * `::before` and `::after`, not on the layout elements of the CDK overlay.
+ *
  * What it cannot do: an author's `!important` outside `@media (forced-colors)`
  * weighs more and wins, where the browser forces the color anyway. Colors an SVG
  * takes from a stylesheet rather than from an attribute stay, because `fill: none`
@@ -199,9 +226,12 @@ export function forcedColorsCss(rules: ForcedColorRules): string {
     const inside = `${INSIDE}${exempt}`;
     const roots = `${ROOTS_AND_INSIDE}${exempt}`;
 
+    const painted = `${inside}${OVERLAY_STRUCTURE}`;
+
     const css = [
         block(withPseudoElements(roots), INHERITED),
-        block(withPseudoElements(inside), PAINT),
+        block(withPseudoElements(painted), COLORS),
+        block([painted], GROUND),
         block([`${inside}${colored('fill')}`], ['fill: CanvasText']),
         block([`${inside}${colored('stroke')}`], ['stroke: CanvasText']),
         block([`${inside}${FIELDS}`], ['color: FieldText', 'background-color: Field', 'border-color: ButtonBorder']),
