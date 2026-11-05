@@ -4,11 +4,13 @@ import type { ShowcaseState } from '../../decorator/showcase.types.js';
 import type { RuntimePipe } from '../../plugin/pipe.types.js';
 import type { NgPrismConfig, PanelDefinition, RuntimeComponent, RuntimeManifest } from '../../plugin/plugin.types.js';
 import type { RuntimeService } from '../../plugin/service.types.js';
+import { DEFAULT_SIMULATION } from '../simulate/simulation.js';
 import { PRISM_CONFIG, PRISM_MANIFEST } from '../tokens/prism-tokens.js';
 import { CAPTURE_PARAM } from './prism-capture.service.js';
 import { PrismNavigationService } from './prism-navigation.service.js';
 import { PrismPanelService } from './prism-panel.service.js';
 import { PrismRendererService } from './prism-renderer.service.js';
+import { PrismSimulationService } from './prism-simulation.service.js';
 import { PrismUrlStateService } from './prism-url-state.service.js';
 
 function createComponent(
@@ -114,6 +116,7 @@ function setup(
     nav: PrismNavigationService;
     renderer: PrismRendererService;
     panel: PrismPanelService;
+    sim: PrismSimulationService;
 } {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
@@ -126,7 +129,8 @@ function setup(
         url: TestBed.inject(PrismUrlStateService),
         nav: TestBed.inject(PrismNavigationService),
         renderer: TestBed.inject(PrismRendererService),
-        panel: TestBed.inject(PrismPanelService)
+        panel: TestBed.inject(PrismPanelService),
+        sim: TestBed.inject(PrismSimulationService)
     };
 }
 
@@ -854,6 +858,218 @@ describe('PrismUrlStateService', () => {
         });
     });
 
+    describe('simulation params', () => {
+        it('writes the simulation with replaceState, after the other parameters, in menu order', () => {
+            const comp = createComponent({ className: 'Foo' });
+            const pushSpy = jest.spyOn(window.history, 'pushState');
+            const replaceSpy = jest.spyOn(window.history, 'replaceState');
+            const { url, nav, panel, sim } = setup({ components: [comp] });
+
+            url.init();
+            nav.select(comp);
+            panel.activePanelId.set('a11y');
+            flush();
+            pushSpy.mockClear();
+            replaceSpy.mockClear();
+            const entries = window.history.length;
+
+            sim.set({ vision: 'deuteranopia' });
+            flush();
+
+            expect(window.location.search).toBe('?component=Foo&panel=a11y&vision=deuteranopia');
+            expect(pushSpy).not.toHaveBeenCalled();
+            expect(replaceSpy).toHaveBeenCalledTimes(1);
+            expect(window.history.length).toBe(entries);
+
+            sim.set({ motion: 'reduce', scheme: 'dark', forced: 'active', vision: 'blurred' });
+            flush();
+
+            expect(window.location.search).toBe('?component=Foo&panel=a11y&motion=reduce&scheme=dark&forced=active&vision=blurred');
+        });
+
+        it('drops the parameter of a setting that is back to its default', () => {
+            const comp = createComponent({ className: 'Foo' });
+            const { url, nav, sim } = setup({ components: [comp] });
+
+            url.init();
+            nav.select(comp);
+            sim.set({ motion: 'reduce', scheme: 'light' });
+            flush();
+            expect(window.location.search).toBe('?component=Foo&motion=reduce&scheme=light');
+
+            sim.set({ motion: 'system' });
+            flush();
+            expect(window.location.search).toBe('?component=Foo&scheme=light');
+
+            sim.reset();
+            flush();
+            expect(window.location.search).toBe('?component=Foo');
+        });
+
+        it('keeps the simulation when the component changes', () => {
+            const a = createComponent({ className: 'A' });
+            const b = createComponent({ className: 'B' });
+            const { url, nav, sim } = setup({ components: [a, b] });
+
+            url.init();
+            nav.select(a);
+            sim.set({ scheme: 'dark' });
+            flush();
+
+            nav.select(b);
+            flush();
+
+            expect(window.location.search).toBe('?component=B&scheme=dark');
+        });
+
+        it('restores them from a deep link', () => {
+            setUrl('?component=Foo&motion=reduce&vision=blurred');
+            const { url, sim } = setup({ components: [createComponent({ className: 'Foo' })] });
+
+            url.init();
+            flush();
+
+            expect(sim.state()).toEqual({ ...DEFAULT_SIMULATION, motion: 'reduce', vision: 'blurred' });
+            expect(window.location.search).toBe('?component=Foo&motion=reduce&vision=blurred');
+        });
+
+        it('restores them without writing the URL back', () => {
+            setUrl('?component=Foo&scheme=dark');
+            const pushSpy = jest.spyOn(window.history, 'pushState');
+            const replaceSpy = jest.spyOn(window.history, 'replaceState');
+            const { url } = setup({ components: [createComponent({ className: 'Foo' })] });
+
+            url.init();
+            flush();
+
+            expect(pushSpy).not.toHaveBeenCalled();
+            expect(replaceSpy).not.toHaveBeenCalled();
+        });
+
+        it('drops a value that is no setting and keeps the rest of the link', () => {
+            setUrl('?component=Foo&scheme=sepia&forced=active');
+            const { url, sim } = setup({ components: [createComponent({ className: 'Foo' })] });
+
+            url.init();
+            flush();
+
+            expect(sim.state()).toEqual({ ...DEFAULT_SIMULATION, forced: 'active' });
+            expect(window.location.search).toBe('?component=Foo&forced=active');
+        });
+
+        it('restores them next to a service', () => {
+            const toast = createService('ToastService');
+
+            setUrl('?service=ToastService&scheme=light');
+            const { url, nav, sim } = setup({ components: [], services: [toast] });
+
+            url.init();
+            flush();
+
+            expect(nav.activeService()).toBe(toast);
+            expect(sim.state().scheme).toBe('light');
+        });
+
+        it('keeps what is set when the link says nothing about the simulation', () => {
+            setUrl('?component=Foo');
+            const { url, sim } = setup({ components: [createComponent({ className: 'Foo' })] });
+
+            sim.set({ scheme: 'dark' });
+            url.init();
+            flush();
+
+            expect(sim.state().scheme).toBe('dark');
+            expect(window.location.search).toBe('?component=Foo&scheme=dark');
+        });
+
+        it('lets a link that names a default override what is set', () => {
+            setUrl('?component=Foo&scheme=system');
+            const { url, sim } = setup({ components: [createComponent({ className: 'Foo' })] });
+
+            sim.set({ scheme: 'dark' });
+            url.init();
+            flush();
+
+            expect(sim.state()).toEqual(DEFAULT_SIMULATION);
+            expect(window.location.search).toBe('?component=Foo');
+        });
+
+        it('follows the URL on popstate, and a URL without them is the real environment', () => {
+            const comp = createComponent({ className: 'Foo' });
+
+            setUrl('?component=Foo&motion=reduce');
+            const { url, nav, sim } = setup({ components: [comp] });
+
+            url.init();
+            flush();
+            expect(sim.state().motion).toBe('reduce');
+
+            setUrl('?component=Foo&scheme=dark');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+            flush();
+            expect(sim.state()).toEqual({ ...DEFAULT_SIMULATION, scheme: 'dark' });
+
+            setUrl('?component=Foo');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+            flush();
+            expect(sim.state()).toEqual(DEFAULT_SIMULATION);
+            expect(nav.activeComponent()).toBe(comp);
+            expect(window.location.search).toBe('?component=Foo');
+        });
+
+        it('brings back the simulation of a history entry on back', async () => {
+            const a = createComponent({ className: 'A' });
+            const b = createComponent({ className: 'B' });
+            const { url, nav, sim } = setup({ components: [a, b] });
+
+            url.init();
+            nav.select(a);
+            sim.set({ vision: 'tritanopia' });
+            flush();
+            nav.select(b);
+            sim.set({ vision: 'none' });
+            flush();
+            expect(window.location.search).toBe('?component=B');
+
+            await goBack();
+            flush();
+
+            expect(nav.activeComponent()).toBe(a);
+            expect(sim.state().vision).toBe('tritanopia');
+            expect(window.location.search).toBe('?component=A&vision=tritanopia');
+        });
+
+        it('ignores them with urlState: false', () => {
+            const comp = createComponent({ className: 'Foo' });
+
+            setUrl('?component=Foo&motion=reduce');
+            const replaceSpy = jest.spyOn(window.history, 'replaceState');
+            const { url, sim } = setup({ components: [comp] }, { urlState: false });
+
+            url.init();
+            sim.set({ vision: 'blurred' });
+            flush();
+
+            expect(sim.state()).toEqual({ ...DEFAULT_SIMULATION, vision: 'blurred' });
+            expect(replaceSpy).not.toHaveBeenCalled();
+            expect(window.location.search).toBe('?component=Foo&motion=reduce');
+        });
+
+        it('rewrites the URL of a part with the simulation of the link', () => {
+            const select = createComponent({ className: 'SelectComponent', parts: ['OptionComponent'] });
+            const jsdoc: PanelDefinition = { id: 'jsdoc', label: 'API', placement: 'view', listsParts: true };
+
+            setUrl('?component=OptionComponent&view=jsdoc&scheme=dark');
+            const { url, sim } = setup({ components: [select] }, { plugins: [{ name: 'parts-lister', panels: [jsdoc] }] });
+
+            url.init();
+            flush();
+
+            expect(sim.state().scheme).toBe('dark');
+            expect(window.location.search).toBe('?component=SelectComponent&view=jsdoc&part=OptionComponent&scheme=dark');
+        });
+    });
+
     describe('capture flag', () => {
         afterEach(() => {
             document.documentElement.removeAttribute('data-prism-capture');
@@ -871,6 +1087,21 @@ describe('PrismUrlStateService', () => {
             flush();
 
             expect(window.location.search).not.toContain(CAPTURE_PARAM);
+        });
+
+        it('should never see a simulation, neither to restore nor to write it', () => {
+            const comp = createComponent({ className: 'Foo' });
+
+            setUrl('?capture=1&component=Foo&motion=reduce&scheme=dark');
+            const { url, nav, sim } = setup({ components: [comp] });
+
+            url.init();
+            nav.select(comp);
+            sim.set({ vision: 'blurred' });
+            flush();
+
+            expect(sim.state()).toEqual(DEFAULT_SIMULATION);
+            expect(window.location.search).toBe('?component=Foo');
         });
 
         it('should still restore navigation state alongside the capture flag', () => {

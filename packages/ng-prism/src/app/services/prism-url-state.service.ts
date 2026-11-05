@@ -1,12 +1,14 @@
 import { effect, inject, Injectable, Injector } from '@angular/core';
 import type { RuntimeComponent } from '../../plugin/plugin.types.js';
 import { partKeys } from '../../shared/part-keys.js';
+import { hasSimulationParams, readSimulationParams, type Simulation, writeSimulationParams } from '../simulate/simulation.js';
 import { PRISM_CONFIG } from '../tokens/prism-tokens.js';
 import type { NavigationItem } from './navigation-item.types.js';
 import { PrismManifestService } from './prism-manifest.service.js';
 import { PrismNavigationService } from './prism-navigation.service.js';
 import { PrismPanelService } from './prism-panel.service.js';
 import { PrismRendererService } from './prism-renderer.service.js';
+import { PrismSimulationService } from './prism-simulation.service.js';
 
 const PARAM_COMPONENT = 'component';
 const PARAM_SERVICE = 'service';
@@ -65,6 +67,7 @@ export class PrismUrlStateService {
     private readonly navigationService = inject(PrismNavigationService);
     private readonly rendererService = inject(PrismRendererService);
     private readonly panelService = inject(PrismPanelService);
+    private readonly simulationService = inject(PrismSimulationService);
     private readonly config = inject(PRISM_CONFIG);
     private readonly injector = inject(Injector);
 
@@ -73,7 +76,7 @@ export class PrismUrlStateService {
     init(): void {
         if (this.config.urlState === false) return;
 
-        this.restoreFromUrl();
+        this.restoreFromUrl(true);
 
         effect(
             () => {
@@ -83,17 +86,24 @@ export class PrismUrlStateService {
                 const viewId = this.panelService.activeViewId();
                 const part = this.panelService.activePart();
                 const panelId = this.panelService.activePanelId();
+                const simulation = this.simulationService.state();
 
                 if (this.suppressSync) return;
-                this.writeToUrl(item, variantIndex, stateIndex, viewId, part, panelId);
+                this.writeToUrl(item, variantIndex, stateIndex, viewId, part, panelId, simulation);
             },
             { injector: this.injector }
         );
 
-        window.addEventListener('popstate', () => this.restoreFromUrl());
+        window.addEventListener('popstate', () => this.restoreFromUrl(false));
     }
 
-    private restoreFromUrl(): void {
+    /**
+     * Brings the app to the state the URL describes. The simulation follows
+     * it on `popstate`, a link without one meaning the real environment. At
+     * `start` it does only when the link says something about it: otherwise
+     * what is set stays, for the session restore that runs next.
+     */
+    private restoreFromUrl(start: boolean): void {
         const params = new URLSearchParams(window.location.search);
         const componentClassName = params.get(PARAM_COMPONENT);
         const serviceClassName = params.get(PARAM_SERVICE);
@@ -111,6 +121,11 @@ export class PrismUrlStateService {
 
         this.suppressSync = true;
         try {
+            // Before anything that writes the URL back, the rewrite of a part's address below.
+            if (!start || hasSimulationParams(params)) {
+                this.simulationService.set(readSimulationParams(params));
+            }
+
             if (componentClassName) {
                 const components = this.manifestService.components();
                 let comp = components.find((c) => c.meta.className === componentClassName);
@@ -198,6 +213,7 @@ export class PrismUrlStateService {
                     this.panelService.activeViewId(),
                     this.panelService.activePart(),
                     this.panelService.activePanelId(),
+                    this.simulationService.state(),
                     true
                 );
             }
@@ -213,6 +229,7 @@ export class PrismUrlStateService {
         viewId: string,
         part: string | null,
         panelId: string,
+        simulation: Simulation,
         replace = false
     ): void {
         // Built from scratch, never from the current search string: parameters the
@@ -245,6 +262,8 @@ export class PrismUrlStateService {
         if (panelId && panelId !== DEFAULT_PANEL) {
             params.set(PARAM_PANEL, panelId);
         }
+        // Last, in menu order. Not part of the navigation: it never pushes an entry.
+        writeSimulationParams(simulation, params);
 
         const queryString = params.toString();
         const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
