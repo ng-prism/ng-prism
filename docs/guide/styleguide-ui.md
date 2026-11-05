@@ -96,7 +96,7 @@ The canvas rail floats at the top right of the canvas:
 
 The four toggles are preferences of your working environment, not of a component: they apply to every component and stay as you left them across visits, in the browser's `localStorage`. The tooltip of each says whether it is on.
 
-The **tools menu** holds what you set once rather than flip all the time. Every choice shows what it does instead of only naming it:
+The **tools menu** holds what you set once rather than flip all the time. Its choices are chips and segments, most of them with a preview of what they do:
 
 - **Background:** a chip per background, with a swatch of it, see [Background](#background).
 - **State:** the component's states, and a chip per pseudo-class with an icon, see [State switch](#state-switch).
@@ -183,8 +183,7 @@ The live a11y audit runs again under a simulated color scheme or forced colors, 
 - It stays when you pick another variant, component or view: it describes the environment, not the component.
 - It is in the URL as `motion`, `scheme`, `forced` and `vision`, so a link opens with it. A link that names it wins over the session, see [Links & State](guide/url-state.md#simulation).
 - It lasts for the browser session: a reload keeps it, and a new session starts without one.
-- The browser's back and forward buttons restore the simulation of the history entry they open; an entry without the parameters has none.
-- Capture mode never simulates, whatever the URL or the session says, so a screenshot and a visual regression baseline show the real environment.
+- For the back and forward buttons and for capture mode, which never simulates, see [Links & State](guide/url-state.md#simulation) and [Capture Isolation Mode](guide/external-tooling.md#capture-isolation-mode).
 
 ### The ground
 
@@ -200,7 +199,7 @@ A page cannot switch the browser into forced colors mode, so the canvas approxim
 - `forced-color-adjust: none` and `preserve-parent-color` keep an element and everything inside it as you styled them.
 - The colours come from the light palette under the color scheme `Light`, and from the dark one under `System` and `Dark`.
 
-Where it differs from the real mode: an element with a transparent background gets `Canvas` and covers what lies behind it, an `!important` declaration of yours outside `@media (forced-colors: active)` keeps its colour where the browser would force it, and an SVG keeps the colours a stylesheet gives it (its `fill` and `stroke` attributes are forced). That is why the pill, the tooltip and the audit say `approx.`. For the exact mode, use Chrome DevTools › Rendering › Emulate CSS media feature `forced-colors`.
+Where it differs from the real mode: an element with a transparent background gets `Canvas` and covers what lies behind it, an `!important` declaration of yours outside `@media (forced-colors: active)` keeps its colour where the browser would force it, a colour that is not a system colour inside your own `@media (forced-colors: active)` block survives where the real mode would force it, and an SVG keeps the colours a stylesheet gives it (its `fill` and `stroke` attributes are forced). That is why the pill, the tooltip and the audit say `approx.`. For the exact mode, use Chrome DevTools › Rendering › Emulate CSS media feature `forced-colors`.
 
 ### Vision
 
@@ -209,7 +208,7 @@ Where it differs from the real mode: an element with a transparent background ge
 ### In your code
 
 - **`matchMedia`** answers for the emulated features as well. A query made while `Motion`, `Color scheme` or `Forced colors` is set gets the emulated answer, and a `change` event whenever that answer changes. A `MediaQueryList` the component got before keeps answering for the real environment: ask again, or open the component again, to follow the simulation. When the last emulated setting goes back to `System` or `Off`, a list from the simulation reports the real answer, with a `change` where it differs, and then stays silent, while its `matches` stays right.
-- **A theme on a class or an attribute**, such as `.dark` on a wrapper instead of `prefers-color-scheme`: name it in [`colorScheme`](api/ng-prism-config.md#colorscheme) in the config. Under `Light` or `Dark` the component's host and the overlay container get it, so `.dark .btn` and `:host-context(.dark)` follow. A theme keyed on `:root`, `html` or `body` cannot, since that would switch the styleguide as well.
+- **A theme on a class or an attribute**, such as `.dark` on a wrapper instead of `prefers-color-scheme`, follows `Light` and `Dark` once you name it in [`colorScheme`](api/ng-prism-config.md#colorscheme) in the config.
 - **The component is not created again** when a setting changes. Code that reads computed styles once, in `ngAfterViewInit` for example, keeps the values it read before; open the component again.
 
 ### Limits
@@ -225,6 +224,9 @@ And without a warning:
 - A relative font size on the document root, such as `html { font-size: 62.5% }`, applies a second time on the component's host when a rule on the root inside an emulated `@media` sets a font size too. Text that inherits its size then comes out smaller.
 - An overlay that CDK opens with the `'inline'` popover location (`withPopoverLocation('inline')`, `cdkConnectedOverlayUsePopover="inline"`) sits in the top layer outside the overlay container and does not get the vision filter; the other settings reach it. Only CDK's overlay container counts: what the component appends to `<body>` itself is not simulated.
 - Under a vision setting, a part of the component that is positioned absolutely, reaches past the canvas and then shrinks can leave the canvas scrollable into empty ground until you scroll it.
+- Under a vision setting, the filter on the component's host makes the host the containing block of every `position: fixed` element inside it, and a stacking context. A fixed backdrop, drawer or full-screen layer is laid out against the host's box instead of the canvas, which with Angular's default inline host can shrink to nothing, and no `z-index` lifts it over what lies next to the host. Check such layers with `Vision` on `None`.
+- A component whose host is `display: contents` has no box to filter: under a vision setting its ground is filtered and the component is not. The other settings reach it.
+- A component with `ViewEncapsulation.ShadowDom` keeps its styles in a shadow root. The emulated `@media` rules and the forced colors approximation do not reach inside it, as with [pseudo states](guide/states.md#limits); `matchMedia`, the `color-scheme` on its host and the vision filter do.
 - Under forced colors the canvas's own scrollbars take the light or dark look of the palette.
 
 ## Small touches

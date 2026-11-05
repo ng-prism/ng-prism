@@ -3,7 +3,7 @@
 ng-prism keeps the UI state alive across full-page reloads, which helps a lot during component-driven development. Two layers cooperate:
 
 - **URL** carries shareable state (component, service or pipe, variant, state, view, the part a view shows, panel tab, and what the canvas simulates), so links are bookmarkable and deep-linkable.
-- **sessionStorage** carries per-session state (the values you changed in the Controls panel, the a11y sub-tab, and the simulation again) and keeps the control values off the URL.
+- **sessionStorage** carries per-session state (the values you changed in the Controls panel, the a11y sub-tab, and the simulation) and keeps the control values off the URL.
 
 When a change in your library reloads the page, you land back on the same component, the same variant, with the same control values applied. No more clicking your way back to where you were.
 
