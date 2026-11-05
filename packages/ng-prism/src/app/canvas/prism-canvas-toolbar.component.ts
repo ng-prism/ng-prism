@@ -40,8 +40,9 @@ const FORCED_ACTIVE_TITLE = 'Forced colors (approx.). The exact mode: Chrome Dev
  *
  * Things you toggle constantly (guides, rulers, the viewport constraint) get
  * their own button; things you set once (background, forced state, zoom,
- * viewport width, the simulated environment) live in the menu. The template is a view rather than a setting and keeps its own
- * button. Zoom is shown as a readout, with the viewport width in its tooltip.
+ * viewport width, the simulated environment) live in the menu. The template
+ * is a view rather than a setting and keeps its own button. Zoom is shown as
+ * a readout, with the viewport width in its tooltip.
  *
  * The host generates no box. The rail must be a direct child of
  * `.prism-canvas-wrap` outside the stage, because that is what capture mode's
