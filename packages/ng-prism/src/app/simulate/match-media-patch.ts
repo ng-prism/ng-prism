@@ -56,31 +56,21 @@ export function patchMatchMedia(win: { matchMedia: MatchMedia }, emulated: Emula
     const original = win.matchMedia;
     // The browser's `matchMedia` throws when it is called on anything but the window.
     const ask: MatchMedia = (query) => original.call(win, query);
-    // What the lists subscribed to, not the lists: one that nobody holds on to is
-    // collected, and the patch still ends what it left on the browser's list.
+    // What the lists subscribed to, not the lists: one that nobody listens to and
+    // nobody holds on to is collected, see {@link Subscription}.
     const handedOut = new Set<Subscription>();
-    // Where there is a registry, a collected list ends its subscription right away
-    // and leaves the set. Elsewhere the next `update` or `uninstall` does.
-    const collected =
-        typeof FinalizationRegistry === 'function'
-            ? new FinalizationRegistry<Subscription>((subscription) => {
-                  subscription.release();
-                  handedOut.delete(subscription);
-              })
-            : null;
+    // Where there is a registry, a collected list leaves the set right away.
+    // Elsewhere the next `update` or `uninstall` takes it out.
+    const collected = typeof FinalizationRegistry === 'function' ? new FinalizationRegistry<Subscription>((subscription) => handedOut.delete(subscription)) : null;
     let current = emulated;
     let installed = true;
 
     function each(visit: (list: EmulatedMediaQueryList) => void): void {
         for (const subscription of handedOut) {
-            const list = subscription.list.deref();
+            const list = subscription.list;
 
-            if (list) {
-                visit(list);
-            } else {
-                subscription.release();
-                handedOut.delete(subscription);
-            }
+            if (list) visit(list);
+            else handedOut.delete(subscription);
         }
     }
 
@@ -121,36 +111,36 @@ export function patchMatchMedia(win: { matchMedia: MatchMedia }, emulated: Emula
 }
 
 /**
- * The listener an {@link EmulatedMediaQueryList} has on a browser's list, kept
- * apart from the list so that it can be ended without it.
+ * The listener an {@link EmulatedMediaQueryList} has on a browser's list, and
+ * what the patch holds of the list.
  *
- * The browser keeps a list alive while it has listeners, and this listener is
- * what it keeps: it holds a weak reference to the list, never the list, or the
- * list could not be collected. The patch holds the subscription, so it can end
- * it after the list is gone. A list that stays silent would otherwise leave its
- * listener on the browser's list for good, and the settled text of an emulated
- * query often is a constant such as `(min-width: 0px)`, which never fires.
+ * A list that nobody listens to is held weakly: a service that asks on every
+ * use drops each list after reading `matches`, and the patch must not keep them
+ * all. From its first listener on, the subscription holds the list itself, until
+ * `release`. The browser keeps a list alive while it has listeners, and component
+ * code relies on it when it keeps only the callback, as in
+ * `matchMedia(query).addEventListener('change', cb)`.
  */
 class Subscription {
     private real: MediaQueryList | null = null;
-    private readonly listener: () => void;
+    private held: EmulatedMediaQueryList | null = null;
+    private readonly listener = (): void => this.held?.refresh();
 
-    constructor(readonly list: Ref<EmulatedMediaQueryList>) {
-        this.listener = () => {
-            const target = list.deref();
+    constructor(private readonly ref: Ref<EmulatedMediaQueryList>) {}
 
-            if (target) target.refresh();
-            else this.release();
-        };
+    /** The list, or `undefined` once it was collected. One that listens is never collected. */
+    get list(): EmulatedMediaQueryList | undefined {
+        return this.held ?? this.ref.deref();
     }
 
     get following(): boolean {
         return this.real !== null;
     }
 
-    /** Listens to `real` from here on instead of what it listened to. */
-    follow(real: MediaQueryList): void {
-        this.release();
+    /** Listens to `real` for `list` from here on instead of what it listened to, and holds `list` until `release`. */
+    follow(list: EmulatedMediaQueryList, real: MediaQueryList): void {
+        this.real?.removeEventListener('change', this.listener);
+        this.held = list;
         this.real = real;
         real.addEventListener('change', this.listener);
     }
@@ -158,6 +148,7 @@ class Subscription {
     release(): void {
         this.real?.removeEventListener('change', this.listener);
         this.real = null;
+        this.held = null;
     }
 }
 
@@ -237,7 +228,7 @@ class EmulatedMediaQueryList extends EventTarget {
             this.settled = settled;
             this.real = this.ask(settled);
 
-            if (this.subscription.following) this.subscription.follow(this.real);
+            if (this.subscription.following) this.subscription.follow(this, this.real);
         }
 
         this.refresh();
@@ -269,6 +260,6 @@ class EmulatedMediaQueryList extends EventTarget {
 
         // Nobody was told what happened until now, so the first listener starts from the current answer.
         this.reported = this.real.matches;
-        this.subscription.follow(this.real);
+        this.subscription.follow(this, this.real);
     }
 }

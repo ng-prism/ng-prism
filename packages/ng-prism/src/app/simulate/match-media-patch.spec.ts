@@ -523,70 +523,69 @@ describe('patchMatchMedia', () => {
     });
 
     describe('lists that nobody holds on to', () => {
-        it('are not kept, and the listener on the browser takes itself off when it is told', () => {
+        it('keeps a list with a change listener until uninstall, however the listener came', () => {
             const collected = new Set<unknown>();
 
             replaceGlobal('WeakRef', fakeWeakRef(collected));
             replaceGlobal('FinalizationRegistry', undefined);
 
+            // `matchMedia(query).addEventListener('change', cb)`: the caller keeps the callback, not the list.
             const patch = patchMatchMedia(win, reduce);
-            const kept = win.matchMedia(MOTION_QUERY);
-            const dropped = win.matchMedia(MOTION_QUERY);
-            const seenByKept: boolean[] = [];
-            const seenByDropped = jest.fn();
+            const byEvent = win.matchMedia(MOTION_QUERY);
+            const byLegacy = win.matchMedia(MOTION_QUERY);
+            const byHandler = win.matchMedia(MIXED_QUERY);
+            const seen: string[] = [];
 
-            kept.addEventListener('change', (event) => seenByKept.push(event.matches));
-            dropped.addEventListener('change', seenByDropped);
-            collected.add(dropped);
+            byEvent.addEventListener('change', () => seen.push('event'));
+            byLegacy.addListener(() => seen.push('legacy'));
+            byHandler.onchange = () => seen.push('handler');
+            browser.answer(MIXED_SETTLED, true);
+            seen.length = 0;
 
-            expect(browser.listeners(MEDIA_TRUE)).toBe(2);
+            for (const mql of [byEvent, byLegacy, byHandler]) collected.add(mql);
 
-            // The browser's list still notifies, and the listener of the list that is gone takes itself off.
+            // A real list with listeners stays alive, so the browser telling it something changes nothing.
             browser.fire(MEDIA_TRUE);
-
-            expect(browser.listeners(MEDIA_TRUE)).toBe(1);
-
-            // Neither update nor uninstall touches it.
-            patch.update({});
-
-            expect(seenByKept).toEqual([false]);
-            expect(seenByDropped).not.toHaveBeenCalled();
-            expect(browser.listeners(MOTION_QUERY)).toBe(1);
-
-            patch.uninstall();
-
-            expect(browser.listeners()).toBe(0);
-        });
-
-        it('lose their listener on update and uninstall, though the browser list never fires', () => {
-            const collected = new Set<unknown>();
-
-            replaceGlobal('WeakRef', fakeWeakRef(collected));
-            replaceGlobal('FinalizationRegistry', undefined);
-
-            // The settled text of an emulated query is a constant, so the browser never says anything about it.
-            const patch = patchMatchMedia(win, reduce);
-            const first = win.matchMedia(MOTION_QUERY);
-            const second = win.matchMedia(MOTION_QUERY);
-            const third = win.matchMedia(MIXED_QUERY);
-
-            for (const mql of [first, second, third]) mql.addEventListener('change', jest.fn());
 
             expect(browser.listeners()).toBe(3);
 
-            collected.add(first);
-            patch.update(reduce);
+            patch.update({});
 
-            expect(browser.listeners()).toBe(2);
+            expect(seen).toEqual(['event', 'legacy', 'handler']);
+            expect(browser.listeners()).toBe(3);
 
-            collected.add(second);
-            collected.add(third);
             patch.uninstall();
 
             expect(browser.listeners()).toBe(0);
         });
 
-        it('lose their listener as soon as the registry reports them collected', () => {
+        it('lets a list go that nobody listens to', () => {
+            const collected = new Set<unknown>();
+
+            replaceGlobal('WeakRef', fakeWeakRef(collected));
+            replaceGlobal('FinalizationRegistry', undefined);
+
+            const patch = patchMatchMedia(win, reduce);
+            const read = win.matchMedia(MOTION_QUERY);
+            const unset = win.matchMedia(MOTION_QUERY);
+
+            // A list that was only read, and one whose handler attribute was only ever `null`.
+            expect(read.matches).toBe(true);
+            unset.onchange = null;
+            collected.add(read);
+            collected.add(unset);
+
+            patch.update({});
+
+            // The patch no longer reaches them, so they still answer for the emulation they were asked under.
+            expect(read.matches).toBe(true);
+            expect(unset.matches).toBe(true);
+            expect(browser.listeners()).toBe(0);
+
+            patch.uninstall();
+        });
+
+        it('lets the registry drop a list that nobody listens to, and never registers the list as held', () => {
             const registered: { target: object; held: unknown }[] = [];
             let report: (held: unknown) => void = () => undefined;
 
@@ -604,22 +603,24 @@ describe('patchMatchMedia', () => {
             );
 
             const patch = patchMatchMedia(win, reduce);
-            const mql = win.matchMedia(MOTION_QUERY);
+            const read = win.matchMedia(MOTION_QUERY);
+            const listened = win.matchMedia(MOTION_QUERY);
 
-            mql.addEventListener('change', jest.fn());
+            listened.addEventListener('change', jest.fn());
 
-            expect(browser.listeners()).toBe(1);
-            expect(registered).toHaveLength(1);
-            expect(registered[0].target).toBe(mql);
+            expect(registered.map((entry) => entry.target)).toEqual([read, listened]);
             // What the registry holds on to must not be the list, or the list would never be collected.
-            expect(registered[0].held).not.toBe(mql);
+            expect(registered.map((entry) => entry.held)).not.toContain(read);
+            expect(registered.map((entry) => entry.held)).not.toContain(listened);
 
             report(registered[0].held);
-
-            expect(browser.listeners()).toBe(0);
-
-            // Whatever comes after is as before.
             patch.update({});
+
+            // The reported list is out of reach, the one with a listener follows as before.
+            expect(read.matches).toBe(true);
+            expect(listened.matches).toBe(false);
+            expect(browser.listeners()).toBe(1);
+
             patch.uninstall();
 
             expect(browser.listeners()).toBe(0);
