@@ -71,22 +71,32 @@ describe('prism-renderer simulated ground', () => {
 });
 
 /**
- * The width of the tool rail, from what it is made of: its buttons (all of them extra small), its padding and its border. The
- * rail sits outside the stage and sizes to its content, so no rule states the number. Throws when a part changes shape.
+ * The width of the tool rail with a fine or a coarse pointer, from what it is made of: its buttons (all of them extra small), its
+ * padding and its border. The rail sits outside the stage and sizes to its content, so no rule states the number. A touch screen
+ * grows every icon button to a minimum size (`@media (pointer: coarse)` in the button's stylesheet), which widens the rail.
+ * Throws when a part changes shape.
  */
-function toolRailWidth(): number {
+function toolRailWidth(pointer: 'fine' | 'coarse'): number {
     const read = (path: string): string => withoutComments(readFileSync(join(__dirname, path), 'utf8'));
     const toolbarHtml = readFileSync(join(__dirname, '../canvas/prism-canvas-toolbar.component.html'), 'utf8');
-    const rail = /^\.prism-toolrail \{([^}]*)\}/m.exec(read('../canvas/prism-canvas-toolbar.component.css'))?.[1] ?? '';
-    const button = /:host\(\.prism-icon-button--xs\) \{[^}]*width: (\d+)px/.exec(read('../shared/prism-icon-button.component.css'))?.[1];
+    const toolbarCss = read('../canvas/prism-canvas-toolbar.component.css');
+    const buttonCss = read('../shared/prism-icon-button.component.css');
+    const rail = /^\.prism-toolrail \{([^}]*)\}/m.exec(toolbarCss)?.[1] ?? '';
+    const fine = /:host\(\.prism-icon-button--xs\) \{[^}]*width: (\d+)px/.exec(buttonCss)?.[1];
+    const coarse = /@media \(pointer: coarse\) \{[^{]*:host\(\.prism-icon-button--xs\)[^{]*\{[^}]*min-width: (\d+)px/.exec(buttonCss)?.[1];
     const space = /'--sp-2': '(\d+)px'/.exec(readFileSync(join(__dirname, '../theme/prism-default-theme.ts'), 'utf8'))?.[1];
 
     // Every button of the rail takes the extra small size; a larger one would widen it.
     expect(toolbarHtml.match(/size="(\w+)"/g)?.every((size) => size === 'size="xs"')).toBe(true);
     expect(rail).toMatch(/padding: var\(--sp-2\);/);
     expect(rail).toMatch(/border: 1px solid/);
-    if (!button || !space) throw new Error('the rail button width or the spacing token is not where the rail width is read from');
-    return Number(button) + 2 * Number(space) + 2 * 1;
+    // The rail itself does not change with the pointer; its buttons do.
+    expect(toolbarCss).not.toMatch(/@media \(pointer: coarse\) \{[^{]*\.prism-toolrail \{/);
+    if (!fine || !coarse || !space) throw new Error('a button width or the spacing token is not where the rail width is read from');
+
+    const button = pointer === 'coarse' ? Math.max(Number(fine), Number(coarse)) : Number(fine);
+
+    return button + 2 * Number(space) + 2 * 1;
 }
 
 /**
@@ -124,10 +134,23 @@ describe('prism-renderer stage pills', () => {
      * ends under it loses its Reset button to it, so the pills end a gap short of the rail.
      */
     it('stays inside the stage and clear of the tool rail, so a long label wraps instead of running under it', () => {
-        const clamp = /max-width: calc\(100% - 2 \* var\(--prism-canvas-overlay-inline, 20px\) - (\d+)px\);/.exec(rule(container));
+        expect(rule(container)).toMatch(/max-width: calc\(100% - 2 \* var\(--prism-canvas-overlay-inline, 20px\) - var\(--prism-toolrail-reserve\)\);/);
+    });
 
-        expect(clamp).not.toBeNull();
-        // Both insets, the rail's width, a gap. The rail is not content-sized by an explicit width, so it is derived from its parts.
-        expect(Number(clamp![1])).toBeGreaterThanOrEqual(toolRailWidth() + 8);
+    // Both insets, the rail's width, a gap. The rail has no width of its own, so it is derived from its parts.
+    it('reserves the rail and a gap with a fine pointer', () => {
+        const reserve = /--prism-toolrail-reserve: (\d+)px;/.exec(rule(container));
+
+        expect(reserve).not.toBeNull();
+        expect(Number(reserve![1])).toBeGreaterThanOrEqual(toolRailWidth('fine') + 8);
+    });
+
+    // A touch screen grows every icon button to 40px, and the rail with them: wider than with a mouse.
+    it('reserves the wider rail and a gap with a coarse pointer', () => {
+        const reserve = /@media \(pointer: coarse\) \{\s*\.stage-pills \{\s*--prism-toolrail-reserve: (\d+)px;/.exec(CSS);
+
+        expect(reserve).not.toBeNull();
+        expect(toolRailWidth('coarse')).toBeGreaterThan(toolRailWidth('fine'));
+        expect(Number(reserve![1])).toBeGreaterThanOrEqual(toolRailWidth('coarse') + 8);
     });
 });

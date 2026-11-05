@@ -144,11 +144,18 @@
    spills past the edge opens a scroll range, and one that reaches the rail
    goes under it (the rail is z-index 5, at the mirrored offsets on the right),
    which hides a Reset button. A list of conditions can be wider than a phone,
-   so its label wraps (prism-sim-pill.component.css). The reserve is the rail,
-   36px (a 26px button, 4px padding and a 1px border either side), and an 8px
-   gap, with a little to spare for the zoom readout, which can be wider than the
-   button. A spec derives the rail's width from its parts. */
+   so its label wraps (prism-sim-pill.component.css).
+
+   The reserve (--prism-toolrail-reserve) is the rail and an 8px gap. The rail
+   has no width of its own: it is its buttons, 4px of padding and a 1px border
+   either side. With a mouse the buttons are 26px, so the rail is 36px and the
+   reserve 48, a little over the gap for the zoom readout, which can be wider
+   than a button. A touch screen grows every icon button to 40px
+   (prism-icon-button.component.css), so there the rail is 50px and the reserve
+   60. A spec derives both widths from their parts. */
 .stage-pills {
+    --prism-toolrail-reserve: 48px;
+
     position: absolute;
     top: var(--prism-canvas-overlay-top, 12px);
     left: var(--prism-canvas-overlay-inline, 20px);
@@ -157,11 +164,17 @@
     flex-direction: column;
     gap: var(--sp-2);
     align-items: flex-start;
-    max-width: calc(100% - 2 * var(--prism-canvas-overlay-inline, 20px) - 48px);
+    max-width: calc(100% - 2 * var(--prism-canvas-overlay-inline, 20px) - var(--prism-toolrail-reserve));
     pointer-events: none;
     transition:
         top var(--dur-base),
         left var(--dur-base);
+}
+
+@media (pointer: coarse) {
+    .stage-pills {
+        --prism-toolrail-reserve: 60px;
+    }
 }
 
 .demo-wrap {
