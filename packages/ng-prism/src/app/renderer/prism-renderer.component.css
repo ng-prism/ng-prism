@@ -128,6 +128,37 @@
     width: 1px;
 }
 
+/* The pills, top left, opposite the tool rail. The background pill used to
+   claim the right corner too and the rail won, hiding a notice whose whole job
+   is to be noticed. The rail is permanent and the pills are not, so the
+   permanent thing keeps the corner it sits in and these move. Nothing else
+   occupies the left corner: the zoom badge that used to live here was a
+   duplicate of the readout the rail carries.
+
+   The simulation pill stacks under the background pill. This container holds
+   the position, the overlay offsets (which the rulers shift) and their
+   transition for both; it takes no pointer events itself, so that only the
+   pills do, and a pill that is not there leaves nothing to click.
+
+   It stays inside the stage: an absolute box that spills past the edge opens a
+   scroll range, and a list of conditions can be wider than a phone. The label
+   gives way with an ellipsis (prism-sim-pill.component.css). */
+.stage-pills {
+    position: absolute;
+    top: var(--prism-canvas-overlay-top, 12px);
+    left: var(--prism-canvas-overlay-inline, 20px);
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    align-items: flex-start;
+    max-width: calc(100% - 2 * var(--prism-canvas-overlay-inline, 20px));
+    pointer-events: none;
+    transition:
+        top var(--dur-base),
+        left var(--dur-base);
+}
+
 .demo-wrap {
     position: relative;
     display: inline-block;
@@ -246,7 +277,7 @@
 
     /* The element is the guide line's full-height track and must not be
      clickable. It runs from the overlay band to the
-     bottom of the stage at z-index 4, straight over prism-canvas-bg-pill
+     bottom of the stage at z-index 4, straight over the pills
      at z-index 2, so leaving it hit-testable made part of the pill's
      Reset button unreachable whenever a viewport was on. Only the bar
      below takes pointer events back. */

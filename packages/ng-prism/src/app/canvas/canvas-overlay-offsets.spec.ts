@@ -9,7 +9,8 @@ import { join } from 'node:path';
  * 20px ruler band along its top and left edges. Anything floating over the
  * canvas reads those instead of hard-coding a corner.
  *
- * `prism-canvas-bg-pill` inherits them, being inside the stage. The tool rail
+ * The pills (`.stage-pills`, which holds the background and the simulation pill)
+ * inherit them, being inside the stage. The tool rail
  * cannot: capture mode's structural rule only suppresses a direct child of
  * `.prism-canvas-wrap` that does not contain the stage, so the rail has to live
  * outside it. It therefore mirrors the same two values off `canvas.rulers()`,
@@ -69,15 +70,17 @@ describe('canvas overlay offsets', () => {
      * Two overlays that anchor to the same corner do not tile. They stack, and
      * the one drawn later wins. That is how the tool rail came to sit on top of
      * the background pill: both read the same two offsets, one from `right` and
-     * one from `right`. The rail is permanent and the pill is a notice, so the
-     * rail keeps the right corner and the pill takes the left.
+     * one from `right`. The rail is permanent and the pills are notices, so the
+     * rail keeps the right corner and the pills take the left.
      */
-    it('the rail and the background pill claim opposite corners', () => {
-        const pill = readFileSync(join(__dirname, 'prism-canvas-bg-pill.component.css'), 'utf-8');
+    it('the rail and the stage pills claim opposite corners', () => {
+        const renderer = readFileSync(RENDERER, 'utf-8');
+        const start = renderer.indexOf('.stage-pills {');
+        const pills = renderer.slice(start, renderer.indexOf('}', start));
         const rail = readFileSync(TOOLBAR, 'utf-8');
 
-        expect(pill).toMatch(/left:\s*var\(--prism-canvas-overlay-inline/);
-        expect(pill).not.toMatch(/right:\s*var\(--prism-canvas-overlay-inline/);
+        expect(pills).toMatch(/left:\s*var\(--prism-canvas-overlay-inline/);
+        expect(pills).not.toMatch(/right:\s*var\(--prism-canvas-overlay-inline/);
 
         expect(rail).toMatch(/right:\s*var\(--prism-canvas-overlay-inline/);
         expect(rail).not.toMatch(/left:\s*var\(--prism-canvas-overlay-inline/);

@@ -24,6 +24,7 @@ import { CANVAS_BG_STYLES } from '../canvas/canvas-bg.styles.js';
 import { PrismCanvasBgPillComponent } from '../canvas/prism-canvas-bg-pill.component.js';
 import { PrismCanvasMeasureComponent } from '../canvas/prism-canvas-measure.component.js';
 import { PrismCanvasRulersComponent } from '../canvas/prism-canvas-rulers.component.js';
+import { PrismSimPillComponent } from '../canvas/prism-sim-pill.component.js';
 import { snapViewportWidth } from '../canvas/viewport-snap.js';
 import { PrismResizerDirective } from '../directives/prism-resizer.directive.js';
 import { BUILTIN_PANELS } from '../panels/builtin-panels.js';
@@ -55,7 +56,7 @@ import { resolveExcludedReason, resolveRenderedKey } from './rendered-key.js';
     selector: 'prism-renderer',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [PrismCanvasRulersComponent, PrismCanvasBgPillComponent, PrismCanvasMeasureComponent, NgComponentOutlet, PrismResizerDirective],
+    imports: [PrismCanvasRulersComponent, PrismCanvasBgPillComponent, PrismSimPillComponent, PrismCanvasMeasureComponent, NgComponentOutlet, PrismResizerDirective],
     templateUrl: './prism-renderer.component.html',
     styleUrl: './prism-renderer.component.css',
     styles: [CANVAS_BG_STYLES]

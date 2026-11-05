@@ -1,0 +1,81 @@
+/* Laid out by the stage's .stage-pills column and by the overview, which both
+   hold it as a flex item or a block of their own, so it is a flex box that has
+   nothing to size while there is nothing to say: an empty host would still
+   count for the stage's gap and for the overview's margin. It is never wider
+   than the box it sits in, so that the label can give way to an ellipsis. */
+:host {
+    display: flex;
+    max-width: 100%;
+}
+
+:host:empty {
+    display: none;
+}
+
+/* The look of the background pill, which sits above this one. It reads the
+   overlay tokens of the canvas wrap, which the shell binds inline on the two
+   absolute grounds. The overview has no wrap, so each token falls back to the
+   theme surface the wrap's defaults point at, which is what the overview
+   stands on. The tokens are not declared here: a declaration on the host would
+   beat the wrap's inline values on the stage. */
+.sim-pill {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+    padding: 4px 4px 4px 10px;
+    font-family: var(--font-sans);
+    font-size: var(--fs-xs);
+    color: var(--prism-canvas-overlay-muted, var(--prism-text-2));
+    pointer-events: auto;
+    background: color-mix(in srgb, var(--prism-canvas-overlay-bg, var(--prism-bg-elevated)) 92%, transparent);
+    border: 1px solid var(--prism-canvas-overlay-border, var(--prism-border-strong));
+    border-radius: 999px;
+    backdrop-filter: blur(8px);
+    animation: fade-in var(--dur-base) ease-out;
+}
+
+prism-icon {
+    flex: none;
+}
+
+/* One line, cut with an ellipsis where the stage is narrower than the list of
+   conditions; the pill's tooltip carries the whole text. */
+.label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.reset {
+    flex: none;
+    height: 22px;
+    padding: 0 10px;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 500;
+    color: var(--prism-canvas-overlay-fg, var(--prism-text));
+    cursor: pointer;
+    background: var(--prism-canvas-overlay-active, var(--prism-primary-bg));
+    border: 1px solid color-mix(in srgb, var(--prism-canvas-overlay-primary, var(--prism-primary)) 45%, transparent);
+    border-radius: 999px;
+    transition: background var(--dur-fast);
+}
+
+.reset:hover {
+    background: color-mix(in srgb, var(--prism-canvas-overlay-primary, var(--prism-primary)) 22%, transparent);
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

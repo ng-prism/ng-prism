@@ -69,3 +69,38 @@ describe('prism-renderer simulated ground', () => {
         expect(rule(`.prism-canvas-stage[data-sim-vision][${CANVAS_AUDITING_ATTR}]::before`)).toMatch(/content: none;/);
     });
 });
+
+/**
+ * The pills the stage stacks in its top left corner. They moved off the
+ * background pill's host, which positioned itself, so that a second pill could
+ * sit under the first.
+ */
+describe('prism-renderer stage pills', () => {
+    const container = '.stage-pills';
+
+    it('stacks both pills in one container inside the capture guard', () => {
+        const guard = HTML.slice(HTML.indexOf('@if (!capture.active())'), HTML.indexOf('#demoWrap'));
+
+        expect(guard).toMatch(/<div class="stage-pills">\s*<prism-canvas-bg-pill \/>\s*<prism-sim-pill \/>\s*<\/div>/);
+    });
+
+    it('sits top left, where the background pill used to, and follows the overlay offsets', () => {
+        expect(rule(container)).toMatch(/position: absolute;/);
+        expect(rule(container)).toMatch(/top: var\(--prism-canvas-overlay-top, 12px\);/);
+        expect(rule(container)).toMatch(/left: var\(--prism-canvas-overlay-inline, 20px\);/);
+        expect(rule(container)).toMatch(/z-index: 2;/);
+        expect(rule(container)).toMatch(/transition: top var\(--dur-base\), left var\(--dur-base\);/);
+    });
+
+    it('is a column that takes no pointer events itself, so only the pills do', () => {
+        expect(rule(container)).toMatch(/display: flex;/);
+        expect(rule(container)).toMatch(/flex-direction: column;/);
+        expect(rule(container)).toMatch(/align-items: flex-start;/);
+        expect(rule(container)).toMatch(/gap: var\(--sp-2\);/);
+        expect(rule(container)).toMatch(/pointer-events: none;/);
+    });
+
+    it('stays inside the stage, so a long label cannot open a scroll range', () => {
+        expect(rule(container)).toMatch(/max-width: calc\(100% - 2 \* var\(--prism-canvas-overlay-inline, 20px\)\);/);
+    });
+});

@@ -20,7 +20,10 @@
                 <prism-canvas-measure />
             }
         }
-        <prism-canvas-bg-pill />
+        <div class="stage-pills">
+            <prism-canvas-bg-pill />
+            <prism-sim-pill />
+        </div>
         @if (viewportWidth() !== null) {
             <!-- Grips and the dimension line are siblings of .demo-wrap, never
        children of it: .demo-wrap is what plugin-visual-regression
