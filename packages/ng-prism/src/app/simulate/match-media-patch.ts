@@ -56,27 +56,44 @@ export function patchMatchMedia(win: { matchMedia: MatchMedia }, emulated: Emula
     const original = win.matchMedia;
     // The browser's `matchMedia` throws when it is called on anything but the window.
     const ask: MatchMedia = (query) => original.call(win, query);
-    // Held weakly: a component that drops its list lets it go. The references of
-    // the lists that went are swept by the next `update` or `uninstall`.
-    const handedOut = new Set<Ref<EmulatedMediaQueryList>>();
+    // What the lists subscribed to, not the lists: one that nobody holds on to is
+    // collected, and the patch still ends what it left on the browser's list.
+    const handedOut = new Set<Subscription>();
+    // Where there is a registry, a collected list ends its subscription right away
+    // and leaves the set. Elsewhere the next `update` or `uninstall` does.
+    const collected =
+        typeof FinalizationRegistry === 'function'
+            ? new FinalizationRegistry<Subscription>((subscription) => {
+                  subscription.release();
+                  handedOut.delete(subscription);
+              })
+            : null;
     let current = emulated;
     let installed = true;
 
     function each(visit: (list: EmulatedMediaQueryList) => void): void {
-        for (const ref of handedOut) {
-            const list = ref.deref();
+        for (const subscription of handedOut) {
+            const list = subscription.list.deref();
 
-            if (list) visit(list);
-            else handedOut.delete(ref);
+            if (list) {
+                visit(list);
+            } else {
+                subscription.release();
+                handedOut.delete(subscription);
+            }
         }
     }
 
     win.matchMedia = (query) => {
-        if (!mentionsEmulated(query, EMULATABLE)) return ask(query);
+        // Whatever the caller passes, the browser makes text of it, and so does the patch.
+        const text = String(query);
 
-        const list = new EmulatedMediaQueryList(query, ask, current);
+        if (!mentionsEmulated(text, EMULATABLE)) return ask(query);
 
-        handedOut.add(weak(list));
+        const list = new EmulatedMediaQueryList(text, ask, current);
+
+        handedOut.add(list.subscription);
+        collected?.register(list, list.subscription);
 
         return list;
     };
@@ -104,22 +121,69 @@ export function patchMatchMedia(win: { matchMedia: MatchMedia }, emulated: Emula
 }
 
 /**
+ * The listener an {@link EmulatedMediaQueryList} has on a browser's list, kept
+ * apart from the list so that it can be ended without it.
+ *
+ * The browser keeps a list alive while it has listeners, and this listener is
+ * what it keeps: it holds a weak reference to the list, never the list, or the
+ * list could not be collected. The patch holds the subscription, so it can end
+ * it after the list is gone. A list that stays silent would otherwise leave its
+ * listener on the browser's list for good, and the settled text of an emulated
+ * query often is a constant such as `(min-width: 0px)`, which never fires.
+ */
+class Subscription {
+    private real: MediaQueryList | null = null;
+    private readonly listener: () => void;
+
+    constructor(readonly list: Ref<EmulatedMediaQueryList>) {
+        this.listener = () => {
+            const target = list.deref();
+
+            if (target) target.refresh();
+            else this.release();
+        };
+    }
+
+    get following(): boolean {
+        return this.real !== null;
+    }
+
+    /** Listens to `real` from here on instead of what it listened to. */
+    follow(real: MediaQueryList): void {
+        this.release();
+        this.real = real;
+        real.addEventListener('change', this.listener);
+    }
+
+    release(): void {
+        this.real?.removeEventListener('change', this.listener);
+        this.real = null;
+    }
+}
+
+/**
  * A `MediaQueryList` whose answer is the browser's answer for the query with
  * every emulated feature test settled ({@link substituteMedia}). What is not
- * emulated, the width of the viewport for one, stays live: the list follows the
- * `change` events of the browser's list for the settled query and passes them
- * on. When an emulation moves the settled query, it follows the list of the new
- * one.
+ * emulated, the width of the viewport for one, stays live: once someone listens,
+ * the list follows the `change` events of the browser's list for the settled
+ * query and passes them on. When an emulation moves the settled query, it
+ * follows the list of the new one.
+ *
+ * It subscribes lazily. A caller that only reads `matches`, a service that asks
+ * on every use, has no use for events, and every subscription is a listener on
+ * the browser's list that has to be taken off again.
  */
 class EmulatedMediaQueryList extends EventTarget {
-    onchange: ChangeListener | null = null;
+    readonly subscription = new Subscription(weak(this));
 
     private settled: string;
     private real: MediaQueryList;
-    private unfollow: () => void;
     // The answer the listeners were last told, which is what decides whether
     // there is a change to tell them about.
     private reported: boolean;
+    private handler: ChangeListener | null = null;
+    private handlerHooked = false;
+    private released = false;
 
     constructor(
         readonly media: string,
@@ -130,21 +194,39 @@ class EmulatedMediaQueryList extends EventTarget {
         this.settled = substituteMedia(media, emulated);
         this.real = ask(this.settled);
         this.reported = this.real.matches;
-        this.unfollow = this.follow();
-        // The handler attribute is one more listener, so it is called once per change, like the others.
-        this.addEventListener('change', (event) => this.onchange?.call(this, event as MediaQueryListEvent));
     }
 
     get matches(): boolean {
         return this.real.matches;
     }
 
+    get onchange(): ChangeListener | null {
+        return this.handler;
+    }
+
+    set onchange(handler: ChangeListener | null) {
+        this.handler = handler;
+
+        // The handler attribute is one more listener, so it is called once per change, like the others.
+        if (handler && !this.handlerHooked) {
+            this.handlerHooked = true;
+            this.addEventListener('change', this.callHandler);
+        }
+    }
+
+    override addEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions): void {
+        super.addEventListener(type, listener, options);
+
+        if (type === 'change' && listener) this.listen();
+    }
+
+    // `null` is a valid argument that does nothing; Node's `EventTarget` warns about it.
     addListener(listener: ChangeListener | null): void {
-        this.addEventListener('change', listener as EventListener | null);
+        if (listener) this.addEventListener('change', listener as EventListener);
     }
 
     removeListener(listener: ChangeListener | null): void {
-        this.removeEventListener('change', listener as EventListener | null);
+        if (listener) this.removeEventListener('change', listener as EventListener);
     }
 
     /** Answers for `emulated` from here on, and fires `change` if that is another answer. */
@@ -152,21 +234,17 @@ class EmulatedMediaQueryList extends EventTarget {
         const settled = substituteMedia(this.media, emulated);
 
         if (settled !== this.settled) {
-            this.unfollow();
             this.settled = settled;
             this.real = this.ask(settled);
-            this.unfollow = this.follow();
+
+            if (this.subscription.following) this.subscription.follow(this.real);
         }
 
         this.refresh();
     }
 
-    /** Stops following the browser's list. `matches` still reads from it. */
-    release(): void {
-        this.unfollow();
-    }
-
-    private refresh(): void {
+    /** Fires `change` if the browser's list answers other than what the listeners were last told. */
+    refresh(): void {
         const matches = this.real.matches;
 
         if (matches === this.reported) return;
@@ -176,24 +254,21 @@ class EmulatedMediaQueryList extends EventTarget {
         this.dispatchEvent(Object.assign(new Event('change'), { matches, media: this.media }));
     }
 
-    /**
-     * Subscribes to the current real list and returns the way to cancel. The
-     * browser keeps a list alive while it has listeners, so the listener must
-     * not hold this list, or the list could never be collected: it holds a weak
-     * reference and takes itself off once the list is gone.
-     */
-    private follow(): () => void {
-        const real = this.real;
-        const self = weak(this);
-        const listener = (): void => {
-            const list = self.deref();
+    /** Stops following the browser's list for good. `matches` still reads from it. */
+    release(): void {
+        this.released = true;
+        this.subscription.release();
+    }
 
-            if (list) list.refresh();
-            else real.removeEventListener('change', listener);
-        };
+    private readonly callHandler = (event: Event): void => {
+        this.handler?.call(this, event as MediaQueryListEvent);
+    };
 
-        real.addEventListener('change', listener);
+    private listen(): void {
+        if (this.released || this.subscription.following) return;
 
-        return () => real.removeEventListener('change', listener);
+        // Nobody was told what happened until now, so the first listener starts from the current answer.
+        this.reported = this.real.matches;
+        this.subscription.follow(this.real);
     }
 }
