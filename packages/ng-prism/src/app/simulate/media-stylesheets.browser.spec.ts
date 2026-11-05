@@ -189,6 +189,73 @@ describe('MediaStyleSheets', () => {
         expect(style.sheet?.cssRules).toHaveLength(2);
     });
 
+    it('undoes and forgets a sheet that leaves the document, as a component style that Angular removes', async () => {
+        const style = document.createElement('style');
+
+        style.textContent = '@media (prefers-reduced-motion: reduce) { .spin { animation: none } }';
+        document.head.appendChild(style);
+        const sheet = style.sheet as CSSStyleSheet;
+
+        engine.apply(REDUCE);
+        expect(sheet.cssRules).toHaveLength(2);
+
+        style.remove();
+        await flushMutations();
+
+        // A sheet that comes back, as an adopted one may, comes back as it was.
+        expect(sheet.cssRules).toHaveLength(1);
+        expect(selectorOf(sheet.cssRules[0])).toBe('.spin');
+
+        // Nothing is left to undo: clearing touches it no more.
+        const deleteRule = jest.spyOn(sheet, 'deleteRule');
+
+        engine.clear();
+        expect(deleteRule).not.toHaveBeenCalled();
+    });
+
+    it('reads the rules of a group once when it removes its copies, however many there are', () => {
+        const real = addStyle(Array.from({ length: 200 }, (_, i) => `@media (prefers-reduced-motion: reduce) { .r${i} { animation: none } }`).join('\n'));
+        let reads = 0;
+        // The same sheet, counting how often its rules are asked for.
+        const counted = {
+            media: real.media,
+            href: null,
+            get cssRules(): CSSRuleList {
+                reads++;
+                return real.cssRules;
+            },
+            insertRule: (rule: string, index?: number) => real.insertRule(rule, index),
+            deleteRule: (index: number) => real.deleteRule(index)
+        };
+
+        listSheets(counted as unknown as CSSStyleSheet);
+        engine.apply(REDUCE);
+        expect(real.cssRules).toHaveLength(400);
+
+        reads = 0;
+        engine.clear();
+
+        expect(real.cssRules).toHaveLength(200);
+        expect(Array.from(real.cssRules).map(selectorOf)).toEqual(Array.from({ length: 200 }, (_, i) => `.r${i}`));
+        expect(reads).toBeLessThanOrEqual(2);
+    });
+
+    it('warns once about a rule the browser does not take, however often it is applied', () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation();
+        const sheet = addStyle('@media (prefers-reduced-motion: reduce) { .spin { animation: none } }');
+
+        jest.spyOn(sheet, 'insertRule').mockImplementation(() => {
+            throw new DOMException('Failed to parse the rule', 'SyntaxError');
+        });
+        engine.apply(REDUCE);
+        engine.apply({ ...REDUCE, ...DARK });
+        engine.apply(REDUCE);
+
+        expect(sheet.cssRules).toHaveLength(1);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('@media (prefers-reduced-motion: reduce)'));
+    });
+
     it('a different emulation re-applies without leaving old copies', () => {
         const sheet = addStyle('@media (prefers-reduced-motion: reduce) { .spin { animation: none } } @media (prefers-color-scheme: dark) { .c { color: white } }');
 
@@ -219,11 +286,18 @@ describe('MediaStyleSheets', () => {
     });
 
     describe('forced colors', () => {
-        it('marks every declaration of a copied forced-colors rule !important', () => {
-            const sheet = addStyle('@media (forced-colors: active) { .t { outline-color: Highlight } }');
+        it('marks what a copied forced-colors rule sets that the forced sheet forces !important, and nothing else', () => {
+            const sheet = addStyle(
+                '@media (forced-colors: active) { .t { outline-color: Highlight; border: 1px solid ButtonText; display: none; padding: 2px; --ring: Highlight } }'
+            );
 
             engine.apply({ 'forced-colors': 'active' });
-            expect(((sheet.cssRules[1] as CSSMediaRule).cssRules[0] as CSSStyleRule).style.getPropertyPriority('outline-color')).toBe('important');
+            const copy = (sheet.cssRules[1] as CSSMediaRule).cssRules[0] as CSSStyleRule;
+
+            // The colours have to win against the forced sheet; everything else keeps the cascade it has in the real mode.
+            expect(copy.style.getPropertyPriority('outline-color')).toBe('important');
+            expect(copy.style.getPropertyPriority('border')).toBe('important');
+            for (const property of ['display', 'padding-top', '--ring']) expect([property, copy.style.getPropertyPriority(property)]).toEqual([property, '']);
         });
 
         it('marks the nested rules of the copy, and leaves the original as it is', () => {

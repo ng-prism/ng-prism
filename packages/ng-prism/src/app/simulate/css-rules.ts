@@ -88,14 +88,15 @@ export function valueOf(declaration: string): string {
 
 /**
  * A block's text with only the declarations whose property `keep` accepts
- * (all, without it) and, with `important`, every one of them `!important`.
+ * (all, without it) and, of those, the ones whose property `important`
+ * accepts `!important` (none, without it).
  */
-export function rewriteDeclarations(cssText: string, options: { keep?: (property: string) => boolean; important?: boolean }): string {
+export function rewriteDeclarations(cssText: string, options: { keep?: (property: string) => boolean; important?: (property: string) => boolean }): string {
     const { keep, important } = options;
 
     return declarationsOf(cssText)
         .filter((declaration) => !keep || keep(propertyOf(declaration)))
-        .map((declaration) => (important && !IMPORTANT.test(declaration) ? `${declaration} !important` : declaration))
+        .map((declaration) => (important?.(propertyOf(declaration)) && !IMPORTANT.test(declaration) ? `${declaration} !important` : declaration))
         .join('; ');
 }
 

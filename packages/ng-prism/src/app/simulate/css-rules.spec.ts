@@ -39,9 +39,11 @@ describe('rewriteDeclarations', () => {
         expect(rewriteDeclarations('background: #111;', { keep: isInheritable })).toBe('');
     });
 
-    it('makes every declaration important once', () => {
-        expect(rewriteDeclarations('color: red; outline: 2px solid var(--x) !important;', { important: true })).toBe(
-            'color: red !important; outline: 2px solid var(--x) !important'
+    it('makes the declarations that `important` accepts important once, and leaves the others', () => {
+        const colors = (property: string): boolean => property === 'color' || property === 'outline';
+
+        expect(rewriteDeclarations('color: red; display: none; outline: 2px solid var(--x) !important; padding: 0 !important', { important: colors })).toBe(
+            'color: red !important; display: none; outline: 2px solid var(--x) !important; padding: 0 !important'
         );
     });
 });

@@ -183,6 +183,36 @@ const COLORS: readonly string[] = [
  */
 const GROUND: readonly string[] = ['background-color: Canvas', 'box-shadow: none'];
 
+// What the SVG markup, the fields, the buttons and the links get, and a gradient that falls away.
+const FILL: readonly string[] = ['fill: CanvasText'];
+const STROKE: readonly string[] = ['stroke: CanvasText'];
+const FIELD: readonly string[] = ['color: FieldText', 'background-color: Field', 'border-color: ButtonBorder'];
+const BUTTON: readonly string[] = ['color: ButtonText', 'background-color: ButtonFace', 'border-color: ButtonBorder'];
+const LINK: readonly string[] = ['color: LinkText', 'text-decoration-color: LinkText'];
+const NO_GRADIENT: readonly string[] = ['background-image: none'];
+
+/**
+ * Every property the sheet forces. A copy of the author's own `@media (forced-colors: active)`
+ * rules has to win on these, and only on these: the media engine makes them `!important` there
+ * ({@link isForced}), and everything else keeps the cascade it has in the real mode.
+ */
+export const FORCED_PROPERTIES: ReadonlySet<string> = new Set([INHERITED, COLORS, GROUND, FILL, STROKE, FIELD, BUTTON, LINK, NO_GRADIENT].flat().map(propertyOf));
+
+// The side or the axis in the name of a longhand: `border-left-color` is a `border-color`, `border-block-start` a `border`.
+const SIDE = /-(?:top|right|bottom|left|block|inline)(?:-(?:start|end))?(?=-|$)/g;
+
+/**
+ * Whether a declaration of `property` sets something the sheet forces: one of
+ * {@link FORCED_PROPERTIES}, the longhand of one for a side (`border-left-color`),
+ * or a shorthand that sets one (`border`, `background`, `outline`), whose other
+ * parts go with it.
+ */
+export function isForced(property: string): boolean {
+    const base = property.replace(SIDE, '');
+
+    return FORCED_PROPERTIES.has(base) || Array.from(FORCED_PROPERTIES).some((forced) => forced.startsWith(`${base}-`));
+}
+
 /**
  * The elements the CDK overlay lays out around a panel: the popover that hosts every overlay in the
  * top layer, a wrapper as large as the viewport for a dialog or a toast, a box around a connected
@@ -209,10 +239,11 @@ const colored = (attribute: string): string =>
  *
  * Every rule weighs nothing (`:where()`) and every declaration is `!important`.
  * So the author's normal declarations lose, as the browser overrides them, and
- * the copies of the author's own `@media (forced-colors: active)` rules (made
- * `!important` by the media engine, and with the weight of the original) win,
- * as in the mode. Equal weights are decided by order, which is why the more
- * special rules for links, buttons and fields come after the general ones.
+ * the copies of the author's own `@media (forced-colors: active)` rules (their
+ * {@link FORCED_PROPERTIES} made `!important` by the media engine, and with the
+ * weight of the original) win, as in the mode. Equal weights are decided by
+ * order, which is why the more special rules for links, buttons and fields come
+ * after the general ones.
  *
  * What an exemption names, `forced-color-adjust: none` and `preserve-parent-color`,
  * is left out together with everything below it.
@@ -221,10 +252,11 @@ const colored = (attribute: string): string =>
  * `::before` and `::after`, not on the layout elements of the CDK overlay.
  *
  * What it cannot do: an author's `!important` outside `@media (forced-colors)`
- * weighs more and wins, where the browser forces the color anyway. Colors an SVG
- * takes from a stylesheet rather than from an attribute stay, because `fill: none`
- * must not become a fill. Neither is `color-scheme` set, the palette is the
- * caller's to choose.
+ * weighs more and wins, where the browser forces the color anyway. So does a
+ * color in the author's own forced-colors rules that is not a system color,
+ * which the browser forces as well. Colors an SVG takes from a stylesheet
+ * rather than from an attribute stay, because `fill: none` must not become a
+ * fill. Neither is `color-scheme` set, the palette is the caller's to choose.
  */
 export function forcedColorsCss(rules: ForcedColorRules): string {
     const exempt = rules.exempt.length === 0 ? '' : `:not(:where(${[...rules.exempt, ...rules.exempt.map((selector) => `${selector} *`)].join(', ')}))`;
@@ -237,18 +269,18 @@ export function forcedColorsCss(rules: ForcedColorRules): string {
         block(withPseudoElements(roots), INHERITED),
         block(withPseudoElements(painted), COLORS),
         block([painted], GROUND),
-        block([`${inside}${colored('fill')}`], ['fill: CanvasText']),
-        block([`${inside}${colored('stroke')}`], ['stroke: CanvasText']),
-        block([`${inside}${FIELDS}`], ['color: FieldText', 'background-color: Field', 'border-color: ButtonBorder']),
-        block([`${inside}${BUTTONS}`], ['color: ButtonText', 'background-color: ButtonFace', 'border-color: ButtonBorder']),
-        block([`${inside}${LINKS}`], ['color: LinkText', 'text-decoration-color: LinkText'])
+        block([`${inside}${colored('fill')}`], FILL),
+        block([`${inside}${colored('stroke')}`], STROKE),
+        block([`${inside}${FIELDS}`], FIELD),
+        block([`${inside}${BUTTONS}`], BUTTON),
+        block([`${inside}${LINKS}`], LINK)
     ];
 
     // One rule each: a selector that the browser rejects takes the whole list of a rule with it.
     for (const gradient of rules.gradients) {
         const { element, pseudoElement } = splitPseudoElement(gradient);
 
-        css.push(block([`${roots}:where(${element === '' ? '*' : element})${pseudoElement}`], ['background-image: none']));
+        css.push(block([`${roots}:where(${element === '' ? '*' : element})${pseudoElement}`], NO_GRADIENT));
     }
 
     return css.join('\n\n');

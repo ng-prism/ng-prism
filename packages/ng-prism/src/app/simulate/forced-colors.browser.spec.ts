@@ -1,4 +1,4 @@
-import { collectForcedColorRules, type ForcedColorRules, forcedColorsCss } from './forced-colors.js';
+import { collectForcedColorRules, FORCED_PROPERTIES, type ForcedColorRules, forcedColorsCss, isForced } from './forced-colors.js';
 
 function addStyle(css: string): CSSStyleSheet {
     const style = document.createElement('style');
@@ -243,6 +243,12 @@ describe('forcedColorsCss', () => {
         }
     });
 
+    it('lists every property it sets as forced, and nothing else', () => {
+        const set = new Set(parse(forcedColorsCss({ exempt: ['.dot'], gradients: ['.g'] })).flatMap(({ values }) => Object.keys(values)));
+
+        expect(Array.from(FORCED_PROPERTIES).sort()).toEqual(Array.from(set).sort());
+    });
+
     describe('applied to a document', () => {
         let root: HTMLElement;
         const css = forcedColorsCss({ exempt: ['.dot'], gradients: ['.g', '.g::before'] });
@@ -417,5 +423,56 @@ describe('forcedColorsCss', () => {
             expect(forcedOn(css, svg)).toMatchObject({ 'background-color': 'Canvas' });
             expect(forcedOn(css, at('#plain'))).toMatchObject({ 'stop-color': 'CanvasText', 'flood-color': 'CanvasText', 'lighting-color': 'CanvasText' });
         });
+    });
+});
+
+describe('isForced', () => {
+    it('takes a forced property, a longhand of one for a side and a shorthand that sets one', () => {
+        for (const property of [
+            'color',
+            'background-color',
+            'background',
+            'background-image',
+            'border-color',
+            'border',
+            'border-left',
+            'border-block-start',
+            'border-inline-end-color',
+            'border-top-color',
+            'outline',
+            'outline-color',
+            'text-decoration',
+            'column-rule',
+            'caret',
+            'box-shadow',
+            'text-shadow',
+            'fill',
+            'stroke',
+            '-webkit-text-fill-color'
+        ]) {
+            expect([property, isForced(property)]).toEqual([property, true]);
+        }
+    });
+
+    it('leaves what the sheet does not force: layout, the rest of a family and custom properties', () => {
+        for (const property of [
+            'display',
+            'padding',
+            'opacity',
+            'border-width',
+            'border-left-style',
+            'border-top-left-radius',
+            'border-image',
+            'outline-offset',
+            'background-position',
+            'text-decoration-line',
+            'color-scheme',
+            'stroke-width',
+            'fill-opacity',
+            'forced-color-adjust',
+            '--focus'
+        ]) {
+            expect([property, isForced(property)]).toEqual([property, false]);
+        }
     });
 });
