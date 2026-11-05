@@ -140,9 +140,14 @@
    transition for both; it takes no pointer events itself, so that only the
    pills do, and a pill that is not there leaves nothing to click.
 
-   It stays inside the stage: an absolute box that spills past the edge opens a
-   scroll range, and a list of conditions can be wider than a phone. The label
-   gives way with an ellipsis (prism-sim-pill.component.css). */
+   It stays inside the stage and clear of the tool rail: an absolute box that
+   spills past the edge opens a scroll range, and one that reaches the rail
+   goes under it (the rail is z-index 5, at the mirrored offsets on the right),
+   which hides a Reset button. A list of conditions can be wider than a phone,
+   so its label wraps (prism-sim-pill.component.css). The reserve is the rail,
+   36px (a 26px button, 4px padding and a 1px border either side), and an 8px
+   gap, with a little to spare for the zoom readout, which can be wider than the
+   button. A spec derives the rail's width from its parts. */
 .stage-pills {
     position: absolute;
     top: var(--prism-canvas-overlay-top, 12px);
@@ -152,7 +157,7 @@
     flex-direction: column;
     gap: var(--sp-2);
     align-items: flex-start;
-    max-width: calc(100% - 2 * var(--prism-canvas-overlay-inline, 20px));
+    max-width: calc(100% - 2 * var(--prism-canvas-overlay-inline, 20px) - 48px);
     pointer-events: none;
     transition:
         top var(--dur-base),

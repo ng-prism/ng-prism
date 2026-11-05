@@ -5,7 +5,8 @@
 /* Canvas overlays sit at --prism-canvas-overlay-*, which the stage grows
    when the rulers claim its top and left edges (see the
    .prism-canvas-stage[data-rulers] rule in prism-renderer.component.ts).
-   prism-canvas-bg-pill simply inherits those; this rail cannot, because
+   The pills (.stage-pills, which holds the background and the simulation
+   pill) simply inherit those; this rail cannot, because
    capture mode requires it to be a direct child of .prism-canvas-wrap
    outside the stage. So it mirrors the same values off canvas.rulers()
    instead, so keep the two in step.

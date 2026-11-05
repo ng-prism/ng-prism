@@ -32,10 +32,18 @@ describe('PrismSimPillComponent', () => {
         await resolveComponentResources((url) => readFile(join(__dirname, url), 'utf8'));
     });
 
-    beforeEach(() => {
+    function setUp(): void {
         TestBed.resetTestingModule();
         TestBed.configureTestingModule({ providers: [{ provide: PRISM_MANIFEST, useValue: { components: [], pages: [] } }] });
         sim = TestBed.inject(PrismSimulationService);
+    }
+
+    beforeEach(setUp);
+
+    afterEach(() => {
+        window.history.replaceState({}, '', '/');
+        document.documentElement.removeAttribute('data-prism-capture');
+        document.getElementById('ng-prism-capture-styles')?.remove();
     });
 
     function render() {
@@ -51,6 +59,36 @@ describe('PrismSimPillComponent', () => {
         const fixture = render();
 
         expect(fixture.nativeElement.children).toHaveLength(0);
+        // The stylesheets collapse the host with `:host:empty`: the anchor comment of the `@if` must not count against it.
+        expect(fixture.nativeElement.matches(':empty')).toBe(true);
+    });
+
+    it('renders nothing in capture mode, whatever was set', () => {
+        window.history.replaceState({}, '', '/?capture=1');
+        setUp();
+        sim.set({ motion: 'reduce', scheme: 'dark' });
+
+        const fixture = render();
+
+        expect(fixture.nativeElement.children).toHaveLength(0);
+        expect(fixture.nativeElement.matches(':empty')).toBe(true);
+    });
+
+    it('appears with the first condition and goes with the last', () => {
+        const fixture = render();
+
+        expect(fixture.nativeElement.matches(':empty')).toBe(true);
+
+        sim.set({ vision: 'protanopia' });
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.matches(':empty')).toBe(false);
+        expect(query(fixture, '.label')?.textContent).toBe('Protanopia');
+
+        sim.reset();
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.matches(':empty')).toBe(true);
     });
 
     it('lists the active conditions and resets only the simulation', () => {

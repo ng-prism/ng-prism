@@ -73,7 +73,7 @@ const VISION_LABELS: Record<VisionSetting, string | null> = {
     blurred: 'Blurred vision'
 };
 
-/** Between the parts of a combined label, such as the audit condition. */
+/** Between the parts of a combined label, such as the audit condition ({@link joinLabels}). */
 const LABEL_SEPARATOR = ' · ';
 
 /** The URL parameters, named like the fields and in menu order. */
@@ -98,6 +98,11 @@ export function simulationLabels(s: Simulation): string[] {
     return present([MOTION_LABELS[s.motion], SCHEME_LABELS[s.scheme], FORCED_LABELS[s.forced], VISION_LABELS[s.vision]]);
 }
 
+/** Labels as one line of text: the simulation pill's, and the audit condition's, so the two cannot drift apart. */
+export function joinLabels(labels: readonly string[]): string {
+    return labels.join(LABEL_SEPARATOR);
+}
+
 /**
  * The condition an accessibility audit ran under, or `null` when it ran under
  * the real environment.
@@ -110,7 +115,7 @@ export function simulationLabels(s: Simulation): string[] {
 export function auditConditionLabel(s: Simulation): string | null {
     const labels = present([SCHEME_LABELS[s.scheme], FORCED_LABELS[s.forced]]);
 
-    return labels.length > 0 ? labels.join(LABEL_SEPARATOR) : null;
+    return labels.length > 0 ? joinLabels(labels) : null;
 }
 
 /** The media features to emulate: only those the simulation sets, so `System`/`Off` keep the real answer. */

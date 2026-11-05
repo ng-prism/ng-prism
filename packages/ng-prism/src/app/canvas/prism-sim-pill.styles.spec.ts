@@ -40,6 +40,14 @@ describe('prism-sim-pill styles', () => {
     it('takes pointer events back on the pill, as the stage container gives none', () => {
         expect(rule(SIM_CSS, '.sim-pill')).toMatch(/pointer-events: auto;/);
     });
+
+    // A touch screen has no tooltip to read a cut-off label in, and the pill is what says what is active.
+    it('wraps a label that is wider than the stage and never cuts it off', () => {
+        expect(rule(SIM_CSS, '.label')).toMatch(/min-width: 0;/);
+        expect(rule(SIM_CSS, '.label')).not.toMatch(/white-space: nowrap|text-overflow|overflow:/);
+        expect(rule(SIM_CSS, '.sim-pill')).not.toMatch(/border-radius: 999px/);
+        expect(rule(SIM_CSS, '.sim-pill')).toMatch(/border-radius: 16px;/);
+    });
 });
 
 describe('prism-canvas-bg-pill styles', () => {

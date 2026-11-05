@@ -6,6 +6,7 @@ import {
     forcedPalette,
     hasSimulationParams,
     isSimulating,
+    joinLabels,
     MOTION_SETTINGS,
     parseSimulation,
     readSimulationParams,
@@ -27,6 +28,14 @@ describe('simulation', () => {
         ]);
         expect(simulationLabels({ ...DEFAULT_SIMULATION, vision: 'blurred' })).toEqual(['Blurred vision']);
         expect(simulationLabels(DEFAULT_SIMULATION)).toEqual([]);
+    });
+
+    it('joins labels with a middle dot, the way the pill and the audit condition read', () => {
+        expect(joinLabels([])).toBe('');
+        expect(joinLabels(['Blurred vision'])).toBe('Blurred vision');
+        expect(joinLabels(['Reduced motion', 'Dark scheme'])).toBe('Reduced motion · Dark scheme');
+        // One joiner for both: the audit condition is the pill's text, minus what does not change colours.
+        expect(auditConditionLabel({ ...DEFAULT_SIMULATION, scheme: 'dark', forced: 'active' })).toBe(joinLabels(['Dark scheme', 'Forced colors (approx.)']));
     });
 
     it('audit condition only names what changes computed styles', () => {

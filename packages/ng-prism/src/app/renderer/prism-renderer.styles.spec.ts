@@ -71,6 +71,25 @@ describe('prism-renderer simulated ground', () => {
 });
 
 /**
+ * The width of the tool rail, from what it is made of: its buttons (all of them extra small), its padding and its border. The
+ * rail sits outside the stage and sizes to its content, so no rule states the number. Throws when a part changes shape.
+ */
+function toolRailWidth(): number {
+    const read = (path: string): string => withoutComments(readFileSync(join(__dirname, path), 'utf8'));
+    const toolbarHtml = readFileSync(join(__dirname, '../canvas/prism-canvas-toolbar.component.html'), 'utf8');
+    const rail = /^\.prism-toolrail \{([^}]*)\}/m.exec(read('../canvas/prism-canvas-toolbar.component.css'))?.[1] ?? '';
+    const button = /:host\(\.prism-icon-button--xs\) \{[^}]*width: (\d+)px/.exec(read('../shared/prism-icon-button.component.css'))?.[1];
+    const space = /'--sp-2': '(\d+)px'/.exec(readFileSync(join(__dirname, '../theme/prism-default-theme.ts'), 'utf8'))?.[1];
+
+    // Every button of the rail takes the extra small size; a larger one would widen it.
+    expect(toolbarHtml.match(/size="(\w+)"/g)?.every((size) => size === 'size="xs"')).toBe(true);
+    expect(rail).toMatch(/padding: var\(--sp-2\);/);
+    expect(rail).toMatch(/border: 1px solid/);
+    if (!button || !space) throw new Error('the rail button width or the spacing token is not where the rail width is read from');
+    return Number(button) + 2 * Number(space) + 2 * 1;
+}
+
+/**
  * The pills the stage stacks in its top left corner. They moved off the
  * background pill's host, which positioned itself, so that a second pill could
  * sit under the first.
@@ -100,7 +119,15 @@ describe('prism-renderer stage pills', () => {
         expect(rule(container)).toMatch(/pointer-events: none;/);
     });
 
-    it('stays inside the stage, so a long label cannot open a scroll range', () => {
-        expect(rule(container)).toMatch(/max-width: calc\(100% - 2 \* var\(--prism-canvas-overlay-inline, 20px\)\);/);
+    /**
+     * The tool rail is `z-index: 5` at the same top and the mirrored inline offset, on the right. A pill that
+     * ends under it loses its Reset button to it, so the pills end a gap short of the rail.
+     */
+    it('stays inside the stage and clear of the tool rail, so a long label wraps instead of running under it', () => {
+        const clamp = /max-width: calc\(100% - 2 \* var\(--prism-canvas-overlay-inline, 20px\) - (\d+)px\);/.exec(rule(container));
+
+        expect(clamp).not.toBeNull();
+        // Both insets, the rail's width, a gap. The rail is not content-sized by an explicit width, so it is derived from its parts.
+        expect(Number(clamp![1])).toBeGreaterThanOrEqual(toolRailWidth() + 8);
     });
 });

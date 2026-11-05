@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { PrismIconComponent } from '../icons/prism-icon.component.js';
 import { PrismSimulationService } from '../services/prism-simulation.service.js';
+import { joinLabels } from '../simulate/simulation.js';
 
 /**
  * Says what the canvas simulates, so a screenshot or a glance at the stage
@@ -25,7 +26,7 @@ import { PrismSimulationService } from '../services/prism-simulation.service.js'
 export class PrismSimPillComponent {
     private readonly simulation = inject(PrismSimulationService);
 
-    protected readonly conditions = computed(() => this.simulation.labels().join(' · '));
+    protected readonly conditions = computed(() => joinLabels(this.simulation.labels()));
 
     protected reset(): void {
         this.simulation.reset();

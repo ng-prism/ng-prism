@@ -2,7 +2,7 @@
    hold it as a flex item or a block of their own, so it is a flex box that has
    nothing to size while there is nothing to say: an empty host would still
    count for the stage's gap and for the overview's margin. It is never wider
-   than the box it sits in, so that the label can give way to an ellipsis. */
+   than the box it sits in, so that the label wraps there. */
 :host {
     display: flex;
     max-width: 100%;
@@ -30,7 +30,7 @@
     pointer-events: auto;
     background: color-mix(in srgb, var(--prism-canvas-overlay-bg, var(--prism-bg-elevated)) 92%, transparent);
     border: 1px solid var(--prism-canvas-overlay-border, var(--prism-border-strong));
-    border-radius: 999px;
+    border-radius: 16px;
     backdrop-filter: blur(8px);
     animation: fade-in var(--dur-base) ease-out;
 }
@@ -39,14 +39,13 @@ prism-icon {
     flex: none;
 }
 
-/* One line, cut with an ellipsis where the stage is narrower than the list of
-   conditions; the pill's tooltip carries the whole text. */
+/* The label wraps where the stage is narrower than the list of conditions, and
+   is never cut off: a touch screen has no tooltip to read the rest in, and
+   this is what says what is active. The pill's radius is half its one-line
+   height, so it stays a capsule at one line and a rounded box at several. */
 .label {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
     letter-spacing: 0.02em;
-    white-space: nowrap;
 }
 
 .reset {
