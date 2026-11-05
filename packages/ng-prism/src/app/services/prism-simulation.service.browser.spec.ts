@@ -98,6 +98,30 @@ describe('PrismSimulationService', () => {
         expect(sim.scopeRoot()).toEqual({ colorScheme: 'dark', filter: null, themeClass: null, themeAttributes: {} });
     });
 
+    it('leaves out hook attributes a scope root cannot take, with one warning each', () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const sim = setUp({
+            colorScheme: {
+                dark: { class: 'tl-dark', attributes: { 'data mode': 'dark', class: 'x', STYLE: 'color: red', 'data-prism-sim': 'no', 'data-mode': 'dark' } },
+                light: { attributes: { 'data mode': 'light', 'data-mode': 'light' } }
+            }
+        });
+
+        sim.set({ scheme: 'dark' });
+        expect(sim.scopeRoot()?.themeAttributes).toEqual({ 'data-mode': 'dark' });
+        sim.set({ scheme: 'light' });
+        expect(sim.scopeRoot()?.themeAttributes).toEqual({ 'data-mode': 'light' });
+
+        // `data mode` is in both schemes and warned about once.
+        expect(warn.mock.calls.map(([message]) => message)).toEqual([
+            '[ng-prism] colorScheme: the attribute "data mode" is left out, it is not a valid attribute name.',
+            '[ng-prism] colorScheme: the attribute "class" is left out, name a theme class in `class` instead.',
+            '[ng-prism] colorScheme: the attribute "STYLE" is left out, the simulation manages it itself.',
+            '[ng-prism] colorScheme: the attribute "data-prism-sim" is left out, the simulation manages it itself.'
+        ]);
+        warn.mockRestore();
+    });
+
     it('keeps the scope root and the emulation while a setting they do not depend on changes', () => {
         const sim = setUp();
 

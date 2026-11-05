@@ -1,5 +1,7 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
-import { sameScopeRoot, type ScopeRootState } from '../simulate/scope-root.js';
+import { DOCUMENT } from '@angular/common';
+import { computed, inject, Injectable, isDevMode, signal } from '@angular/core';
+import type { NgPrismColorSchemeConfig, NgPrismColorSchemeTarget } from '../../plugin/plugin.types.js';
+import { RESERVED_ATTRIBUTES, sameScopeRoot, type ScopeRootState } from '../simulate/scope-root.js';
 import {
     auditConditionLabel,
     DEFAULT_SIMULATION,
@@ -36,7 +38,7 @@ import { PrismCaptureService } from './prism-capture.service.js';
 @Injectable({ providedIn: 'root' })
 export class PrismSimulationService {
     private readonly capture = inject(PrismCaptureService);
-    private readonly colorSchemeHook = inject(PRISM_CONFIG).colorScheme;
+    private readonly colorSchemeHook = usableHook(inject(PRISM_CONFIG).colorScheme, inject(DOCUMENT));
 
     private readonly motion = signal<MotionSetting>(DEFAULT_SIMULATION.motion);
     private readonly scheme = signal<SchemeSetting>(DEFAULT_SIMULATION.scheme);
@@ -82,7 +84,7 @@ export class PrismSimulationService {
 
             const state = this.state();
             const scheme = this.emulated()['prefers-color-scheme'] ?? null;
-            const hook = scheme ? this.colorSchemeHook?.[scheme] : undefined;
+            const hook = scheme ? this.colorSchemeHook[scheme] : undefined;
 
             return {
                 colorScheme: scheme ?? forcedPalette(state),
@@ -105,5 +107,49 @@ export class PrismSimulationService {
     /** Back to the real environment: every setting to its default. */
     reset(): void {
         this.set(DEFAULT_SIMULATION);
+    }
+}
+
+/**
+ * The `colorScheme` config without the attributes a scope root cannot take: a
+ * name the DOM rejects, which would throw halfway through applying the scope
+ * root, and the ones it manages itself ({@link RESERVED_ATTRIBUTES}). Each name
+ * left out is warned about once, in dev mode. Read once: the config does not
+ * change while the app runs.
+ */
+function usableHook(config: NgPrismColorSchemeConfig | undefined, doc: Document): NgPrismColorSchemeConfig {
+    const probe = doc.createElement('div');
+    const warned = new Set<string>();
+
+    const usable = (target: NgPrismColorSchemeTarget | undefined): NgPrismColorSchemeTarget | undefined => {
+        if (!target?.attributes) return target;
+
+        const attributes = Object.entries(target.attributes).filter(([name]) => {
+            const problem = attributeProblem(name, probe);
+
+            if (problem && !warned.has(name)) {
+                warned.add(name);
+                if (isDevMode()) console.warn(`[ng-prism] colorScheme: the attribute "${name}" is left out, ${problem}.`);
+            }
+            return problem === null;
+        });
+
+        return { ...target, attributes: Object.fromEntries(attributes) };
+    };
+
+    return { light: usable(config?.light), dark: usable(config?.dark) };
+}
+
+/** Why the hook cannot set the attribute `name`, or `null` when it can. */
+function attributeProblem(name: string, probe: Element): string | null {
+    if (RESERVED_ATTRIBUTES.has(name.toLowerCase())) {
+        return name.toLowerCase() === 'class' ? 'name a theme class in `class` instead' : 'the simulation manages it itself';
+    }
+    try {
+        probe.setAttribute(name, '');
+        probe.removeAttribute(name);
+        return null;
+    } catch {
+        return 'it is not a valid attribute name';
     }
 }

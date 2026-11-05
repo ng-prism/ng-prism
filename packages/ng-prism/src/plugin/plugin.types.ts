@@ -506,7 +506,11 @@ export interface DiscoveryPage {
 export interface NgPrismColorSchemeTarget {
     /** A class such as `'dark'`, or several separated by spaces. */
     class?: string;
-    /** Attributes and their values, such as `{ 'data-mode': 'dark' }`. */
+    /**
+     * Attributes and their values, such as `{ 'data-mode': 'dark' }`. `class`,
+     * `style` and `data-prism-sim` are the simulation's own and left out, as is
+     * a name the DOM rejects, with a warning in dev mode.
+     */
     attributes?: Readonly<Record<string, string>>;
 }
 

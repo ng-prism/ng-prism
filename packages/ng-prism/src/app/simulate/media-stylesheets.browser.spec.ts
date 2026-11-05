@@ -401,6 +401,29 @@ describe('MediaStyleSheets', () => {
         });
     });
 
+    it('tells its owner when it has rewritten styles it had not seen', async () => {
+        const onNewStyles = jest.fn();
+
+        engine = new MediaStyleSheets(document, onNewStyles);
+        addStyle('.a { color: red }');
+        engine.apply(DARK);
+        expect(onNewStyles).toHaveBeenCalledTimes(1);
+
+        addStyle('.b { color: blue }');
+        await flushMutations();
+        expect(onNewStyles).toHaveBeenCalledTimes(2);
+
+        // A change in the head that brings no sheet is not news.
+        document.head.appendChild(document.createElement('meta'));
+        await flushMutations();
+        expect(onNewStyles).toHaveBeenCalledTimes(2);
+
+        engine.clear();
+        addStyle('.c { color: green }');
+        await flushMutations();
+        expect(onNewStyles).toHaveBeenCalledTimes(2);
+    });
+
     it('never touches an ignored sheet', () => {
         const sheet = addStyle('@media (forced-colors: active) { .t { color: CanvasText } }');
 

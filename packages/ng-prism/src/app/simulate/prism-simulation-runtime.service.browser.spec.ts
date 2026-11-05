@@ -168,11 +168,51 @@ describe('PrismSimulationRuntime', () => {
         expect(document.adoptedStyleSheets).toEqual([own]);
     });
 
-    it('goes without the forced colors sheet where the document cannot adopt one', () => {
+    it('goes without the forced colors sheet where the document cannot adopt one, and emulates the rest', () => {
+        const apply = jest.spyOn(MediaStyleSheets.prototype, 'apply');
+        const browser = stubMatchMedia();
         const { sim } = setUp();
 
         sim.set({ forced: 'active' });
         expect(() => TestBed.tick()).not.toThrow();
+        expect(apply).toHaveBeenLastCalledWith({ 'forced-colors': 'active' });
+        expect(window.matchMedia).not.toBe(browser);
+        expect(window.matchMedia('(forced-colors: active)').matches).toBe(true);
+    });
+
+    it('takes the forced colors sheet away and keeps emulating the scheme when only forced colors go', () => {
+        stubAdoptedSheets();
+        const apply = jest.spyOn(MediaStyleSheets.prototype, 'apply');
+        const clear = jest.spyOn(MediaStyleSheets.prototype, 'clear');
+        const { sim } = setUp();
+
+        sim.set({ forced: 'active', scheme: 'dark' });
+        TestBed.tick();
+        expect(document.adoptedStyleSheets).toHaveLength(1);
+        clear.mockClear();
+
+        sim.set({ forced: 'off' });
+        TestBed.tick();
+        expect(document.adoptedStyleSheets).toEqual([]);
+        expect(apply).toHaveBeenLastCalledWith({ 'prefers-color-scheme': 'dark' });
+        expect(clear).not.toHaveBeenCalled();
+    });
+
+    it('collects the exemptions of styles that arrive while forced colors are on', async () => {
+        const { textOf } = stubAdoptedSheets();
+        const { sim } = setUp();
+
+        sim.set({ forced: 'active' });
+        TestBed.tick();
+        const [sheet] = document.adoptedStyleSheets;
+
+        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: [], gradients: [] }));
+
+        addStyle('.dot { forced-color-adjust: none }');
+        await flushMutations();
+        // Rewritten in place: the same sheet, still the only one adopted.
+        expect(document.adoptedStyleSheets).toEqual([sheet]);
+        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: ['.dot'], gradients: [] }));
     });
 
     it('treats a .cdk-overlay-container that is there already as a scope root and follows the simulation', () => {
@@ -236,6 +276,23 @@ describe('PrismSimulationRuntime', () => {
         expect(nested.hasAttribute('data-prism-sim')).toBe(false);
     });
 
+    it('releases an overlay container whose apply threw', () => {
+        const container = addOverlayContainer();
+        const { sim } = setUp();
+
+        jest.spyOn(container, 'setAttribute').mockImplementationOnce(() => {
+            throw new DOMException('rejected', 'InvalidCharacterError');
+        });
+        sim.set({ scheme: 'dark' });
+        expect(() => TestBed.tick()).toThrow('rejected');
+        expect(container.classList.contains('tl-dark')).toBe(true);
+
+        sim.reset();
+        TestBed.tick();
+        expect(container.attributes).toHaveLength(1);
+        expect(container.className).toBe('cdk-overlay-container');
+    });
+
     it('starts once however often init is called', () => {
         const apply = jest.spyOn(MediaStyleSheets.prototype, 'apply');
         const { sim, runtime } = setUp();
@@ -262,6 +319,20 @@ describe('PrismSimulationRuntime', () => {
         expect(clear).toHaveBeenCalled();
         expect(window.matchMedia).toBe(browser);
         expect(document.adoptedStyleSheets).toEqual([]);
+        expect(container.hasAttribute('data-prism-sim')).toBe(false);
+        expect(container.classList.contains('tl-dark')).toBe(false);
+    });
+
+    it('stops watching the body when the app is destroyed', async () => {
+        const { sim } = setUp();
+
+        sim.set({ scheme: 'dark' });
+        TestBed.tick();
+        TestBed.resetTestingModule();
+
+        const container = addOverlayContainer();
+
+        await flushMutations();
         expect(container.hasAttribute('data-prism-sim')).toBe(false);
         expect(container.classList.contains('tl-dark')).toBe(false);
     });

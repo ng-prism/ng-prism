@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { DestroyRef, effect, inject, Injectable, Injector } from '@angular/core';
+import { DestroyRef, effect, inject, Injectable, Injector, untracked } from '@angular/core';
 import { PrismSimulationService } from '../services/prism-simulation.service.js';
 import { collectForcedColorRules, forcedColorsCss } from './forced-colors.js';
 import { type MatchMediaPatch, patchMatchMedia } from './match-media-patch.js';
@@ -25,7 +25,8 @@ export class PrismSimulationRuntime {
     private readonly doc = inject(DOCUMENT);
     private readonly injector = inject(Injector);
     private readonly destroyRef = inject(DestroyRef);
-    private readonly stylesheets = new MediaStyleSheets(this.doc);
+    // New styles while forced colors are on can bring exemptions and gradients of their own.
+    private readonly stylesheets = new MediaStyleSheets(this.doc, () => this.refreshForcedSheet());
 
     private started = false;
     private matchMediaPatch: MatchMediaPatch | null = null;
@@ -39,8 +40,25 @@ export class PrismSimulationRuntime {
         if (this.started) return;
         this.started = true;
 
-        effect(() => this.emulate(this.sim.emulated(), this.sim.forcedActive()), { injector: this.injector });
-        effect(() => this.scopeOverlays(this.sim.scopeRoot()), { injector: this.injector });
+        // The signals are read outside `untracked`, the page is changed inside: a `change`
+        // listener that the `matchMedia` patch calls synchronously must not add to the effect.
+        effect(
+            () => {
+                const emulated = this.sim.emulated();
+                const forced = this.sim.forcedActive();
+
+                untracked(() => this.emulate(emulated, forced));
+            },
+            { injector: this.injector }
+        );
+        effect(
+            () => {
+                const root = this.sim.scopeRoot();
+
+                untracked(() => this.scopeOverlays(root));
+            },
+            { injector: this.injector }
+        );
 
         this.destroyRef.onDestroy(() => {
             this.emulate({}, false);
@@ -72,9 +90,8 @@ export class PrismSimulationRuntime {
     }
 
     /**
-     * Adopts the sheet that approximates forced colors, or takes it away. Its
-     * exemptions and gradients are collected anew each time it is adopted, so
-     * the styles that arrived since count.
+     * Adopts the sheet that approximates forced colors, or takes it away. While
+     * it is adopted, {@link refreshForcedSheet} keeps it up to date.
      */
     private adoptForcedSheet(forced: boolean): void {
         const doc = this.doc;
@@ -95,10 +112,26 @@ export class PrismSimulationRuntime {
 
         const sheet = new Sheet();
 
-        sheet.replaceSync(forcedColorsCss(collectForcedColorRules(doc)));
+        sheet.replaceSync(this.forcedColorsText(sheet));
         this.stylesheets.ignore(sheet);
         doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet];
         this.forcedSheet = sheet;
+    }
+
+    /**
+     * Collects the exemptions and gradients again and rewrites the adopted
+     * forced colors sheet in place. The media engine calls it when it has
+     * rewritten styles it had not seen: a component opened for the first time
+     * brings its styles while forced colors are on.
+     */
+    private refreshForcedSheet(): void {
+        const sheet = this.forcedSheet;
+
+        sheet?.replaceSync(this.forcedColorsText(sheet));
+    }
+
+    private forcedColorsText(own: CSSStyleSheet): string {
+        return forcedColorsCss(collectForcedColorRules(this.doc, [own]));
     }
 
     /**
@@ -112,26 +145,32 @@ export class PrismSimulationRuntime {
         if (!root || !body) {
             this.bodyObserver?.disconnect();
             this.bodyObserver = null;
-            for (const overlay of this.overlays) applyScopeRoot(overlay, null);
+
+            const overlays = this.overlays;
+
             this.overlays = [];
+            for (const overlay of overlays) applyScopeRoot(overlay, null);
             return;
         }
 
-        this.findOverlays(body, root);
-        if (this.bodyObserver || typeof MutationObserver === 'undefined') return;
-        this.bodyObserver = new MutationObserver(() => {
-            const current = this.sim.scopeRoot();
+        if (!this.bodyObserver && typeof MutationObserver !== 'undefined') {
+            this.bodyObserver = new MutationObserver(() => {
+                const current = this.sim.scopeRoot();
 
-            if (current) this.findOverlays(body, current);
-        });
-        this.bodyObserver.observe(body, { childList: true });
+                if (current) this.findOverlays(body, current);
+            });
+            this.bodyObserver.observe(body, { childList: true });
+        }
+        this.findOverlays(body, root);
     }
 
     private findOverlays(body: HTMLElement, root: ScopeRootState): void {
         const found = Array.from(body.children).filter((child): child is HTMLElement => child instanceof HTMLElement && child.matches(OVERLAY_ROOT));
+        const gone = this.overlays.filter((overlay) => !found.includes(overlay));
 
-        for (const overlay of this.overlays) if (!found.includes(overlay)) applyScopeRoot(overlay, null);
-        for (const overlay of found) applyScopeRoot(overlay, root);
+        // Recorded before anything is applied, so that a release reaches every container even after an apply threw.
         this.overlays = found;
+        for (const overlay of gone) applyScopeRoot(overlay, null);
+        for (const overlay of found) applyScopeRoot(overlay, root);
     }
 }

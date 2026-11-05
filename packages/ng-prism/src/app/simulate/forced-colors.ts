@@ -24,10 +24,14 @@ interface Found {
  * Conditions are not evaluated: an exemption inside `@media (min-width: …)` counts
  * wherever the page is, and one inside `@media (forced-colors: active)`, where
  * authors write most of them, counts although the page is not in the mode.
+ *
+ * The sheets in `skip` are not read. That is for the simulation's own forced
+ * colors sheet: nothing in it is an author's exemption or gradient.
  */
-export function collectForcedColorRules(doc: Document): ForcedColorRules {
+export function collectForcedColorRules(doc: Document, skip: Iterable<CSSStyleSheet> = []): ForcedColorRules {
     const found: Found = { exempt: new Set(), gradients: new Set() };
-    const seen = new Set<object>();
+    // A sheet to skip counts as read already.
+    const seen = new Set<object>(skip);
 
     for (const sheet of [...Array.from(doc.styleSheets), ...(doc.adoptedStyleSheets ?? [])]) collectSheet(sheet, found, seen);
 

@@ -88,7 +88,15 @@ export class MediaStyleSheets {
     private observer: MutationObserver | null = null;
     private outSuffix: string | null = null;
 
-    constructor(private readonly doc: Document) {}
+    /**
+     * `onNewStyles` is called after a pass that rewrote sheets the engine had
+     * not seen before, on `apply` and when styles arrive while it is active, for
+     * a caller that reads the document's styles as well.
+     */
+    constructor(
+        private readonly doc: Document,
+        private readonly onNewStyles?: () => void
+    ) {}
 
     /** Rewrites every sheet for `emulated`, and keeps doing so for new styles until `clear()`. Idempotent; a different `emulated` re-applies. */
     apply(emulated: EmulatedMedia): void {
@@ -153,6 +161,7 @@ export class MediaStyleSheets {
             this.emulateGroup(sheet, emulated, 'top');
             this.copyRootValues(sheet, emulated, this.rootProperties, 'top');
         }
+        if (fresh.length > 0) this.onNewStyles?.();
     }
 
     /** Adds `sheet` and the sheets it imports to `fresh`, unless they are ignored, done already or unreadable. */

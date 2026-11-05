@@ -99,6 +99,13 @@ describe('collectForcedColorRules', () => {
         expect(collectForcedColorRules(document)).toEqual({ exempt: ['.own', '.adopted'], gradients: ['.imported'] });
     });
 
+    it('leaves out the sheets it is told to skip', () => {
+        const own = addStyle('.own { forced-color-adjust: none }');
+
+        addStyle('.author { forced-color-adjust: none }');
+        expect(collectForcedColorRules(document, [own])).toEqual({ exempt: ['.author'], gradients: [] });
+    });
+
     it('does not stop at a sheet it cannot read, a cross-origin one', () => {
         const foreign = {
             get cssRules(): CSSRuleList {
