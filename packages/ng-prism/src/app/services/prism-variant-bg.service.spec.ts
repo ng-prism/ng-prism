@@ -7,6 +7,7 @@ import { PrismCanvasService } from './prism-canvas.service.js';
 import { PrismManifestService } from './prism-manifest.service.js';
 import { PrismNavigationService } from './prism-navigation.service.js';
 import { PrismRendererService } from './prism-renderer.service.js';
+import { PrismSimulationService } from './prism-simulation.service.js';
 import { PrismVariantBgService } from './prism-variant-bg.service.js';
 
 function makeComponent(bg?: CanvasBg, variants?: { name: string; bg?: CanvasBg }[]): RuntimeComponent {
@@ -130,6 +131,73 @@ describe('PrismVariantBgService', () => {
     });
 });
 
+describe('PrismVariantBgService with an emulated color scheme', () => {
+    let canvas: PrismCanvasService;
+    let nav: PrismNavigationService;
+    let manifestService: PrismManifestService;
+    let sim: PrismSimulationService;
+    let service: PrismVariantBgService;
+
+    beforeEach(() => {
+        // No `setBg()` here: a picked background is exactly what ends the
+        // ground following the scheme, and the stored flag outlives the test.
+        localStorage.clear();
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+            providers: [{ provide: PRISM_MANIFEST, useValue: { components: [], pages: [] } }]
+        });
+        canvas = TestBed.inject(PrismCanvasService);
+        nav = TestBed.inject(PrismNavigationService);
+        manifestService = TestBed.inject(PrismManifestService);
+        sim = TestBed.inject(PrismSimulationService);
+        service = TestBed.inject(PrismVariantBgService);
+    });
+
+    afterEach(() => localStorage.clear());
+
+    it('follows the emulated scheme until the user picks', () => {
+        sim.set({ scheme: 'dark' });
+        expect(service.effective()).toBe('dark');
+        canvas.setBg('dots');
+        expect(service.effective()).toBe('dots');
+    });
+
+    it('follows a change of the scheme and goes back to the canvas background', () => {
+        sim.set({ scheme: 'dark' });
+        expect(service.effective()).toBe('dark');
+        sim.set({ scheme: 'light' });
+        expect(service.effective()).toBe('light');
+        sim.set({ scheme: 'system' });
+        expect(service.effective()).toBe('dots');
+    });
+
+    it('keeps a background that was picked before the scheme was emulated', () => {
+        canvas.setBg('plain');
+        sim.set({ scheme: 'dark' });
+        expect(service.effective()).toBe('plain');
+    });
+
+    it('keeps what the variant recommends over the scheme', () => {
+        activate(manifestService, nav, makeComponent('light'));
+        TestBed.flushEffects();
+        sim.set({ scheme: 'dark' });
+        expect(service.effective()).toBe('light');
+    });
+
+    it('keeps the override over the scheme', () => {
+        activate(manifestService, nav, makeComponent('light'));
+        TestBed.flushEffects();
+        service.setOverride('plain');
+        sim.set({ scheme: 'dark' });
+        expect(service.effective()).toBe('plain');
+    });
+
+    it('is not moved by simulations other than the scheme', () => {
+        sim.set({ motion: 'reduce', forced: 'active', vision: 'blurred' });
+        expect(service.effective()).toBe('dots');
+    });
+});
+
 describe('PrismVariantBgService in capture mode', () => {
     let nav: PrismNavigationService;
     let manifestService: PrismManifestService;
@@ -205,5 +273,23 @@ describe('PrismVariantBgService in capture mode', () => {
         activate(manifestService, nav, makeComponent('dark'));
         TestBed.flushEffects();
         expect(service.recommended()).toBe('dark');
+    });
+
+    it('ignores the emulated scheme', () => {
+        const sim = TestBed.inject(PrismSimulationService);
+
+        sim.set({ scheme: 'dark' });
+        activate(manifestService, nav, makeComponent());
+        TestBed.flushEffects();
+        expect(service.effective()).toBe(DEFAULT_VARIANT_BG);
+    });
+
+    it('keeps a declared background under an emulated scheme', () => {
+        const sim = TestBed.inject(PrismSimulationService);
+
+        sim.set({ scheme: 'dark' });
+        activate(manifestService, nav, makeComponent('plain'));
+        TestBed.flushEffects();
+        expect(service.effective()).toBe('plain');
     });
 });

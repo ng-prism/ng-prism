@@ -74,6 +74,66 @@ describe('PrismCanvasService', () => {
             localStorage.setItem(STORAGE_KEY, JSON.stringify({ viewportWidth: 480 }));
             expect(createService().viewportWidth()).toBeNull();
         });
+
+        it('should ignore a persisted background choice', () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ bg: 'light', bgChosen: true }));
+            expect(createService().bgChosen()).toBe(false);
+        });
+    });
+
+    describe('chosen background', () => {
+        it('should start with no background chosen', () => {
+            expect(createService().bgChosen()).toBe(false);
+        });
+
+        it('marks a picked background as chosen and persists it', () => {
+            const service = createService();
+
+            service.setBg('dots');
+            expect(service.bgChosen()).toBe(true);
+
+            const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Record<string, unknown>;
+
+            expect(stored['bgChosen']).toBe(true);
+        });
+
+        it('restores the persisted flag', () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ bg: 'dots', bgChosen: true }));
+            expect(createService().bgChosen()).toBe(true);
+        });
+
+        it('lets a stored flag win over the background it sits next to', () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ bg: 'light', bgChosen: false }));
+            expect(createService().bgChosen()).toBe(false);
+        });
+
+        it('migrates storage without the flag', () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ bg: 'light' }));
+            expect(createService().bgChosen()).toBe(true);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ bg: 'dots' }));
+            expect(createService().bgChosen()).toBe(false);
+        });
+
+        it('treats storage without a background or flag as not chosen', () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ zoom: 2 }));
+            expect(createService().bgChosen()).toBe(false);
+        });
+
+        it('ignores a stored flag that is not a boolean', () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ bg: 'light', bgChosen: 'yes' }));
+            expect(createService().bgChosen()).toBe(true);
+        });
+
+        it('keeps the flag across other canvas changes', () => {
+            const service = createService();
+
+            service.setBg('plain');
+            service.setZoom(1.5);
+
+            const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Record<string, unknown>;
+
+            expect(stored['bgChosen']).toBe(true);
+        });
     });
 
     describe('viewport width', () => {
