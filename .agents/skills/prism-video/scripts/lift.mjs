@@ -289,7 +289,7 @@ async function capture(name, marks) {
         }
 
         const de = document.documentElement;
-        const wrap = `<div class="ngp" data-theme="${de.dataset.theme || ''}" style="${(de.getAttribute('style') || '').replace(/"/g, "'")}"><div class="ngp-body ${document.body.className}">${clone.innerHTML}</div></div>`;
+        const wrap = `<div class="ngp" data-prism-theme="${de.dataset.prismTheme || ''}" data-theme="${de.dataset.theme || ''}" style="${(de.getAttribute('style') || '').replace(/"/g, "'")}"><div class="ngp-body ${document.body.className}">${clone.innerHTML}</div></div>`;
         return { css, html: wrap, removed, urlMap, missing: Object.keys(markIds).filter((k) => k.startsWith('missing:')) };
     }, marks);
     for (let t of res.css) {
