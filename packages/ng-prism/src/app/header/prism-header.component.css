@@ -74,7 +74,7 @@
 }
 
 /* In the light theme the band sets itself apart; a hairline under it only adds noise. */
-:host-context(html[data-theme='light']) .prism-header {
+:host-context(html[data-prism-theme='light']) .prism-header {
     border-bottom-color: transparent;
 }
 

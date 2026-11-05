@@ -30,6 +30,9 @@ export class PrismThemeService {
         effect(() => {
             const t = this.theme();
 
+            // The styleguide itself reads data-prism-theme only. data-theme stays for consumers that already key on it.
+            // data-theme: deprecated since 22.8.0, removed in 23.0.0 — use data-prism-theme
+            document.documentElement.dataset['prismTheme'] = t;
             document.documentElement.dataset['theme'] = t;
             localStorage.setItem(STORAGE_KEY, t);
             this.applyTokens();

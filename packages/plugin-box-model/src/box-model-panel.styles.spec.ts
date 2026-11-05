@@ -16,7 +16,7 @@ function declarations(selector: string): Map<string, string> {
 describe('box model panel layer colours', () => {
     // Regression: `--prism-bm-margin: var(--prism-bm-margin)` is a cycle, which
     // makes the property invalid, so the dark theme's margin layer lost its tint.
-    it.each([':host', ":host-context(html[data-theme='light'])"])('should give every layer a literal colour in %s', (selector) => {
+    it.each([':host', ":host-context(html[data-prism-theme='light'])"])('should give every layer a literal colour in %s', (selector) => {
         const layers = declarations(selector);
 
         expect([...layers.keys()].sort()).toEqual(['--prism-bm-border', '--prism-bm-content', '--prism-bm-margin', '--prism-bm-padding']);

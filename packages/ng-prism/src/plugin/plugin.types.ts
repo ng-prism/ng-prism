@@ -571,8 +571,9 @@ export interface NgPrismConfig {
      * Selectors such as `.dark .btn`, `:host-context(.dark)` or
      * `[data-mode='dark'] .btn` follow it. A theme keyed on `:root`, `html` or
      * `body` does not work: setting it there would hit the styleguide's own UI
-     * too. Avoid `data-theme` as well, which the shell sets on `<html>` for its
-     * own theme, so the rules of both themes would match.
+     * too. Avoid `data-theme` as well: the shell still sets it on `<html>`
+     * (deprecated since 22.8.0, removed in 23.0.0; its own theme is
+     * `data-prism-theme`), so the rules of both themes would match.
      *
      * ```ts
      * colorScheme: {
