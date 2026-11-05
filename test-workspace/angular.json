@@ -49,7 +49,7 @@
                         "index": "projects/test-lib-prism/src/index.html",
                         "browser": "projects/test-lib-prism/src/main.ts",
                         "tsConfig": "projects/test-lib-prism/tsconfig.app.json",
-                        "styles": ["node_modules/highlight.js/styles/base16/solarized-dark.min.css"],
+                        "styles": ["node_modules/highlight.js/styles/base16/solarized-dark.min.css", "projects/test-lib/src/lib/styles/tokens.css"],
                         "polyfills": ["zone.js"],
                         "allowedCommonJsDependencies": ["highlight.js"],
                         "preserveSymlinks": true,

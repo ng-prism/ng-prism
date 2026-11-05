@@ -15,6 +15,9 @@ export type SpinnerSizeType = 'sm' | 'md' | 'lg';
  *
  * The host carries `role="status"`. A `label` is shown next to the spinner and gives screen readers something to announce.
  *
+ * Under `prefers-reduced-motion: reduce` the spinner turns three times slower instead of stopping: it still shows that
+ * something is loading, with less movement.
+ *
  * @since 1.0.0
  * @see ProgressBarComponent
  * @example
@@ -67,6 +70,11 @@ export type SpinnerSizeType = 'sm' | 'md' | 'lg';
         }
         .sg-spinner__svg {
             animation: sg-spin 0.8s linear infinite;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .sg-spinner__svg {
+                animation-duration: 2.4s;
+            }
         }
         .sg-spinner[data-size='sm'] .sg-spinner__svg {
             width: 16px;

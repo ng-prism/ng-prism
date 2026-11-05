@@ -1,0 +1,13 @@
+/*
+ * Design tokens of test-lib, loaded once per app: the styleguide adds this sheet to the styles of test-lib-prism in
+ * angular.json. They switch on :root with the color scheme, the way many libraries ship them.
+ */
+:root {
+    --tl-card-bg: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --tl-card-bg: #1f2937;
+    }
+}

@@ -13,6 +13,17 @@ import { Showcase } from '@ng-prism/core';
  * A clickable card listens for clicks on its host element. It is not a button, so keyboard users
  * still need a real link or button inside it.
  *
+ * ## Dark scheme
+ *
+ * The card follows a dark scheme in the three ways libraries usually do, one per part:
+ *
+ * - **Surface:** the library token `--tl-card-bg` from `styles/tokens.css`, which switches on `:root` under
+ *   `@media (prefers-color-scheme: dark)`
+ * - **Text and border:** `light-dark()`, which follows the `color-scheme` the card inherits or is given
+ * - **Image placeholder:** a theme class, `:host-context(.tl-dark)`, that an app sets on the card or an ancestor
+ *
+ * The shadow of an elevated card deepens in a `prefers-color-scheme` query nested in its rule.
+ *
  * @since 1.0.0
  * @example
  * ```html
@@ -47,7 +58,8 @@ import { Showcase } from '@ng-prism/core';
     selector: 'sg-card',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    encapsulation: ViewEncapsulation.None,
+    // Emulated, unlike the other components of test-lib: :host-context() needs it.
+    encapsulation: ViewEncapsulation.Emulated,
     host: {
         class: 'sg-card',
         '[class.sg-card--clickable]': 'clickable()',
@@ -58,9 +70,9 @@ import { Showcase } from '@ng-prism/core';
         @if (showImage()) {
             <div class="sg-card__image">
                 <svg viewBox="0 0 400 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="400" height="200" fill="#e5e7eb" />
-                    <path d="M170 110l30-40 30 40z" fill="#9ca3af" />
-                    <circle cx="180" cy="80" r="12" fill="#9ca3af" />
+                    <rect class="sg-card__image-ground" width="400" height="200" />
+                    <path class="sg-card__image-shape" d="M170 110l30-40 30 40z" />
+                    <circle class="sg-card__image-shape" cx="180" cy="80" r="12" />
                 </svg>
             </div>
         }
@@ -74,29 +86,48 @@ import { Showcase } from '@ng-prism/core';
         </div>
     `,
     styles: `
-        .sg-card {
+        :host {
             display: block;
-            border-radius: 12px;
             overflow: hidden;
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            transition: box-shadow 0.2s;
             max-width: 320px;
+            border: 1px solid light-dark(#e5e7eb, #374151);
+            border-radius: 12px;
+            background: var(--tl-card-bg, #fff);
+            transition: box-shadow 0.2s;
+            color-scheme: light dark;
         }
-        .sg-card--elevated {
+        :host(.sg-card--elevated) {
             border-color: transparent;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+            @media (prefers-color-scheme: dark) {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            }
         }
-        .sg-card--clickable {
+        :host(.sg-card--clickable) {
             cursor: pointer;
         }
-        .sg-card--clickable:hover {
+        :host(.sg-card--clickable:hover) {
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
         }
-        .sg-card__image svg {
-            display: block;
-            width: 100%;
-            height: auto;
+        .sg-card__image {
+            svg {
+                display: block;
+                width: 100%;
+                height: auto;
+            }
+        }
+        .sg-card__image-ground {
+            fill: #e5e7eb;
+        }
+        .sg-card__image-shape {
+            fill: #9ca3af;
+        }
+        :host-context(.tl-dark) .sg-card__image-ground {
+            fill: #374151;
+        }
+        :host-context(.tl-dark) .sg-card__image-shape {
+            fill: #6b7280;
         }
         .sg-card__body {
             padding: 16px;
@@ -105,12 +136,12 @@ import { Showcase } from '@ng-prism/core';
             margin: 0 0 4px;
             font-size: 16px;
             font-weight: 600;
-            color: #111827;
+            color: light-dark(#111827, #f9fafb);
         }
         .sg-card__subtitle {
             margin: 0;
             font-size: 13px;
-            color: #6b7280;
+            color: light-dark(#6b7280, #9ca3af);
             line-height: 1.5;
         }
     `

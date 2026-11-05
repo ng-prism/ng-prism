@@ -11,6 +11,7 @@ export { SliderComponent } from './lib/components/slider/slider.component.js';
 export { TextareaComponent } from './lib/components/textarea/textarea.component.js';
 export { TooltipComponent, type TooltipPositionType } from './lib/components/tooltip/tooltip.component.js';
 export { SpinnerComponent, type SpinnerSizeType } from './lib/components/spinner/spinner.component.js';
+export { SnackbarComponent } from './lib/components/snackbar/snackbar.component.js';
 export { TooltipDirective, type TooltipDirectivePositionType } from './lib/directives/tooltip/tooltip.directive.js';
 export { type CopyFailure, CopyToClipboardDirective } from './lib/directives/copy-to-clipboard/copy-to-clipboard.directive.js';
 export { DividerComponent, type DividerOrientationType, type DividerVariantType } from './lib/components/divider/divider.component.js';
