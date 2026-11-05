@@ -1,4 +1,15 @@
-import { SCOPE_IN_SUFFIX, SCOPE_OUT_SUFFIX, scopeIn, scopeOut, SIM_SCOPE, SIM_SCOPE_ATTR, targetsRoot, unscopeOut } from './scope-selector.js';
+import {
+    SCOPE_IN_SUFFIX,
+    SCOPE_OUT_SUFFIX,
+    scopeIn,
+    scopeOut,
+    SIM_SCOPE,
+    SIM_SCOPE_ATTR,
+    splitList,
+    splitPseudoElement,
+    targetsRoot,
+    unscopeOut
+} from './scope-selector.js';
 
 const S = ':where([data-prism-sim], .cdk-overlay-container)';
 const IN = SCOPE_IN_SUFFIX;
@@ -103,6 +114,28 @@ describe('scopeIn', () => {
 
     it('keeps the whitespace of the list', () => {
         expect(scopeIn('  .a  ,\n.b ')).toBe(`  .a${IN}  ,\n.b${IN} `);
+    });
+});
+
+describe('splitList', () => {
+    it('cuts at top-level commas only and keeps the whitespace, so that the parts make the list again', () => {
+        expect(splitList('.a, .b:is(.c, .d) ,[x="a,b"]')).toEqual(['.a', ' .b:is(.c, .d) ', '[x="a,b"]']);
+        expect(splitList('.a, .b').join(',')).toBe('.a, .b');
+        expect(splitList('.a')).toEqual(['.a']);
+    });
+});
+
+describe('splitPseudoElement', () => {
+    it('cuts a selector in front of its trailing pseudo-element', () => {
+        expect(splitPseudoElement('.btn:hover::before')).toEqual({ element: '.btn:hover', pseudoElement: '::before' });
+        expect(splitPseudoElement('.a .b:after')).toEqual({ element: '.a .b', pseudoElement: ':after' });
+        expect(splitPseudoElement(' ::part(x):hover ')).toEqual({ element: '', pseudoElement: '::part(x):hover' });
+    });
+
+    it('leaves a selector without one whole, and what only looks like one inside a group or an attribute', () => {
+        expect(splitPseudoElement(' .a > .b ')).toEqual({ element: '.a > .b', pseudoElement: '' });
+        expect(splitPseudoElement('.a:not(.b::before)')).toEqual({ element: '.a:not(.b::before)', pseudoElement: '' });
+        expect(splitPseudoElement('[x="::before"]')).toEqual({ element: '[x="::before"]', pseudoElement: '' });
     });
 });
 

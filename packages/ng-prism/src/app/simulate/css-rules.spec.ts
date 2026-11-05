@@ -1,4 +1,4 @@
-import { declarationsOf, isInheritable, overlaps, prelude, propertyOf, rewriteDeclarations } from './css-rules.js';
+import { declarationsOf, isInheritable, overlaps, prelude, propertyOf, rewriteDeclarations, valueOf } from './css-rules.js';
 
 describe('declarationsOf', () => {
     it('splits a block at its semicolons, trimmed, without empty ones', () => {
@@ -21,6 +21,15 @@ describe('propertyOf', () => {
     it('names the property in lower case, a custom one as written', () => {
         expect(propertyOf('COLOR: red')).toBe('color');
         expect(propertyOf('  --Brand-Bg : #fff')).toBe('--Brand-Bg');
+    });
+});
+
+describe('valueOf', () => {
+    it('is what the declaration sets, trimmed, without its importance', () => {
+        expect(valueOf('color: red')).toBe('red');
+        expect(valueOf('background:  linear-gradient(red, blue) !IMPORTANT ')).toBe('linear-gradient(red, blue)');
+        expect(valueOf('background-image: url(a:b.png)')).toBe('url(a:b.png)');
+        expect(valueOf('--x: {a: 1}')).toBe('{a: 1}');
     });
 });
 

@@ -137,6 +137,19 @@ function insertionPoint(part: string, parentIsRoot: boolean): { at: number; root
     };
 }
 
+/**
+ * A selector as the element it is about and the pseudo-element it ends in, as
+ * {@link scopeIn} finds it: `.btn:hover` and `::before` for `.btn:hover::before`,
+ * an empty `pseudoElement` for a selector without one. For one selector of a
+ * list, trimmed.
+ */
+export function splitPseudoElement(selector: string): { element: string; pseudoElement: string } {
+    const trimmed = selector.trim();
+    const { pseudoStart } = shapeOf(trimmed);
+
+    return { element: trimmed.slice(0, pseudoStart), pseudoElement: trimmed.slice(pseudoStart) };
+}
+
 interface SelectorShape {
     /** Where the last compound, the subject, starts. */
     lastStart: number;
@@ -186,7 +199,7 @@ function shapeOf(selector: string): SelectorShape {
  * The parts of the list between its top-level commas. They are not trimmed and
  * nothing is dropped, so the parts joined with `,` are the list again.
  */
-function splitList(list: string): string[] {
+export function splitList(list: string): string[] {
     const parts: string[] = [];
     let start = 0;
     let i = 0;

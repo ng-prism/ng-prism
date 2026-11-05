@@ -77,6 +77,15 @@ export function propertyOf(declaration: string): string {
 
 const IMPORTANT = /!\s*important$/i;
 
+/** The value a declaration sets, without its `!important`: `red` for `color: red !important`. */
+export function valueOf(declaration: string): string {
+    return declaration
+        .slice(declaration.indexOf(':') + 1)
+        .trim()
+        .replace(IMPORTANT, '')
+        .trim();
+}
+
 /**
  * A block's text with only the declarations whose property `keep` accepts
  * (all, without it) and, with `important`, every one of them `!important`.
