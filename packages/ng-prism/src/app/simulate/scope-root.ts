@@ -100,6 +100,32 @@ export function applyScopeRoot(el: HTMLElement, next: ScopeRootState | null): vo
     if (!next) applied.delete(el);
 }
 
+/** What {@link applyTopLayerFilter} changed, kept apart from the scope roots: only the `filter`. */
+const filtered = new WeakMap<HTMLElement, Applied>();
+
+/**
+ * Puts `filter` on `el`, an element in a scope root that the browser shows in
+ * the top layer, or takes it back for `null`, restored as {@link applyScopeRoot}
+ * restores it.
+ *
+ * CDK opens its overlays as popovers, which go into the top layer, and an
+ * ancestor's `filter` does not reach the top layer: the vision filter on the
+ * overlay container leaves them as they are. The rest of the scope root reaches
+ * them through the container, by selector and by inheritance, so the filter is
+ * all they take. A scope root of their own would only repeat the container's.
+ */
+export function applyTopLayerFilter(el: HTMLElement, filter: string | null): void {
+    const known = filtered.get(el);
+
+    if (!known && filter === null) return;
+
+    const record: Applied = known ?? { state: null, settled: true, styles: new Map(), classes: new Set(), attributes: new Map(), had: {} };
+
+    filtered.set(el, record);
+    syncStyles(el, record, new Map(filter ? [['filter', filter]] : []));
+    if (filter === null) filtered.delete(el);
+}
+
 function syncStyles(el: HTMLElement, record: Applied, wanted: ReadonlyMap<string, string>): void {
     const set = record.styles;
     const releasing = set.size > 0;

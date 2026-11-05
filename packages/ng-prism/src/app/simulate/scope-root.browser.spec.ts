@@ -1,4 +1,4 @@
-import { applyScopeRoot, type ScopeRootState } from './scope-root.js';
+import { applyScopeRoot, applyTopLayerFilter, type ScopeRootState } from './scope-root.js';
 
 const DARK: ScopeRootState = { colorScheme: 'dark', filter: 'blur(1.5px)', themeClass: 'tl-dark', themeAttributes: { 'data-mode': 'dark' } };
 const BARE: ScopeRootState = { colorScheme: null, filter: null, themeClass: null, themeAttributes: {} };
@@ -133,5 +133,41 @@ describe('applyScopeRoot', () => {
         applyScopeRoot(el, null);
         expect(el.classList.contains('tl-dark')).toBe(true);
         expect(el.hasAttribute('data-prism-sim')).toBe(true);
+    });
+});
+
+describe('applyTopLayerFilter', () => {
+    let el: HTMLElement;
+
+    beforeEach(() => {
+        el = document.createElement('div');
+    });
+
+    it('sets the filter alone and takes it back, with the style attribute it created', () => {
+        applyTopLayerFilter(el, 'blur(1.5px)');
+        expect(el.style.filter).toBe('blur(1.5px)');
+        expect(el.hasAttribute('data-prism-sim')).toBe(false);
+
+        applyTopLayerFilter(el, 'url("#prism-vision-deuteranopia")');
+        expect(el.style.filter).toBe('url("#prism-vision-deuteranopia")');
+
+        applyTopLayerFilter(el, null);
+        expect(el.attributes).toHaveLength(0);
+    });
+
+    it('gives back a filter the element had inline, with its priority', () => {
+        el.style.setProperty('filter', 'opacity(0.5)', 'important');
+        applyTopLayerFilter(el, 'blur(1.5px)');
+        applyTopLayerFilter(el, null);
+        expect(el.style.filter).toBe('opacity(0.5)');
+        expect(el.style.getPropertyPriority('filter')).toBe('important');
+    });
+
+    it('is kept apart from a scope root on the same element', () => {
+        applyScopeRoot(el, DARK);
+        applyTopLayerFilter(el, null);
+        expect(el.style.filter).toBe('blur(1.5px)');
+        applyScopeRoot(el, null);
+        expect(el.attributes).toHaveLength(0);
     });
 });

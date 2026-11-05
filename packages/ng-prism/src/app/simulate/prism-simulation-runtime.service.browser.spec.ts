@@ -276,6 +276,113 @@ describe('PrismSimulationRuntime', () => {
         expect(nested.hasAttribute('data-prism-sim')).toBe(false);
     });
 
+    describe('overlays that CDK opens as popovers, in the top layer', () => {
+        function addOverlay(container: HTMLElement, popover = true): HTMLElement {
+            const host = document.createElement('div');
+
+            if (popover) host.setAttribute('popover', 'manual');
+            host.className = 'cdk-overlay-popover cdk-global-overlay-wrapper';
+            container.appendChild(host);
+            return host;
+        }
+
+        it('gives the filter to a popover that opens in the container, and nothing else', async () => {
+            const container = addOverlayContainer();
+            const { sim } = setUp();
+
+            sim.set({ vision: 'blurred', scheme: 'dark' });
+            TestBed.tick();
+            const popover = addOverlay(container);
+            const inline = addOverlay(container, false);
+
+            await flushMutations();
+            expect(popover.style.filter).toBe('blur(1.5px)');
+            // The rest reaches it through the container.
+            expect(popover.hasAttribute('data-prism-sim')).toBe(false);
+            expect(popover.classList.contains('tl-dark')).toBe(false);
+            expect(popover.style.colorScheme).toBe('');
+            // Not in the top layer: the container's filter draws it already.
+            expect(inline.hasAttribute('style')).toBe(false);
+
+            sim.reset();
+            TestBed.tick();
+            expect(popover.hasAttribute('style')).toBe(false);
+        });
+
+        it('follows the filter of the simulation and drops it when only the scheme is left', () => {
+            const container = addOverlayContainer();
+            const popover = addOverlay(container);
+            const { sim } = setUp();
+
+            sim.set({ vision: 'blurred' });
+            TestBed.tick();
+            expect(popover.style.filter).toBe('blur(1.5px)');
+
+            sim.set({ vision: 'none', scheme: 'dark' });
+            TestBed.tick();
+            expect(container.hasAttribute('data-prism-sim')).toBe(true);
+            expect(popover.hasAttribute('style')).toBe(false);
+        });
+
+        it('releases a popover that leaves the container and gives back what it had inline', async () => {
+            const container = addOverlayContainer();
+            const popover = addOverlay(container);
+            const { sim } = setUp();
+
+            popover.style.setProperty('filter', 'opacity(0.5)', 'important');
+            popover.style.setProperty('top', '8px');
+            sim.set({ vision: 'blurred' });
+            TestBed.tick();
+            expect(popover.style.filter).toBe('blur(1.5px)');
+
+            popover.remove();
+            await flushMutations();
+            expect(popover.style.filter).toBe('opacity(0.5)');
+            expect(popover.style.getPropertyPriority('filter')).toBe('important');
+            expect(popover.style.getPropertyValue('top')).toBe('8px');
+        });
+
+        it('stops watching the containers once nothing is simulated', async () => {
+            const container = addOverlayContainer();
+            const { sim } = setUp();
+
+            sim.set({ vision: 'blurred' });
+            TestBed.tick();
+            sim.reset();
+            TestBed.tick();
+            const popover = addOverlay(container);
+
+            await flushMutations();
+            expect(popover.hasAttribute('style')).toBe(false);
+        });
+
+        it('watches a container that appears later for its popovers', async () => {
+            const { sim } = setUp();
+
+            sim.set({ vision: 'blurred' });
+            TestBed.tick();
+            const container = addOverlayContainer();
+
+            await flushMutations();
+            const popover = addOverlay(container);
+
+            await flushMutations();
+            expect(popover.style.filter).toBe('blur(1.5px)');
+        });
+
+        it('takes the filter back when the app is destroyed', () => {
+            const container = addOverlayContainer();
+            const popover = addOverlay(container);
+            const { sim } = setUp();
+
+            sim.set({ vision: 'blurred' });
+            TestBed.tick();
+            TestBed.resetTestingModule();
+            expect(popover.hasAttribute('style')).toBe(false);
+            expect(container.hasAttribute('style')).toBe(false);
+        });
+    });
+
     it('releases an overlay container whose apply threw', () => {
         const container = addOverlayContainer();
         const { sim } = setUp();
