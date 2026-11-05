@@ -1,6 +1,7 @@
 /**
  * What each `CanvasBg` value paints, shared by the Playground stage
- * (`prism-renderer`) and the Overview cells (`prism-overview-cell`).
+ * (`prism-renderer`), the Overview cells (`prism-overview-cell`) and the
+ * background swatches of the tools menu (`prism-canvas-toolbar`).
  *
  * Must be the last entry of a component's `styles` array. After encapsulation
  * these attribute selectors have the same specificity as the `.some-stage`

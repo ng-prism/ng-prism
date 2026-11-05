@@ -86,15 +86,26 @@
     background: var(--prism-canvas-overlay-border);
 }
 
+/* A fixed width, so the wrapping State chips do not stretch the menu to
+   their one-line length. On a phone the area beside the rail is narrower:
+   the percentage is of that area (position-area makes it the containing
+   block), less the margin towards the rail and a gap to the screen edge.
+   The container lets the Background grid drop to two columns there. */
 .prism-toolmenu {
     inset: auto;
-    gap: var(--sp-2);
-    padding: var(--sp-3);
+    box-sizing: border-box;
+    gap: var(--sp-3);
+    width: 360px;
+    max-width: calc(100% - var(--sp-2) - var(--sp-3));
+    padding: var(--sp-4);
     margin: 0;
     margin-inline-end: var(--sp-2);
     position-area: inline-start;
     position-anchor: --prism-toolrail;
     position-try-fallbacks: flip-inline;
+    container-type: inline-size;
+    font-size: var(--fs-md);
+    color: var(--prism-text-2);
     background: var(--prism-bg-elevated);
     border: 1px solid var(--prism-border);
     border-radius: var(--radius-md);
@@ -117,50 +128,179 @@
     letter-spacing: 0.08em;
 }
 
+.prism-toolmenu__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--sp-2);
+}
+
+@container (width < 320px) {
+    .prism-toolmenu__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 .prism-toolmenu__row {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--sp-1);
+    gap: var(--sp-2);
 }
 
-.prism-toolmenu__row button {
-    padding: 2px var(--sp-3);
-    font-size: var(--fs-md);
+/* A choice that stands on its own: a background or a state. */
+.chip {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding: var(--sp-2) var(--sp-3);
+    font: inherit;
     color: var(--prism-text-2);
+    text-align: start;
     white-space: nowrap;
     cursor: pointer;
     background: transparent;
-    border: 1px solid var(--prism-border-strong);
-    border-radius: var(--radius-xs);
+    border: 1px solid color-mix(in srgb, var(--prism-border-strong) 55%, transparent);
+    border-radius: var(--radius-sm);
 }
 
-.prism-toolmenu__row button:hover {
+.chip:hover {
     color: var(--prism-text);
     background: var(--prism-input-bg);
 }
 
-.prism-toolmenu__row button.is-on {
+.chip.is-on {
     color: var(--prism-primary);
     background: var(--prism-primary-bg);
     border-color: color-mix(in srgb, var(--prism-primary) 55%, transparent);
 }
 
 /* The variant's own recommendation: a primary contour, so it reads without the tooltip. */
-.prism-toolmenu__row button.is-rec {
+.chip.is-rec {
     border-color: var(--prism-primary);
 }
 
 /* A state that does not fit the shown variant: still selectable, but nothing shows. The tooltip names why. */
-.prism-toolmenu__row button.is-na {
+.chip.is-na {
     border-style: dashed;
 }
 
-.prism-toolmenu__row button.is-na:not(.is-on) {
+.chip.is-na:not(.is-on) {
     color: var(--prism-text-muted);
 }
 
+/* The swatch sits close to the edge, where the text needs no room. */
+.prism-toolmenu__grid .chip {
+    padding-inline-start: 5px;
+}
+
+/* A pseudo state, named as in a selector. */
+.chip--mono {
+    padding-inline: 7px;
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+}
+
+.chip prism-icon {
+    flex: none;
+}
+
+/* The ground itself, small. Its colour and pattern come from the
+   [data-bg] rules of CANVAS_BG_STYLES, which follow this sheet: the
+   stage's colour under dots, plain and the checkerboard, light and dark
+   over it. Only the pattern's scale is the swatch's own, and these
+   selectors outweigh the [data-bg] ones. The inset ring keeps a ground
+   as dark (or as light) as the menu visible on it. */
+.swatch {
+    flex: none;
+    width: 20px;
+    height: 14px;
+    background-color: var(--prism-stage);
+    border-radius: var(--radius-xs);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--prism-border-strong) 60%, transparent);
+}
+
+.swatch[data-bg='dots'] {
+    background-size: 5px 5px;
+}
+
+.swatch[data-bg='checker'],
+.swatch[data-bg='transparent'] {
+    background-position:
+        0 0,
+        0 4px,
+        4px -4px,
+        -4px 0;
+    background-size: 8px 8px;
+}
+
+/* One value out of a few, on a track: zoom and width. */
+.seg {
+    display: flex;
+    gap: var(--sp-1);
+    padding: var(--sp-1);
+    background: var(--prism-input-bg);
+    border: 1px solid var(--prism-border);
+    border-radius: 6px;
+}
+
+.seg button {
+    display: flex;
+    flex: 1;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 6px;
+    font: inherit;
+    color: var(--prism-text-muted);
+    white-space: nowrap;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+}
+
+.seg button:hover {
+    color: var(--prism-text);
+}
+
+.seg button.is-on {
+    color: var(--prism-primary);
+    background: var(--prism-primary-bg);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--prism-primary) 45%, transparent);
+}
+
+.seg--tall button {
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: 5px var(--sp-1) 3px;
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+}
+
+/* A width to scale; the template sets its length. */
+.bar {
+    display: block;
+    height: 3px;
+    background: currentcolor;
+    border-radius: 2px;
+    opacity: 0.75;
+}
+
+/* Auto has no width of its own, so its bar is dashed, at the bars' height. */
+.bar--auto {
+    width: 26px;
+    background: repeating-linear-gradient(90deg, currentcolor 0 4px, transparent 4px 7px);
+    border-radius: 0;
+}
+
+.chip:focus-visible,
+.seg button:focus-visible {
+    outline: 2px solid var(--prism-primary);
+    outline-offset: 1px;
+}
+
 @media (pointer: coarse) {
-    .prism-toolmenu__row button {
+    .chip,
+    .seg button {
         min-height: 40px;
     }
 }

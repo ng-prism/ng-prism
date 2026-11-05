@@ -99,64 +99,81 @@
      rulers and the viewport constraint constantly while working, and a
      toggle two clicks deep is the classic mistake. What you only ever
      set may live in a menu. The states are toggles too, but set once per
-     variant and dropped with it, like the background. -->
+     variant and dropped with it, like the background.
+
+     Every choice shows what it does rather than only naming it: a swatch
+     of the ground, an icon for the pseudo state, a bar to scale over the
+     width. -->
 <div
     popover
     id="prism-tools"
     class="prism-toolmenu"
     role="dialog"
     [attr.aria-label]="toolsLabel">
-    <span class="prism-toolmenu__lbl">Canvas</span>
-    <div class="prism-toolmenu__row">
+    <span class="prism-toolmenu__lbl">Background</span>
+    <!-- The swatch is painted by CANVAS_BG_STYLES, the stage's own rules,
+         so a theme's ground and pattern tokens show in it unasked. -->
+    <div class="prism-toolmenu__grid">
         @for (bg of bgs; track bg) {
             <button
                 type="button"
+                class="chip"
+                [attr.data-choice]="bg"
                 [class.is-on]="variantBg.effective() === bg"
                 [class.is-rec]="variantBg.recommended() === bg"
+                [attr.aria-pressed]="variantBg.effective() === bg"
                 [attr.title]="bgTitle(bg)"
                 (click)="setBg(bg)">
+                <span
+                    class="swatch"
+                    [attr.data-bg]="bg"
+                    aria-hidden="true"></span>
                 {{ capitalize(bg) }}
             </button>
         }
     </div>
 
     <span class="prism-toolmenu__lbl">State</span>
-    @if (chips().length > 0) {
-        <div class="prism-toolmenu__row">
-            @for (chip of chips(); track chip.index) {
-                <button
-                    type="button"
-                    class="is-rec"
-                    [class.is-on]="chip.active"
-                    [class.is-na]="!chip.fits"
-                    [attr.aria-pressed]="chip.active"
-                    [attr.title]="chip.title"
-                    (click)="pickState(chip)">
-                    {{ chip.name }}
-                </button>
-            }
-        </div>
-    }
+    <!-- The declared states first, as recommendations in the sans face, then
+         the pseudo states with an icon in the mono face of a selector. -->
     <div class="prism-toolmenu__row">
+        @for (chip of chips(); track chip.index) {
+            <button
+                type="button"
+                class="chip is-rec"
+                [class.is-on]="chip.active"
+                [class.is-na]="!chip.fits"
+                [attr.aria-pressed]="chip.active"
+                [attr.title]="chip.title"
+                (click)="pickState(chip)">
+                {{ chip.name }}
+            </button>
+        }
         @for (state of states; track state) {
             <button
                 type="button"
+                class="chip chip--mono"
+                [attr.data-choice]="state"
                 [class.is-on]="pseudoState.isForced(state)"
                 [class.is-rec]="pseudoState.isDeclared(state)"
                 [attr.aria-pressed]="pseudoState.isForced(state)"
                 [attr.title]="stateTitle(state)"
                 (click)="pseudoState.toggle(state)">
+                <prism-icon
+                    [name]="stateIcon(state)"
+                    [size]="12" />
                 :{{ state }}
             </button>
         }
     </div>
 
     <span class="prism-toolmenu__lbl">Zoom</span>
-    <div class="prism-toolmenu__row">
+    <div class="seg">
         @for (z of zooms; track z.value) {
             <button
                 type="button"
                 [class.is-on]="canvas.zoom() === z.value"
+                [attr.aria-pressed]="canvas.zoom() === z.value"
                 (click)="canvas.setZoom(z.value)">
                 {{ z.label }}
             </button>
@@ -165,18 +182,28 @@
 
     @if (!mobileLayout.mobile()) {
         <span class="prism-toolmenu__lbl">Width</span>
-        <div class="prism-toolmenu__row">
+        <!-- Auto has no width of its own; its bar is dashed. -->
+        <div class="seg seg--tall">
             <button
                 type="button"
                 [class.is-on]="canvas.viewportWidth() === null"
+                [attr.aria-pressed]="canvas.viewportWidth() === null"
                 (click)="canvas.setViewportWidth(null)">
+                <span
+                    class="bar bar--auto"
+                    aria-hidden="true"></span>
                 Auto
             </button>
             @for (w of viewports; track w) {
                 <button
                     type="button"
                     [class.is-on]="canvas.viewportWidth() === w"
+                    [attr.aria-pressed]="canvas.viewportWidth() === w"
                     (click)="canvas.setViewportWidth(w)">
+                    <span
+                        class="bar"
+                        [style.width.px]="widthBar(w)"
+                        aria-hidden="true"></span>
                     {{ w }}
                 </button>
             }

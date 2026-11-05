@@ -2,8 +2,10 @@ import { readdir, readFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { ApplicationRef, signal, ɵresolveComponentResources as resolveComponentResources } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import type { ShowcaseState } from '../../decorator/showcase.types.js';
 import type { RuntimeComponent } from '../../plugin/plugin.types.js';
+import { CANVAS_BGS } from '../../shared/canvas-bg.type.js';
 import { PrismCanvasService } from '../services/prism-canvas.service.js';
 import { PrismMobileLayoutService } from '../services/prism-mobile-layout.service.js';
 import { PrismNavigationService } from '../services/prism-navigation.service.js';
@@ -184,7 +186,7 @@ describe('PrismCanvasToolbarComponent: phone layout', () => {
         const fixture = await render(false);
 
         expect(labels(fixture)).toEqual(expect.arrayContaining([...DESKTOP_TOOLS, 'Angular template']));
-        expect(sections(fixture)).toContain('Width');
+        expect(sections(fixture)).toEqual(expect.arrayContaining(['Background', 'State', 'Zoom', 'Width']));
     });
 
     it('leaves the measuring tools and the width out on a phone', async () => {
@@ -192,13 +194,154 @@ describe('PrismCanvasToolbarComponent: phone layout', () => {
 
         for (const tool of DESKTOP_TOOLS) expect(labels(fixture)).not.toContain(tool);
         expect(labels(fixture)).toContain('Angular template');
-        expect(sections(fixture)).toEqual(expect.arrayContaining(['Canvas', 'State', 'Zoom']));
+        expect(sections(fixture)).toEqual(expect.arrayContaining(['Background', 'State', 'Zoom']));
         expect(sections(fixture)).not.toContain('Width');
+        expect(fixture.nativeElement.querySelector('#prism-tools .bar')).toBeNull();
     });
 
     it('does not make room for rulers a desktop session switched on', async () => {
         const fixture = await render(true, true);
 
         expect(fixture.nativeElement.querySelector('.prism-toolrail').classList.contains('has-rulers')).toBe(false);
+    });
+});
+
+describe('PrismCanvasToolbarComponent: tools menu', () => {
+    /** COMP, but its first variant was designed against the dark ground. */
+    const DARK_COMP: RuntimeComponent = {
+        ...COMP,
+        meta: { ...COMP.meta, showcaseConfig: { ...COMP.meta.showcaseConfig, variants: [{ name: 'Primary', bg: 'dark' }, { name: 'Secondary' }] } }
+    };
+
+    let fixture: ComponentFixture<PrismCanvasToolbarComponent>;
+
+    async function render(comp: RuntimeComponent = COMP): Promise<void> {
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({ providers: [{ provide: PRISM_MANIFEST, useValue: { components: [comp] } }] });
+        await resolveComponentResources(readAppResource);
+        TestBed.inject(PrismNavigationService).select(comp);
+        TestBed.inject(ApplicationRef).tick();
+
+        fixture = TestBed.createComponent(PrismCanvasToolbarComponent);
+        fixture.detectChanges();
+    }
+
+    function settle(): void {
+        TestBed.inject(ApplicationRef).tick();
+        fixture.detectChanges();
+    }
+
+    function menu(): HTMLElement {
+        return fixture.nativeElement.querySelector('#prism-tools');
+    }
+
+    function choice(value: string): HTMLButtonElement {
+        const button = menu().querySelector<HTMLButtonElement>(`[data-choice="${value}"]`);
+
+        if (!button) throw new Error(`No choice "${value}" in the tools menu`);
+        return button;
+    }
+
+    /** A segment by its visible label; the width bar above the number adds no text. */
+    function segment(label: string): HTMLButtonElement {
+        const button = [...menu().querySelectorAll<HTMLButtonElement>('.seg button')].find((b) => b.textContent?.trim() === label);
+
+        if (!button) throw new Error(`No segment "${label}" in the tools menu`);
+        return button;
+    }
+
+    function pressedSegments(): string[] {
+        return [...menu().querySelectorAll('.seg button[aria-pressed="true"]')].map((b) => b.textContent?.trim() ?? '');
+    }
+
+    afterEach(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+    });
+
+    it('shows each background as a swatch painted by the stage styles', async () => {
+        await render();
+
+        const swatch = menu().querySelector('[data-choice="light"] .swatch')!;
+
+        expect(swatch.getAttribute('data-bg')).toBe('light');
+        for (const bg of CANVAS_BGS) {
+            expect(choice(bg).querySelector('.swatch')?.getAttribute('data-bg')).toBe(bg);
+            expect(choice(bg).textContent?.trim()).toBe(bg.charAt(0).toUpperCase() + bg.slice(1));
+        }
+    });
+
+    it('keeps is-on and is-rec on background chips', async () => {
+        await render(DARK_COMP);
+
+        expect(choice('dark').classList).toContain('is-rec');
+        expect(choice('dark').classList).toContain('is-on');
+        expect(choice('dark').getAttribute('aria-pressed')).toBe('true');
+        expect(choice('dark').getAttribute('title')).toBe('Recommended background for this variant');
+
+        choice('light').click();
+        settle();
+
+        expect(choice('light').classList).toContain('is-on');
+        expect(choice('light').getAttribute('aria-pressed')).toBe('true');
+        expect(choice('dark').classList).not.toContain('is-on');
+        expect(choice('dark').classList).toContain('is-rec');
+        expect(choice('light').classList).not.toContain('is-rec');
+    });
+
+    it('zoom and width are segmented controls with aria-pressed', async () => {
+        await render();
+
+        expect(pressedSegments()).toEqual(['100%', 'Auto']);
+
+        segment('150%').click();
+        segment('390').click();
+        settle();
+
+        expect(pressedSegments()).toEqual(['150%', '390']);
+        expect(TestBed.inject(PrismCanvasService).zoom()).toBe(1.5);
+        expect(TestBed.inject(PrismCanvasService).viewportWidth()).toBe(390);
+    });
+
+    it('gives each width a bar proportional to it', async () => {
+        await render();
+
+        const bar = (label: string): HTMLElement => segment(label).querySelector<HTMLElement>('.bar')!;
+
+        expect(bar('320').style.width).toBe('9px');
+        expect(bar('768').style.width).toBe('23px');
+        expect(bar('1024').style.width).toBe('30px');
+        expect(bar('Auto').classList).toContain('bar--auto');
+        expect(bar('320').classList).not.toContain('bar--auto');
+    });
+
+    it('gives each pseudo state its icon', async () => {
+        await render();
+
+        const icons: Record<string, string> = {
+            hover: 'mouse-pointer',
+            active: 'mouse-pointer-click',
+            focus: 'scan',
+            'focus-visible': 'keyboard',
+            'focus-within': 'box-select'
+        };
+
+        for (const [state, icon] of Object.entries(icons)) {
+            const glyph = fixture.debugElement.query(By.css(`[data-choice="${state}"] prism-icon`));
+
+            expect(glyph?.componentInstance.name).toBe(icon);
+            expect(choice(state).textContent?.trim()).toBe(`:${state}`);
+        }
+    });
+
+    it('lists the declared states before the pseudo states, as recommendations', async () => {
+        await render();
+
+        const bgs = new Set<string>(CANVAS_BGS);
+        const states = [...menu().querySelectorAll<HTMLButtonElement>('.chip')].filter((b) => !bgs.has(b.dataset['choice'] ?? ''));
+
+        expect(states.slice(0, 3).map((b) => b.textContent?.trim())).toEqual(['Hover', 'Focus visible', ':hover']);
+        expect(states[0].classList).toContain('is-rec');
+        expect(states[0].getAttribute('aria-pressed')).toBe('false');
     });
 });

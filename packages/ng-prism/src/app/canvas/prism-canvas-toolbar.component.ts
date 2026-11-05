@@ -12,8 +12,22 @@ import { PrismPseudoStateService } from '../services/prism-pseudo-state.service.
 import { PrismRendererService } from '../services/prism-renderer.service.js';
 import { PrismVariantBgService } from '../services/prism-variant-bg.service.js';
 import { PrismIconButtonComponent } from '../shared/prism-icon-button.component.js';
+import { CANVAS_BG_STYLES } from './canvas-bg.styles.js';
 import { railToggleTitle, TOOLS_LABEL, toolsTitle, zoomTitle } from './canvas-overlay-tokens.js';
 import { buildStateChips, chipFits, type PseudoSource, type StateChip, toggleTitle } from './state-chips.js';
+
+/** What each pseudo state's chip shows in front of its name: the pointer, the pointer pressing, the focus frame, the keyboard, a dashed frame for the element round the focus. */
+const STATE_ICONS: Record<PseudoState, string> = {
+    hover: 'mouse-pointer',
+    active: 'mouse-pointer-click',
+    focus: 'scan',
+    'focus-visible': 'keyboard',
+    'focus-within': 'box-select'
+};
+
+/** The bar over the widest preset, 1024. The others scale down from it, to no less than 6px so 320 still reads as a bar. */
+const WIDTH_BAR_MAX = 30;
+const WIDTH_BAR_MIN = 6;
 
 /**
  * The canvas tools, as a rail floating over the canvas.
@@ -35,7 +49,9 @@ import { buildStateChips, chipFits, type PseudoSource, type StateChip, toggleTit
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [PrismIconComponent, PrismIconButtonComponent],
     templateUrl: './prism-canvas-toolbar.component.html',
-    styleUrl: './prism-canvas-toolbar.component.css'
+    styleUrl: './prism-canvas-toolbar.component.css',
+    // The background swatches carry data-bg like the stage, so the stage's own rules paint them. Last, see CANVAS_BG_STYLES.
+    styles: [CANVAS_BG_STYLES]
 })
 export class PrismCanvasToolbarComponent {
     protected readonly canvas = inject(PrismCanvasService);
@@ -49,12 +65,16 @@ export class PrismCanvasToolbarComponent {
      * The pseudo states the canvas can force, as toggles. Several can be on at
      * once (`:hover` with `:focus-visible`). The active ones carry `is-on`, the
      * ones the variant or the active state declares the `is-rec` edge, as in the
-     * Canvas group.
+     * Background group.
      */
     protected readonly states = PSEUDO_STATES;
 
     protected stateTitle(state: PseudoState): string {
         return toggleTitle(state, this.declaredBy(state));
+    }
+
+    protected stateIcon(state: PseudoState): string {
+        return STATE_ICONS[state];
     }
 
     /** The variant first. Otherwise the active state, which {@link PrismPseudoStateService.isDeclared} only counts while it fits. */
@@ -186,8 +206,14 @@ export class PrismCanvasToolbarComponent {
      *
      * Plain numbers and no device names: this tool narrows a box and simulates
      * nothing, so calling 390 "iPhone" would promise a fidelity it does not have.
+     * A bar over each number shows the width instead, to scale.
      */
     protected readonly viewports = VIEWPORT_SNAPS;
+
+    /** The length of the bar over `width`, in px. */
+    protected widthBar(width: number): number {
+        return Math.max(WIDTH_BAR_MIN, Math.round((width / 1024) * WIDTH_BAR_MAX));
+    }
 
     protected capitalize(s: string): string {
         return s.charAt(0).toUpperCase() + s.slice(1);
