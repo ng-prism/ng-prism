@@ -21,4 +21,11 @@ describe('prism-overview-cell layout', () => {
     it('should anchor what the component positions absolutely to the cell', () => {
         expect(rule('.cell__mount')).toMatch(/position:\s*relative/);
     });
+
+    // The ground layer is `inset: 0` against its containing block: without one in
+    // the cell, every cell would draw its filtered ground over the whole viewport.
+    it('should anchor the ground layer of a vision simulation to the stage', () => {
+        expect(rule('.cell__stage[data-sim-vision]::before')).toMatch(/position:\s*absolute/);
+        expect(rule('.cell__stage[data-sim-vision]')).toMatch(/position:\s*relative/);
+    });
 });

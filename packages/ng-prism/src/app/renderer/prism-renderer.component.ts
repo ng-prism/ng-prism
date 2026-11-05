@@ -38,7 +38,10 @@ import { PrismPanelService } from '../services/prism-panel.service.js';
 import { PrismPluginService } from '../services/prism-plugin.service.js';
 import { PrismPseudoStateService } from '../services/prism-pseudo-state.service.js';
 import { PrismRendererService } from '../services/prism-renderer.service.js';
+import { PrismSimulationService } from '../services/prism-simulation.service.js';
 import { PrismVariantBgService } from '../services/prism-variant-bg.service.js';
+import { groundSimulation } from '../simulate/ground.js';
+import { keepScopeRoot } from '../simulate/keep-scope-root.js';
 import { PRISM_RENDERER_HOOKS } from '../tokens/prism-tokens.js';
 import { activeCase, type RenderSignature, renderSignature, renderTypeFor, sameRender } from './composition.js';
 import { buildInputBindings, unboundInputs } from './input-bindings.js';
@@ -62,6 +65,7 @@ export class PrismRendererComponent {
     protected readonly canvasService = inject(PrismCanvasService);
     protected readonly capture = inject(PrismCaptureService);
     protected readonly variantBg = inject(PrismVariantBgService);
+    private readonly simulation = inject(PrismSimulationService);
     private readonly pseudoState = inject(PrismPseudoStateService);
     private readonly mobileLayout = inject(PrismMobileLayoutService);
 
@@ -89,6 +93,9 @@ export class PrismRendererComponent {
      * component there is meant to meet the device's own width.
      */
     protected readonly viewportWidth = computed(() => (this.capture.active() || !this.desktopTools() ? null : this.canvasService.viewportWidth()));
+
+    /** How the simulation paints the stage's ground; nothing while nothing is simulated, so capture mode never sees it. */
+    protected readonly ground = computed(() => groundSimulation(this.simulation.scopeRoot(), this.simulation.forcedActive()));
 
     protected readonly VIEWPORT_MIN = VIEWPORT_MIN;
     protected readonly VIEWPORT_MAX = VIEWPORT_MAX;
@@ -255,6 +262,9 @@ export class PrismRendererComponent {
 
             untracked(() => this.pseudoMarker.apply(element, base, state));
         });
+
+        // The shown component is the scope root of the simulation in the Playground.
+        keepScopeRoot(this.rendererService.renderedElement);
 
         // What the layers and the toggles of the tools menu depend on. Written from the marker alone and never
         // read back here: `null` whenever no state layer is applied, so the fit of the previous state cannot linger.

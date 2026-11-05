@@ -1,5 +1,6 @@
 import { DEFAULT_VARIANT_BG } from '../../shared/variant-bg.js';
-import { overviewGround, playgroundGround } from './ground.js';
+import { groundSimulation, NO_GROUND_SIMULATION, overviewGround, playgroundGround } from './ground.js';
+import type { ScopeRootState } from './scope-root.js';
 
 describe('playgroundGround', () => {
     const base = { override: null, recommended: null, chosen: false, canvasBg: 'dots' as const, scheme: 'dark' as const };
@@ -42,5 +43,42 @@ describe('overviewGround', () => {
     it('keeps a declared background over the scheme', () => {
         expect(overviewGround('dark', 'light')).toBe('dark');
         expect(overviewGround('plain', null)).toBe('plain');
+    });
+});
+
+describe('groundSimulation', () => {
+    const root = (o: Partial<ScopeRootState>): ScopeRootState => ({ colorScheme: null, filter: null, themeClass: null, themeAttributes: {}, ...o });
+
+    it('changes nothing about the stage while nothing is simulated', () => {
+        expect(groundSimulation(null, false)).toEqual({ forced: null, vision: null, filter: null, colorScheme: null });
+        expect(groundSimulation(null, false)).toBe(NO_GROUND_SIMULATION);
+    });
+
+    it('leaves the scheme of the stage alone while only a scheme is emulated', () => {
+        // The ground follows the scheme through `data-bg` then; nothing on it resolves a system colour.
+        expect(groundSimulation(root({ colorScheme: 'dark', themeClass: 'tl-dark' }), false)).toEqual(NO_GROUND_SIMULATION);
+    });
+
+    it('paints the ground `Canvas` in the palette of forced colors', () => {
+        expect(groundSimulation(root({ colorScheme: 'dark' }), true)).toEqual({ forced: '', vision: null, filter: null, colorScheme: 'dark' });
+        expect(groundSimulation(root({ colorScheme: 'light' }), true)).toEqual({ forced: '', vision: null, filter: null, colorScheme: 'light' });
+    });
+
+    it('filters the ground with the vision setting', () => {
+        expect(groundSimulation(root({ filter: 'url(#prism-vision-protanopia)' }), false)).toEqual({
+            forced: null,
+            vision: '',
+            filter: 'url(#prism-vision-protanopia)',
+            colorScheme: null
+        });
+    });
+
+    it('combines forced colors and vision', () => {
+        expect(groundSimulation(root({ colorScheme: 'light', filter: 'blur(1.5px)' }), true)).toEqual({
+            forced: '',
+            vision: '',
+            filter: 'blur(1.5px)',
+            colorScheme: 'light'
+        });
     });
 });

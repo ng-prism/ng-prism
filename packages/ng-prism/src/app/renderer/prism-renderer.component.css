@@ -42,6 +42,35 @@
     --prism-canvas-overlay-inline: 28px;
 }
 
+/* Forced colors paint the ground Canvas, over a background the variant
+   recommends or the user picked, as the real mode does: the component's text
+   turns CanvasText and would otherwise stand on a ground it never meets
+   there. The stage carries the palette's color-scheme meanwhile (the
+   renderer binds it), so this Canvas is the one the component is forced
+   against. The class outweighs the [data-bg] rules of CANVAS_BG_STYLES,
+   which come later. The edge stays: it is chrome. */
+.prism-canvas-stage[data-sim-forced] {
+    background-color: Canvas;
+    background-image: none;
+}
+
+/* The ground under a vision setting: a copy of the stage's background, drawn
+   with the filter that is on the component, so that what shows through the
+   component is filtered with it. Under forced colors it copies Canvas.
+
+   It is the stage's first box and positioned without a z-index, so every
+   child of the stage paints over it, and none of them is filtered with it:
+   all of them are positioned (crosshair, rulers, measure, pills, grips and
+   .demo-wrap). A child that is not would paint under it. */
+.prism-canvas-stage[data-sim-vision]::before {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    content: '';
+    background: inherit;
+    filter: var(--prism-sim-filter);
+}
+
 .stage-crosshair {
     position: absolute;
     inset: 0;

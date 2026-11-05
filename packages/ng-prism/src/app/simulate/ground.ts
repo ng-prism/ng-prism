@@ -1,5 +1,6 @@
 import type { CanvasBg } from '../../shared/canvas-bg.type.js';
 import { DEFAULT_VARIANT_BG } from '../../shared/variant-bg.js';
+import type { ScopeRootState } from './scope-root.js';
 
 /**
  * The background the Playground paints, with the emulated color scheme in the
@@ -35,4 +36,47 @@ export function playgroundGround(o: {
  */
 export function overviewGround(declared: CanvasBg | null, scheme: 'light' | 'dark' | null): CanvasBg {
     return declared ?? scheme ?? DEFAULT_VARIANT_BG;
+}
+
+/**
+ * How the simulation paints the ground of a stage: the Playground's
+ * `.prism-canvas-stage` and an Overview cell's `.cell__stage`. The ground
+ * belongs to what is simulated, the overlays on it do not.
+ *
+ * One stage binding per field, `null` leaves it off, so a stage that simulates
+ * nothing is the stage as it was.
+ */
+export interface GroundSimulation {
+    /** `data-sim-forced`: present while forced colors are approximated, which paints the ground `Canvas`. */
+    forced: '' | null;
+    /** `data-sim-vision`: present while a vision setting filters the ground. */
+    vision: '' | null;
+    /** `--prism-sim-filter`: the filter the ground layer is drawn with. */
+    filter: string | null;
+    /** `color-scheme`: the palette of forced colors, so that `Canvas` on the ground is the one the component is forced against. */
+    colorScheme: 'light' | 'dark' | null;
+}
+
+/** The ground as it is without a simulation. */
+export const NO_GROUND_SIMULATION: Readonly<GroundSimulation> = Object.freeze({ forced: null, vision: null, filter: null, colorScheme: null });
+
+/**
+ * The ground under the scope root `root` (`PrismSimulationService.scopeRoot`),
+ * with forced colors on or off.
+ *
+ * The stage takes on a `color-scheme` only under forced colors: an emulated
+ * scheme alone reaches the ground through `data-bg` (see {@link playgroundGround}),
+ * whose colours are literal, and the stage's own scrollbars keep the shell's.
+ */
+export function groundSimulation(root: ScopeRootState | null, forced: boolean): Readonly<GroundSimulation> {
+    const filter = root?.filter ?? null;
+
+    if (!forced && !filter) return NO_GROUND_SIMULATION;
+
+    return {
+        forced: forced ? '' : null,
+        vision: filter ? '' : null,
+        filter,
+        colorScheme: forced ? (root?.colorScheme ?? null) : null
+    };
 }
