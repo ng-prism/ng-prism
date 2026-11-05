@@ -82,12 +82,17 @@ describe('railToggleTitle', () => {
 
 describe('toolsTitle', () => {
     it('names the menu alone while nothing is set in it', () => {
-        expect(toolsTitle(null, false)).toBe('Canvas, state, zoom and width');
+        expect(toolsTitle(null, false, false)).toBe('Background, state, zoom, width and simulate');
     });
 
     it('adds the active state and the toggles', () => {
-        expect(toolsTitle('Focus visible', false)).toBe('Canvas, state, zoom and width (Focus visible active)');
-        expect(toolsTitle(null, true)).toBe('Canvas, state, zoom and width (pseudo states toggled)');
-        expect(toolsTitle('Hover', true)).toBe('Canvas, state, zoom and width (Hover active, pseudo states toggled)');
+        expect(toolsTitle('Focus visible', false, false)).toBe('Background, state, zoom, width and simulate (Focus visible active)');
+        expect(toolsTitle(null, true, false)).toBe('Background, state, zoom, width and simulate (pseudo states toggled)');
+        expect(toolsTitle('Hover', true, false)).toBe('Background, state, zoom, width and simulate (Hover active, pseudo states toggled)');
+    });
+
+    it('adds the simulation, last as in the menu', () => {
+        expect(toolsTitle(null, false, true)).toBe('Background, state, zoom, width and simulate (simulation on)');
+        expect(toolsTitle('Hover', true, true)).toBe('Background, state, zoom, width and simulate (Hover active, pseudo states toggled, simulation on)');
     });
 });

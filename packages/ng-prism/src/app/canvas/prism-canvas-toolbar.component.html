@@ -103,17 +103,37 @@
 
      Every choice shows what it does rather than only naming it: a swatch
      of the ground, an icon for the pseudo state, a bar to scale over the
-     width. -->
+     width, a preview of the simulated condition.
+
+     Each group is labelled by its heading, so a screen reader says
+     "Width, 390, pressed" rather than a bare "390". -->
 <div
     popover
     id="prism-tools"
     class="prism-toolmenu"
     role="dialog"
     [attr.aria-label]="toolsLabel">
-    <span class="prism-toolmenu__lbl">Background</span>
+    <span
+        class="prism-toolmenu__lbl"
+        id="prism-tools-bg"
+        >Background</span
+    >
+    <!-- Forced colors paint the ground in the system colour Canvas, over
+         any background chosen here, as the real mode does. -->
+    @if (sim.forcedActive()) {
+        <span
+            class="prism-toolmenu__hint"
+            id="prism-tools-bg-hint"
+            >Canvas while Forced colors is on</span
+        >
+    }
     <!-- The swatch is painted by CANVAS_BG_STYLES, the stage's own rules,
          so a theme's ground and pattern tokens show in it unasked. -->
-    <div class="prism-toolmenu__grid">
+    <div
+        class="prism-toolmenu__grid"
+        role="group"
+        aria-labelledby="prism-tools-bg"
+        [attr.aria-describedby]="sim.forcedActive() ? 'prism-tools-bg-hint' : null">
         @for (bg of bgs; track bg) {
             <button
                 type="button"
@@ -133,10 +153,17 @@
         }
     </div>
 
-    <span class="prism-toolmenu__lbl">State</span>
+    <span
+        class="prism-toolmenu__lbl"
+        id="prism-tools-state"
+        >State</span
+    >
     <!-- The declared states first, as recommendations in the sans face, then
          the pseudo states with an icon in the mono face of a selector. -->
-    <div class="prism-toolmenu__row">
+    <div
+        class="prism-toolmenu__row"
+        role="group"
+        aria-labelledby="prism-tools-state">
         @for (chip of chips(); track chip.index) {
             <button
                 type="button"
@@ -167,8 +194,15 @@
         }
     </div>
 
-    <span class="prism-toolmenu__lbl">Zoom</span>
-    <div class="seg">
+    <span
+        class="prism-toolmenu__lbl"
+        id="prism-tools-zoom"
+        >Zoom</span
+    >
+    <div
+        class="seg"
+        role="group"
+        aria-labelledby="prism-tools-zoom">
         @for (z of zooms; track z.value) {
             <button
                 type="button"
@@ -181,9 +215,16 @@
     </div>
 
     @if (!mobileLayout.mobile()) {
-        <span class="prism-toolmenu__lbl">Width</span>
+        <span
+            class="prism-toolmenu__lbl"
+            id="prism-tools-width"
+            >Width</span
+        >
         <!-- Auto has no width of its own; its bar is dashed. -->
-        <div class="seg seg--tall">
+        <div
+            class="seg seg--tall"
+            role="group"
+            aria-labelledby="prism-tools-width">
             <button
                 type="button"
                 [class.is-on]="canvas.viewportWidth() === null"
@@ -209,4 +250,130 @@
             }
         </div>
     }
+
+    <!-- The user's environment rather than the canvas, so set apart under a
+         heading of its own. Unlike the groups above it stays when the variant
+         changes, and on a phone too. -->
+    <div
+        class="prism-toolmenu__sim"
+        role="group"
+        aria-labelledby="prism-tools-simulate">
+        <span
+            class="prism-toolmenu__lbl prism-toolmenu__lbl--group"
+            id="prism-tools-simulate"
+            >Simulate</span
+        >
+
+        <div class="prism-toolmenu__kv">
+            <span
+                class="prism-toolmenu__key"
+                id="prism-tools-motion"
+                >Motion</span
+            >
+            <!-- A dot that moves, and one that stands still. -->
+            <div
+                class="seg"
+                role="group"
+                aria-labelledby="prism-tools-motion"
+                data-sim="motion">
+                @for (m of motions; track m) {
+                    <button
+                        type="button"
+                        [class.is-on]="sim.state().motion === m"
+                        [attr.aria-pressed]="sim.state().motion === m"
+                        (click)="sim.set({ motion: m })">
+                        <span
+                            class="motion"
+                            [class.motion--moving]="m === 'system'"
+                            aria-hidden="true"></span>
+                        {{ capitalize(m) }}
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div class="prism-toolmenu__kv">
+            <span
+                class="prism-toolmenu__key"
+                id="prism-tools-scheme"
+                >Color scheme</span
+            >
+            <div
+                class="seg"
+                role="group"
+                aria-labelledby="prism-tools-scheme"
+                data-sim="scheme">
+                @for (s of schemes; track s) {
+                    <button
+                        type="button"
+                        [class.is-on]="sim.state().scheme === s"
+                        [attr.aria-pressed]="sim.state().scheme === s"
+                        (click)="sim.set({ scheme: s })">
+                        <span
+                            class="tone"
+                            [attr.data-scheme]="s"
+                            aria-hidden="true"></span>
+                        {{ capitalize(s) }}
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div class="prism-toolmenu__kv">
+            <span
+                class="prism-toolmenu__key"
+                id="prism-tools-forced"
+                >Forced colors</span
+            >
+            <div
+                class="seg"
+                role="group"
+                aria-labelledby="prism-tools-forced"
+                data-sim="forced">
+                @for (f of forceds; track f) {
+                    <button
+                        type="button"
+                        [class.is-on]="sim.state().forced === f"
+                        [attr.aria-pressed]="sim.state().forced === f"
+                        [attr.title]="forcedTitle(f)"
+                        (click)="sim.set({ forced: f })">
+                        <span
+                            class="tone"
+                            [attr.data-forced]="f"
+                            aria-hidden="true"></span>
+                        {{ capitalize(f) }}
+                    </button>
+                }
+            </div>
+        </div>
+
+        <span
+            class="prism-toolmenu__key"
+            id="prism-tools-vision"
+            >Vision</span
+        >
+        <!-- Each stripe runs through the very filter the stage gets, the SVG
+             ones from <prism-vision-filters /> in the shell. -->
+        <div
+            class="prism-toolmenu__grid"
+            role="group"
+            aria-labelledby="prism-tools-vision"
+            data-sim="vision">
+            @for (v of visions; track v) {
+                <button
+                    type="button"
+                    class="chip chip--tile"
+                    [attr.data-choice]="v"
+                    [class.is-on]="sim.state().vision === v"
+                    [attr.aria-pressed]="sim.state().vision === v"
+                    (click)="sim.set({ vision: v })">
+                    <span
+                        class="stripe"
+                        [style.filter]="visionFilter(v)"
+                        aria-hidden="true"></span>
+                    {{ capitalize(v) }}
+                </button>
+            }
+        </div>
+    </div>
 </div>

@@ -10,8 +10,11 @@ import { PrismMobileLayoutService } from '../services/prism-mobile-layout.servic
 import { PrismNavigationService } from '../services/prism-navigation.service.js';
 import { PrismPseudoStateService } from '../services/prism-pseudo-state.service.js';
 import { PrismRendererService } from '../services/prism-renderer.service.js';
+import { PrismSimulationService } from '../services/prism-simulation.service.js';
 import { PrismVariantBgService } from '../services/prism-variant-bg.service.js';
 import { PrismIconButtonComponent } from '../shared/prism-icon-button.component.js';
+import { FORCED_SETTINGS, type ForcedSetting, MOTION_SETTINGS, SCHEME_SETTINGS, VISION_SETTINGS } from '../simulate/simulation.js';
+import { visionFilter } from '../simulate/vision-filters.js';
 import { CANVAS_BG_STYLES } from './canvas-bg.styles.js';
 import { railToggleTitle, TOOLS_LABEL, toolsTitle, zoomTitle } from './canvas-overlay-tokens.js';
 import { buildStateChips, chipFits, type PseudoSource, type StateChip, toggleTitle } from './state-chips.js';
@@ -29,12 +32,15 @@ const STATE_ICONS: Record<PseudoState, string> = {
 const WIDTH_BAR_MAX = 30;
 const WIDTH_BAR_MIN = 6;
 
+/** Forced colors are approximated, the browser has no switch for them; the tooltip says so and where the real mode is. */
+const FORCED_ACTIVE_TITLE = 'Forced colors (approx.). The exact mode: Chrome DevTools › Rendering › Emulate CSS media feature forced-colors';
+
 /**
  * The canvas tools, as a rail floating over the canvas.
  *
  * Things you toggle constantly (guides, rulers, the viewport constraint) get
  * their own button; things you set once (background, forced state, zoom,
- * viewport width) live in the menu. The template is a view rather than a setting and keeps its own
+ * viewport width, the simulated environment) live in the menu. The template is a view rather than a setting and keeps its own
  * button. Zoom is shown as a readout, with the viewport width in its tooltip.
  *
  * The host generates no box. The rail must be a direct child of
@@ -60,6 +66,7 @@ export class PrismCanvasToolbarComponent {
     private readonly navigation = inject(PrismNavigationService);
     private readonly renderer = inject(PrismRendererService);
     protected readonly mobileLayout = inject(PrismMobileLayoutService);
+    protected readonly sim = inject(PrismSimulationService);
 
     /**
      * The pseudo states the canvas can force, as toggles. Several can be on at
@@ -136,13 +143,14 @@ export class PrismCanvasToolbarComponent {
     private readonly toggled = computed(() => Object.keys(this.pseudoState.override()).length > 0);
 
     /**
-     * Whether the menu holds something on top of the variant: an active state,
-     * or a pseudo state toggled on or off. Marked on the trigger, so it shows
-     * with the menu closed; both go with the next variant.
+     * Whether the menu holds something that changes what the canvas shows: an
+     * active state, a pseudo state toggled on or off, or a simulation. Marked
+     * on the trigger, so it shows with the menu closed. The state and the
+     * toggles go with the next variant, the simulation stays.
      */
-    protected readonly toolsSet = computed(() => this.pseudoState.activeState() !== null || this.toggled());
+    protected readonly toolsSet = computed(() => this.pseudoState.activeState() !== null || this.toggled() || this.sim.active());
 
-    protected readonly toolsTitle = computed(() => toolsTitle(this.pseudoState.activeState()?.name ?? null, this.toggled()));
+    protected readonly toolsTitle = computed(() => toolsTitle(this.pseudoState.activeState()?.name ?? null, this.toggled(), this.sim.active()));
 
     /** Angular templates resolve names against the component, not the global scope. */
     protected readonly Math = Math;
@@ -213,6 +221,24 @@ export class PrismCanvasToolbarComponent {
     /** The length of the bar over `width`, in px. */
     protected widthBar(width: number): number {
         return Math.max(WIDTH_BAR_MIN, Math.round((width / 1024) * WIDTH_BAR_MAX));
+    }
+
+    /**
+     * The Simulate rows, from the lists that also validate the URL and the
+     * session, so a setting cannot be restorable without being shown. Each
+     * label is its value, capitalized.
+     */
+    protected readonly motions = MOTION_SETTINGS;
+    protected readonly schemes = SCHEME_SETTINGS;
+    protected readonly forceds = FORCED_SETTINGS;
+    protected readonly visions = VISION_SETTINGS;
+
+    /** The filter the stage gets, for the colour stripe of each Vision tile. */
+    protected readonly visionFilter = visionFilter;
+
+    /** Bound with `[attr.title]`, see {@link bgTitle}. */
+    protected forcedTitle(forced: ForcedSetting): string | null {
+        return forced === 'active' ? FORCED_ACTIVE_TITLE : null;
     }
 
     protected capitalize(s: string): string {

@@ -90,22 +90,31 @@
    their one-line length. On a phone the area beside the rail is narrower:
    the percentage is of that area (position-area makes it the containing
    block), less the margin towards the rail and a gap to the screen edge.
-   The container lets the Background grid drop to two columns there. */
+   The container lets the Background grid drop to two columns there.
+
+   The height is capped the same way. The area spans the whole viewport
+   height beside the rail, so the menu scrolls inside itself, a gap short of
+   both screen edges, rather than run off a phone or a short window. */
 .prism-toolmenu {
     inset: auto;
     box-sizing: border-box;
     gap: var(--sp-3);
     width: 360px;
     max-width: calc(100% - var(--sp-2) - var(--sp-3));
+    max-height: calc(100% - 2 * var(--sp-3));
     padding: var(--sp-4);
-    margin: 0;
+    margin: var(--sp-3) 0;
     margin-inline-end: var(--sp-2);
     position-area: inline-start;
     position-anchor: --prism-toolrail;
     position-try-fallbacks: flip-inline;
     container-type: inline-size;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     font-size: var(--fs-md);
     color: var(--prism-text-2);
+    scrollbar-color: var(--prism-border-strong) transparent;
+    scrollbar-width: thin;
     background: var(--prism-bg-elevated);
     border: 1px solid var(--prism-border);
     border-radius: var(--radius-md);
@@ -126,6 +135,13 @@
     color: var(--prism-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
+}
+
+/* What overrides the group's choice for now; it sits between the label and the choices. */
+.prism-toolmenu__hint {
+    margin-top: calc(-1 * var(--sp-2));
+    font-size: var(--fs-sm);
+    color: var(--prism-text-muted);
 }
 
 .prism-toolmenu__grid {
@@ -158,7 +174,10 @@
     white-space: nowrap;
     cursor: pointer;
     background: transparent;
-    border: 1px solid color-mix(in srgb, var(--prism-border-strong) 55%, transparent);
+
+    /* The full strong border: the edge is what marks a chip as a control,
+       and it holds 3:1 on the menu only unmixed (3.3:1 dark, 3.5:1 light). */
+    border: 1px solid var(--prism-border-strong);
     border-radius: var(--radius-sm);
 }
 
@@ -290,6 +309,166 @@
     width: 26px;
     background: repeating-linear-gradient(90deg, currentcolor 0 4px, transparent 4px 7px);
     border-radius: 0;
+}
+
+/* The user's environment rather than the canvas: a group of its own, under
+   a heading in the primary colour with a rule running out to the edge. */
+.prism-toolmenu__sim {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+    margin-top: var(--sp-2);
+}
+
+.prism-toolmenu__lbl--group {
+    display: flex;
+    gap: var(--sp-3);
+    align-items: center;
+    color: var(--prism-primary);
+}
+
+.prism-toolmenu__lbl--group::after {
+    flex: 1;
+    height: 1px;
+    content: '';
+    background: var(--prism-border);
+}
+
+/* A row of the group: its name beside its choices. */
+.prism-toolmenu__kv {
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: var(--sp-3);
+    align-items: center;
+}
+
+/* On a phone the choices need the whole width, so the name goes above them. */
+@container (width < 320px) {
+    .prism-toolmenu__kv {
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--sp-2);
+    }
+}
+
+.prism-toolmenu__key {
+    font-size: var(--fs-sm);
+    color: var(--prism-text-muted);
+}
+
+/* The previews of the Simulate rows. They show a condition, not the
+   chrome, so the colours of Color scheme and Forced colors are fixed: a
+   light and a dark page, and the black, white and yellow of a high-contrast
+   theme, whatever the shell's theme is. Each sits on a hairline ring, so
+   that it does not melt into a menu of the same colour. */
+
+/* Motion: a dot that moves before System and stands before Reduce. The
+   menu belongs to the shell, which the simulation never touches, so this
+   follows the viewer's real preference: under it, System stands still as
+   well, which is what the system then does. */
+.motion {
+    position: relative;
+    flex: none;
+    width: 18px;
+    height: 8px;
+}
+
+.motion::before {
+    position: absolute;
+    top: 1px;
+    left: 6px;
+    width: 6px;
+    height: 6px;
+    content: '';
+    background: currentcolor;
+    border-radius: 50%;
+}
+
+.motion--moving::before {
+    animation: nudge 1.4s ease-in-out infinite;
+}
+
+@keyframes nudge {
+    0%,
+    100% {
+        transform: translateX(-4px);
+    }
+
+    50% {
+        transform: translateX(4px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .motion--moving::before {
+        animation: none;
+    }
+}
+
+/* Color scheme and Forced colors: a small page with a line of text. The
+   text is generated, so it stays out of the button's name and text. */
+.tone {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 15px;
+    height: 15px;
+    font-size: 8px;
+    font-weight: 600;
+    line-height: 1;
+    border-radius: var(--radius-xs);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--prism-border-strong) 60%, transparent);
+}
+
+.tone::before {
+    content: 'Aa';
+}
+
+/* System: half light, half dark, and no text, since it is either. */
+.tone[data-scheme='system'] {
+    background: linear-gradient(135deg, #f8fafc 50%, #0f172a 50%);
+}
+
+.tone[data-scheme='system']::before {
+    content: none;
+}
+
+.tone[data-scheme='light'] {
+    color: #0f172a;
+    background: #f8fafc;
+}
+
+.tone[data-scheme='dark'] {
+    color: #f1f5f9;
+    background: #0f172a;
+}
+
+/* Off: a page in colours of its own choosing. Active: the system's. */
+.tone[data-forced='off'] {
+    color: #1d4ed8;
+    background: #f8fafc;
+}
+
+.tone[data-forced='active'] {
+    color: #ff0;
+    background: #000;
+    box-shadow: inset 0 0 0 1px #fff;
+}
+
+/* Vision: a tile with a stripe of red, green, blue and yellow, run through
+   the setting's filter. The four colours are fixed for the same reason. */
+.chip.chip--tile {
+    flex-direction: column;
+    gap: 5px;
+    align-items: stretch;
+    padding: 5px 6px;
+    font-size: var(--fs-sm);
+}
+
+.stripe {
+    display: block;
+    height: 10px;
+    background: linear-gradient(90deg, #e53935 0 25%, #43a047 25% 50%, #1e88e5 50% 75%, #fdd835 75%);
+    border-radius: 2px;
 }
 
 .chip:focus-visible,

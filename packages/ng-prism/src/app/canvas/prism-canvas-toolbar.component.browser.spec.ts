@@ -11,7 +11,10 @@ import { PrismMobileLayoutService } from '../services/prism-mobile-layout.servic
 import { PrismNavigationService } from '../services/prism-navigation.service.js';
 import { PrismPseudoStateService } from '../services/prism-pseudo-state.service.js';
 import { PrismRendererService } from '../services/prism-renderer.service.js';
+import { PrismSimulationService } from '../services/prism-simulation.service.js';
+import { DEFAULT_SIMULATION } from '../simulate/simulation.js';
 import { PRISM_MANIFEST } from '../tokens/prism-tokens.js';
+import { CANVAS_BG_STYLES } from './canvas-bg.styles.js';
 import { PrismCanvasToolbarComponent } from './prism-canvas-toolbar.component.js';
 
 /**
@@ -106,8 +109,8 @@ describe('PrismCanvasToolbarComponent: tools menu trigger', () => {
 
     it('carries no indicator while the menu holds nothing', () => {
         expect(dot()).toBeNull();
-        expect(trigger().getAttribute('aria-label')).toBe('Canvas, state, zoom and width');
-        expect(trigger().getAttribute('title')).toBe('Canvas, state, zoom and width');
+        expect(trigger().getAttribute('aria-label')).toBe('Background, state, zoom, width and simulate');
+        expect(trigger().getAttribute('title')).toBe('Background, state, zoom, width and simulate');
     });
 
     it('marks an active state, and names it', () => {
@@ -115,7 +118,7 @@ describe('PrismCanvasToolbarComponent: tools menu trigger', () => {
         settle();
 
         expect(dot()).not.toBeNull();
-        expect(trigger().getAttribute('aria-label')).toBe('Canvas, state, zoom and width (Focus visible active)');
+        expect(trigger().getAttribute('aria-label')).toBe('Background, state, zoom, width and simulate (Focus visible active)');
     });
 
     it('marks a forced pseudo state', () => {
@@ -123,7 +126,7 @@ describe('PrismCanvasToolbarComponent: tools menu trigger', () => {
         settle();
 
         expect(dot()).not.toBeNull();
-        expect(trigger().getAttribute('aria-label')).toBe('Canvas, state, zoom and width (pseudo states toggled)');
+        expect(trigger().getAttribute('aria-label')).toBe('Background, state, zoom, width and simulate (pseudo states toggled)');
     });
 
     it('names both when a state and a toggle are set', () => {
@@ -132,7 +135,7 @@ describe('PrismCanvasToolbarComponent: tools menu trigger', () => {
         pseudoState.toggle('active');
         settle();
 
-        expect(trigger().getAttribute('aria-label')).toBe('Canvas, state, zoom and width (Hover active, pseudo states toggled)');
+        expect(trigger().getAttribute('aria-label')).toBe('Background, state, zoom, width and simulate (Hover active, pseudo states toggled)');
     });
 
     it('drops the indicator when the variant change clears the state and the toggles', () => {
@@ -146,7 +149,24 @@ describe('PrismCanvasToolbarComponent: tools menu trigger', () => {
         settle();
 
         expect(dot()).toBeNull();
-        expect(trigger().getAttribute('aria-label')).toBe('Canvas, state, zoom and width');
+        expect(trigger().getAttribute('aria-label')).toBe('Background, state, zoom, width and simulate');
+    });
+
+    it('marks the trigger while simulating', () => {
+        TestBed.inject(PrismSimulationService).set({ forced: 'active' });
+        settle();
+
+        expect(dot()).not.toBeNull();
+        expect(trigger().getAttribute('aria-label')).toBe('Background, state, zoom, width and simulate (simulation on)');
+    });
+
+    it('keeps the mark for a simulation, which outlives the variant', () => {
+        TestBed.inject(PrismSimulationService).set({ vision: 'tritanopia' });
+        settle();
+        renderer.selectVariant(1);
+        settle();
+
+        expect(dot()).not.toBeNull();
     });
 });
 
@@ -197,6 +217,13 @@ describe('PrismCanvasToolbarComponent: phone layout', () => {
         expect(sections(fixture)).toEqual(expect.arrayContaining(['Background', 'State', 'Zoom']));
         expect(sections(fixture)).not.toContain('Width');
         expect(fixture.nativeElement.querySelector('#prism-tools .bar')).toBeNull();
+    });
+
+    it('keeps the Simulate group on a phone', async () => {
+        const fixture = await render(true);
+
+        expect(sections(fixture)).toContain('Simulate');
+        expect(fixture.nativeElement.querySelectorAll('#prism-tools [data-sim]')).toHaveLength(4);
     });
 
     it('does not make room for rulers a desktop session switched on', async () => {
@@ -250,8 +277,9 @@ describe('PrismCanvasToolbarComponent: tools menu', () => {
         return button;
     }
 
+    /** The pressed zoom and width; the Simulate rows are segmented too, and have tests of their own. */
     function pressedSegments(): string[] {
-        return [...menu().querySelectorAll('.seg button[aria-pressed="true"]')].map((b) => b.textContent?.trim() ?? '');
+        return [...menu().querySelectorAll('.seg:not([data-sim]) button[aria-pressed="true"]')].map((b) => b.textContent?.trim() ?? '');
     }
 
     afterEach(() => {
@@ -343,5 +371,152 @@ describe('PrismCanvasToolbarComponent: tools menu', () => {
         expect(states.slice(0, 3).map((b) => b.textContent?.trim())).toEqual(['Hover', 'Focus visible', ':hover']);
         expect(states[0].classList).toContain('is-rec');
         expect(states[0].getAttribute('aria-pressed')).toBe('false');
+    });
+
+    // A screen reader then says "Width, 390, pressed" rather than a bare "390".
+    it('names every group and segmented row after its label', async () => {
+        await render();
+
+        const names = [...menu().querySelectorAll('[role="group"]')].map((group) => {
+            const label = menu().querySelector(`#${group.getAttribute('aria-labelledby')}`);
+
+            return label?.textContent?.trim();
+        });
+
+        expect(names).toEqual(['Background', 'State', 'Zoom', 'Width', 'Simulate', 'Motion', 'Color scheme', 'Forced colors', 'Vision']);
+    });
+
+    // Without the stage's [data-bg] rules every swatch shows the bare stage colour, which no test of the markup notices.
+    it('carries the stage background rules that paint the swatches', async () => {
+        await render();
+
+        const annotations = (PrismCanvasToolbarComponent as unknown as { __annotations__: { styles?: string[] }[] }).__annotations__;
+
+        expect(annotations.flatMap((a) => a.styles ?? [])).toContain(CANVAS_BG_STYLES);
+    });
+});
+
+describe('PrismCanvasToolbarComponent: Simulate group', () => {
+    let fixture: ComponentFixture<PrismCanvasToolbarComponent>;
+    let sim: PrismSimulationService;
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({ providers: [{ provide: PRISM_MANIFEST, useValue: { components: [COMP] } }] });
+        await resolveComponentResources(readAppResource);
+        sim = TestBed.inject(PrismSimulationService);
+        TestBed.inject(PrismNavigationService).select(COMP);
+        TestBed.inject(ApplicationRef).tick();
+
+        fixture = TestBed.createComponent(PrismCanvasToolbarComponent);
+        fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+    });
+
+    function settle(): void {
+        TestBed.inject(ApplicationRef).tick();
+        fixture.detectChanges();
+    }
+
+    function menu(): HTMLElement {
+        return fixture.nativeElement.querySelector('#prism-tools');
+    }
+
+    function one(selector: string): HTMLElement {
+        const element = menu().querySelector<HTMLElement>(selector);
+
+        if (!element) throw new Error(`Nothing matches "${selector}" in the tools menu`);
+        return element;
+    }
+
+    function click(selector: string): void {
+        one(selector).click();
+        settle();
+    }
+
+    /** The visible labels of the pressed buttons in `selector`; the previews add no text. */
+    function pressed(selector: string): string[] {
+        return [...one(selector).querySelectorAll('button[aria-pressed="true"]')].map((b) => b.textContent?.trim() ?? '');
+    }
+
+    it('offers every setting under its fixed label', () => {
+        const labels = (selector: string) => [...one(selector).querySelectorAll('button')].map((b) => b.textContent?.trim());
+
+        expect(labels('[data-sim="motion"]')).toEqual(['System', 'Reduce']);
+        expect(labels('[data-sim="scheme"]')).toEqual(['System', 'Light', 'Dark']);
+        expect(labels('[data-sim="forced"]')).toEqual(['Off', 'Active']);
+        expect(labels('[data-sim="vision"]')).toEqual(['None', 'Protanopia', 'Deuteranopia', 'Tritanopia', 'Achromatopsia', 'Blurred']);
+    });
+
+    it('presses the neutral settings while nothing is simulated', () => {
+        expect(pressed('[data-sim="motion"]')).toEqual(['System']);
+        expect(pressed('[data-sim="scheme"]')).toEqual(['System']);
+        expect(pressed('[data-sim="forced"]')).toEqual(['Off']);
+        expect(pressed('[data-sim="vision"]')).toEqual(['None']);
+    });
+
+    it('sets each simulation from its segmented control', () => {
+        click('[data-sim="motion"] button:nth-child(2)');
+        click('[data-sim="vision"] [data-choice="deuteranopia"]');
+
+        expect(sim.state()).toEqual({ ...DEFAULT_SIMULATION, motion: 'reduce', vision: 'deuteranopia' });
+        expect(pressed('[data-sim="vision"]')).toEqual(['Deuteranopia']);
+        expect(pressed('[data-sim="motion"]')).toEqual(['Reduce']);
+
+        click('[data-sim="scheme"] button:nth-child(3)');
+        click('[data-sim="forced"] button:nth-child(2)');
+
+        expect(sim.state()).toEqual({ motion: 'reduce', scheme: 'dark', forced: 'active', vision: 'deuteranopia' });
+        expect(pressed('[data-sim="scheme"]')).toEqual(['Dark']);
+        expect(one('[data-sim="scheme"] button:nth-child(3)').classList).toContain('is-on');
+    });
+
+    it("follows a simulation set elsewhere, such as the pill's Reset", () => {
+        sim.set({ scheme: 'light', vision: 'blurred' });
+        settle();
+        expect(pressed('[data-sim="scheme"]')).toEqual(['Light']);
+
+        sim.reset();
+        settle();
+        expect(pressed('[data-sim="scheme"]')).toEqual(['System']);
+        expect(pressed('[data-sim="vision"]')).toEqual(['None']);
+    });
+
+    it('runs each vision tile through its filter', () => {
+        expect(one('[data-choice="protanopia"] .stripe').style.filter).toBe('url(#prism-vision-protanopia)');
+        expect(one('[data-choice="achromatopsia"] .stripe').style.filter).toBe('url(#prism-vision-achromatopsia)');
+        expect(one('[data-choice="blurred"] .stripe').style.filter).toBe('blur(1.5px)');
+        expect(one('[data-choice="none"] .stripe').style.filter).toBe('');
+    });
+
+    it('says the background is overridden while forced colors run', () => {
+        const hint = () => one('#prism-tools-bg').nextElementSibling;
+
+        expect(menu().textContent).not.toContain('Canvas while Forced colors is on');
+
+        sim.set({ forced: 'active' });
+        settle();
+
+        expect(hint()?.textContent?.trim()).toBe('Canvas while Forced colors is on');
+        expect(one('[aria-labelledby="prism-tools-bg"]').getAttribute('aria-describedby')).toBe(hint()?.id);
+    });
+
+    it('labels forced colors as an approximation', () => {
+        const title = one('[data-sim="forced"] button:nth-child(2)').getAttribute('title') ?? '';
+
+        expect(title).toContain('approx.');
+        expect(title).toContain('DevTools');
+        expect(one('[data-sim="forced"] button:nth-child(1)').hasAttribute('title')).toBe(false);
+    });
+
+    it('keeps the previews out of the accessible names', () => {
+        const previews = menu().querySelectorAll('[data-sim] button > span');
+
+        expect(previews).toHaveLength(13);
+        for (const preview of previews) expect(preview.getAttribute('aria-hidden')).toBe('true');
     });
 });
