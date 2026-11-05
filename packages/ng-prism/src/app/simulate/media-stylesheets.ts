@@ -15,7 +15,7 @@ import {
 } from './css-rules.js';
 import { mentionsEmulated, substituteMedia } from './media-condition.js';
 import { SCOPE_IN_SUFFIX, SCOPE_OUT_SUFFIX, scopeIn, scopeOut, SIM_SCOPE, targetsRoot, unscopeOut } from './scope-selector.js';
-import type { EmulatedMedia } from './simulation.js';
+import { type EmulatedMedia, sameMedia } from './simulation.js';
 
 /**
  * Where a rule sits: in a sheet or a group (`top`), or nested in a style rule
@@ -460,12 +460,6 @@ export class MediaStyleSheets {
         else this.warned.add(about);
         if (isDevMode()) console.warn(`[ng-prism] ${message}`);
     }
-}
-
-function sameMedia(a: EmulatedMedia, b: EmulatedMedia): boolean {
-    const features = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof EmulatedMedia>;
-
-    return Array.from(features).every((feature) => a[feature] === b[feature]);
 }
 
 function unanswerable(media: string, where: string): string {

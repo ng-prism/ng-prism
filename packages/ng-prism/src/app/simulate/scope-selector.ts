@@ -4,7 +4,9 @@ import { attributeEnd, escapeEnd, identEnd, LEGACY_PSEUDO_ELEMENTS, stringEnd, W
 export const SIM_SCOPE_ATTR = 'data-prism-sim';
 
 const SCOPE_ROOT_ATTR = `[${SIM_SCOPE_ATTR}]`;
-const OVERLAY_ROOT = '.cdk-overlay-container';
+
+/** The CDK overlay container, a scope root by its class alone. */
+export const OVERLAY_ROOT = '.cdk-overlay-container';
 
 /**
  * What a simulation reaches: the simulated element and the CDK overlay

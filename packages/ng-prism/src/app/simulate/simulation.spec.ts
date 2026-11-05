@@ -9,6 +9,7 @@ import {
     MOTION_SETTINGS,
     parseSimulation,
     readSimulationParams,
+    sameMedia,
     SCHEME_SETTINGS,
     schemeGround,
     simulationLabels,
@@ -40,6 +41,14 @@ describe('simulation', () => {
             'prefers-color-scheme': 'dark',
             'forced-colors': 'active'
         });
+    });
+
+    it('compares emulations feature by feature', () => {
+        expect(sameMedia({ 'prefers-color-scheme': 'dark' }, { 'prefers-color-scheme': 'dark' })).toBe(true);
+        expect(sameMedia({}, {})).toBe(true);
+        expect(sameMedia({ 'prefers-color-scheme': 'dark' }, { 'prefers-color-scheme': 'light' })).toBe(false);
+        expect(sameMedia({ 'forced-colors': 'active' }, {})).toBe(false);
+        expect(sameMedia({}, { 'prefers-reduced-motion': 'reduce' })).toBe(false);
     });
 
     it('scheme ground and forced palette', () => {

@@ -124,6 +124,13 @@ export function emulatedMedia(s: Simulation): EmulatedMedia {
     return media;
 }
 
+/** Whether two emulations answer every feature the same. */
+export function sameMedia(a: EmulatedMedia, b: EmulatedMedia): boolean {
+    const features = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof EmulatedMedia>;
+
+    return Array.from(features).every((feature) => a[feature] === b[feature]);
+}
+
 /**
  * The scheme the ground behind the component has to take on, or `null` when
  * the real one is fine. Rules in `@media (prefers-color-scheme)` follow the
