@@ -19,7 +19,8 @@ import { Showcase } from '@ng-prism/core';
  *
  * - **Surface:** the library token `--tl-card-bg` from `styles/tokens.css`, which switches on `:root` under
  *   `@media (prefers-color-scheme: dark)`
- * - **Text and border:** `light-dark()`, which follows the `color-scheme` the card inherits or is given
+ * - **Text and border:** `light-dark()`, which follows the card's computed `color-scheme`: the OS preference, or a
+ *   `color-scheme` set on the card itself
  * - **Image placeholder:** a theme class, `:host-context(.tl-dark)`, that an app sets on the card or an ancestor
  *
  * The shadow of an elevated card deepens in a `prefers-color-scheme` query nested in its rule.
