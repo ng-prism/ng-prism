@@ -74,10 +74,19 @@ describe('prism-overview sim pill', () => {
     });
 
     it('sits in the flow, with the inset of the sheet and a small gap below', () => {
+        expect(rule(OVERVIEW_CSS, '.prism-overview__sim')).toMatch(/margin: var\(--sp-6\) var\(--sp-6\) var\(--sp-4\);/);
+    });
+
+    // The overview has no tools rail: in a long list the pill is the only sign that something is simulated.
+    it('stays where it is while the list scrolls, above the cells, and lets clicks beside it through', () => {
         const pill = rule(OVERVIEW_CSS, '.prism-overview__sim');
 
-        expect(pill).not.toMatch(/position:/);
-        expect(pill).toMatch(/margin: var\(--sp-6\) var\(--sp-6\) var\(--sp-4\);/);
+        expect(pill).toMatch(/position: sticky;/);
+        expect(pill).toMatch(/top: var\(--sp-6\);/);
+        expect(pill).toMatch(/z-index: 1;/);
+        expect(pill).toMatch(/pointer-events: none;/);
+        // Whatever a component in a cell stacks stays below the pill.
+        expect(rule(OVERVIEW_CSS, '.prism-overview')).toMatch(/isolation: isolate;/);
     });
 
     it('trades the top padding of the list for that gap while the pill shows', () => {
