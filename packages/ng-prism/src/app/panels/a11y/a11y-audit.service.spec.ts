@@ -260,6 +260,83 @@ describe('audit condition', () => {
         expect(service.condition()).toBe('Light scheme');
     });
 
+    describe('requests that overlap', () => {
+        /** The runs axe was asked for, each settled by the test; a second one while one is going is rejected, as axe-core does. */
+        let runs: ((results: AxeResults) => void)[];
+
+        beforeEach(() => {
+            runs = [];
+            let going = false;
+
+            (axe.run as jest.Mock).mockImplementation(() => {
+                if (going) return Promise.reject(new Error('Axe is already running.'));
+                going = true;
+                return new Promise<AxeResults>((resolve) =>
+                    runs.push((results) => {
+                        going = false;
+                        resolve(results);
+                    })
+                );
+            });
+        });
+
+        it('runs one audit at a time, keeps running on while a request waits, and ends on the newest result', async () => {
+            service.scheduleAudit(element, {}, 0, 'Dark scheme');
+            await jest.advanceTimersByTimeAsync(0);
+            // The menu changes while the first audit is in flight, and the second one is due.
+            service.scheduleAudit(element, {}, 0, 'Light scheme');
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(axe.run).toHaveBeenCalledTimes(1);
+            expect(service.running()).toBe(true);
+
+            runs[0]({ ...mockResults, url: 'dark' });
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(service.running()).toBe(true);
+            expect(axe.run).toHaveBeenCalledTimes(2);
+
+            runs[1]({ ...mockResults, url: 'light' });
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(service.error()).toBeNull();
+            expect(service.results()?.url).toBe('light');
+            expect(service.condition()).toBe('Light scheme');
+            expect(service.running()).toBe(false);
+        });
+
+        it('skips a request that a newer one overtook while it waited', async () => {
+            service.scheduleAudit(element, {}, 0, 'Dark scheme');
+            await jest.advanceTimersByTimeAsync(0);
+            service.scheduleAudit(element, {}, 0, 'Light scheme');
+            await jest.advanceTimersByTimeAsync(0);
+            service.scheduleAudit(element, {}, 0, 'Forced colors (approx.)');
+            await jest.advanceTimersByTimeAsync(0);
+
+            runs[0](mockResults);
+            await jest.advanceTimersByTimeAsync(0);
+            runs[1]({ ...mockResults, url: 'forced' });
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(axe.run).toHaveBeenCalledTimes(2);
+            expect(service.condition()).toBe('Forced colors (approx.)');
+            expect(service.results()?.url).toBe('forced');
+            expect(service.running()).toBe(false);
+        });
+
+        it('drops a run that lands after the results were cleared', async () => {
+            service.scheduleAudit(element, {}, 0, 'Dark scheme');
+            await jest.advanceTimersByTimeAsync(0);
+            service.clear();
+            runs[0](mockResults);
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(service.results()).toBeNull();
+            expect(service.condition()).toBeNull();
+            expect(service.running()).toBe(false);
+        });
+    });
+
     it('keeps the condition of the last good result when an audit fails', async () => {
         service.scheduleAudit(element, {}, 0, 'Dark scheme');
         await jest.advanceTimersByTimeAsync(0);

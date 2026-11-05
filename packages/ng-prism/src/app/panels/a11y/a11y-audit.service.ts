@@ -92,6 +92,12 @@ export class A11yAuditService {
 
     private timer: ReturnType<typeof setTimeout> | null = null;
     private destroyed = false;
+    /** The number of the latest request. Each `scheduleAudit` and `clear` counts one up. */
+    private requested = 0;
+    /** The number of the request whose results are shown; a run older than it lands too late. */
+    private shown = 0;
+    /** The run in flight, settled or not: axe-core rejects a run while another one is going. */
+    private queue: Promise<void> = Promise.resolve();
 
     constructor() {
         inject(DestroyRef).onDestroy(() => {
@@ -100,29 +106,51 @@ export class A11yAuditService {
         });
     }
 
-    /** `condition` names what the canvas simulates while the audit runs, and is kept with its results. */
+    /**
+     * `condition` names what the canvas simulates while the audit runs, and is kept with its results.
+     *
+     * Runs never overlap: a request waits for the run in flight and is skipped
+     * once a newer one has come in, so the latest request runs last. `running`
+     * stays on until it has landed.
+     */
     scheduleAudit(element: Element, config?: A11yCoreConfig, debounceMs = 500, condition: string | null = null): void {
         if (this.destroyed) return;
         if (this.timer) clearTimeout(this.timer);
+
+        const request = ++this.requested;
+
         this.running.set(true);
         this.error.set(null);
 
         this.timer = setTimeout(() => {
-            runCoreAudit(element, config).then(
-                (result) => {
-                    if (this.destroyed) return;
-                    this.acceptances.set(config?.accept ?? []);
-                    this.auditedCondition.set(condition);
-                    this.results.set(result);
-                    this.running.set(false);
-                },
-                (err) => {
-                    if (this.destroyed) return;
-                    this.error.set(err instanceof Error ? err.message : String(err));
-                    this.running.set(false);
-                }
-            );
+            const next = (): Promise<void> | undefined => this.run(request, element, config, condition);
+
+            this.timer = null;
+            // Either way: a run that failed in a way nobody foresaw must not hold up the ones behind it.
+            this.queue = this.queue.then(next, next);
         }, debounceMs);
+    }
+
+    private run(request: number, element: Element, config: A11yCoreConfig | undefined, condition: string | null): Promise<void> | undefined {
+        if (this.destroyed || request !== this.requested) return undefined;
+
+        return runCoreAudit(element, config).then(
+            (result) => {
+                if (this.destroyed || request < this.shown) return;
+                // An overtaken run still shows what it audited, labelled with its condition, until the newer one lands.
+                this.shown = request;
+                this.acceptances.set(config?.accept ?? []);
+                this.auditedCondition.set(condition);
+                this.results.set(result);
+                if (request === this.requested) this.running.set(false);
+            },
+            (err) => {
+                // The newer request reports for itself.
+                if (this.destroyed || request !== this.requested) return;
+                this.error.set(err instanceof Error ? err.message : String(err));
+                this.running.set(false);
+            }
+        );
     }
 
     clear(): void {
@@ -130,6 +158,8 @@ export class A11yAuditService {
             clearTimeout(this.timer);
             this.timer = null;
         }
+        // Whatever is in flight now lands too late.
+        this.shown = ++this.requested;
         this.results.set(null);
         this.acceptances.set([]);
         this.auditedCondition.set(null);
