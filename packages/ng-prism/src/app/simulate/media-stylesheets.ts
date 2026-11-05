@@ -1,43 +1,51 @@
 import { isDevMode } from '@angular/core';
-import { stringEnd } from '../pseudo/pseudo-selector.js';
+import {
+    declarationsOf,
+    hasStyle,
+    isImportRule,
+    isInheritable,
+    isMediaRule,
+    isRuleGroup,
+    isStyleRule,
+    overlaps,
+    prelude,
+    propertyOf,
+    rewriteDeclarations,
+    type RuleGroup
+} from './css-rules.js';
 import { mentionsEmulated, substituteMedia } from './media-condition.js';
 import { SCOPE_IN_SUFFIX, SCOPE_OUT_SUFFIX, scopeIn, scopeOut, SIM_SCOPE, targetsRoot, unscopeOut } from './scope-selector.js';
 import type { EmulatedMedia } from './simulation.js';
 
-/** A stylesheet or a grouping rule: anything rules can be inserted into. */
-interface RuleGroup {
-    readonly cssRules: CSSRuleList;
-    insertRule(rule: string, index?: number): number;
-    deleteRule(index: number): void;
-}
+/**
+ * Where a rule sits: in a sheet or a group (`top`), or nested in a style rule
+ * whose subject is the document root (`root`) or not (`rule`). Inside a style
+ * rule, `&` and bare declarations stand for its subject.
+ */
+type Nesting = 'top' | 'rule' | 'root';
 
-/** The scope roots, for bare declarations nested in a rule on the document root (`& :where(…)`). */
+/** The scope roots. A nested `& :where(…)` reaches them from a rule on the document root. */
 const SCOPE_ROOTS = `:where(${SIM_SCOPE})`;
 
-// Duck-typed rather than `instanceof`, as in pseudo-stylesheets.ts: the
-// constructors belong to the window that owns the sheet, and not every engine
-// has all of them.
-function isStyleRule(rule: CSSRule): rule is CSSStyleRule {
-    return typeof (rule as Partial<CSSStyleRule>).selectorText === 'string' && 'style' in rule;
+/** How the rules nested in `rule` sit, given how `rule` sits. */
+function nestingIn(rule: CSSStyleRule, nesting: Nesting): Nesting {
+    return targetsRoot(rule.selectorText, nesting === 'root') ? 'root' : 'rule';
 }
 
-// `@media`, `@supports`, `@layer`, `@container`, and a style rule with nested
-// rules. `@keyframes` takes new rules through `appendRule` and holds no selectors.
-function isRuleGroup(rule: CSSRule): rule is CSSRule & RuleGroup {
-    return 'cssRules' in rule && typeof (rule as Partial<CSSGroupingRule>).insertRule === 'function';
+/** `&` restricted to the scope: what it matches in the scope, or the scope roots below the document root. */
+function scopedParent(nesting: Nesting): string {
+    return nesting === 'root' ? `& ${SCOPE_ROOTS}` : `&${SCOPE_IN_SUFFIX}`;
 }
 
-function isMediaRule(rule: CSSRule): rule is CSSMediaRule {
-    return isRuleGroup(rule) && 'media' in rule;
-}
-
-function isImportRule(rule: CSSRule): rule is CSSImportRule {
-    return 'styleSheet' in rule && 'href' in rule;
-}
-
-/** A style rule, or the bare declarations of an `@media` nested in one (`CSSNestedDeclarations`). */
-function hasStyle(rule: CSSRule): rule is CSSRule & { readonly style: CSSStyleDeclaration } {
-    return 'style' in rule;
+/** Inserts `text`, or warns in dev mode and says no. */
+function tryInsert(group: RuleGroup, index: number, text: string): boolean {
+    try {
+        group.insertRule(text, index);
+        return true;
+    } catch {
+        if (isDevMode()) console.warn(`[ng-prism] Could not add a rule for the simulation: ${prelude(text)}`);
+        return false;
+    }
 }
 
 /**
@@ -62,8 +70,9 @@ function hasStyle(rule: CSSRule): rule is CSSRule & { readonly style: CSSStyleDe
  */
 export class MediaStyleSheets {
     private readonly ignored = new WeakSet<CSSStyleSheet>();
-    /** What was warned about: each stylesheet warns once, whatever is emulated. */
+    /** What was warned about, a sheet or a text: each warns once, whatever is emulated. */
     private readonly warned = new WeakSet<object>();
+    private readonly warnedTexts = new Set<string>();
     private readonly awaitedLinks = new WeakSet<Element>();
     /** The sheets rewritten for the current emulation. */
     private readonly sheets = new Set<CSSStyleSheet>();
@@ -71,7 +80,9 @@ export class MediaStyleSheets {
     private readonly copies = new Map<CSSRule, RuleGroup>();
     /** Every style rule taken out of the scope, with the selector it had. */
     private excluded: { rule: CSSStyleRule; original: string }[] = [];
-    /** What rules on the document root set under an emulated condition. */
+    /** Bare declarations taken out of the scope, with the rule that holds them now. */
+    private moved: { group: RuleGroup; rule: CSSRule; declarations: string }[] = [];
+    /** The inheritable properties that rules on the document root set under an emulated condition. */
     private readonly rootProperties = new Set<string>();
     private emulated: EmulatedMedia | null = null;
     private observer: MutationObserver | null = null;
@@ -132,15 +143,15 @@ export class MediaStyleSheets {
 
         const known = this.rootProperties.size;
 
-        for (const sheet of fresh) this.collectRootProperties(sheet, emulated, null, false);
+        for (const sheet of fresh) this.collectRootProperties(sheet, emulated, 'top', false);
         // A set keeps the order of insertion, so what the fresh sheets added comes last.
         const added = new Set(Array.from(this.rootProperties).slice(known));
 
         // A sheet done before only lacks root copies for what is new, a fresh one for everything.
-        for (const sheet of this.sheets) if (added.size > 0 && !fresh.includes(sheet)) this.copyRootValues(sheet, emulated, added);
+        for (const sheet of this.sheets) if (added.size > 0 && !fresh.includes(sheet)) this.copyRootValues(sheet, emulated, added, 'top');
         for (const sheet of fresh) {
-            this.emulateGroup(sheet, emulated, null);
-            this.copyRootValues(sheet, emulated, this.rootProperties);
+            this.emulateGroup(sheet, emulated, 'top');
+            this.copyRootValues(sheet, emulated, this.rootProperties, 'top');
         }
     }
 
@@ -182,11 +193,8 @@ export class MediaStyleSheets {
         }
     }
 
-    /**
-     * Emulates every `@media` in `group` that tests an emulated feature, at any
-     * depth. `parent` is the selector of the style rule `group` is nested in.
-     */
-    private emulateGroup(group: RuleGroup, emulated: EmulatedMedia, parent: string | null): void {
+    /** Emulates every `@media` in `group` that tests an emulated feature, at any depth. */
+    private emulateGroup(group: RuleGroup, emulated: EmulatedMedia, nesting: Nesting): void {
         for (let i = 0; i < group.cssRules.length; i++) {
             const rule = group.cssRules[i];
 
@@ -195,11 +203,11 @@ export class MediaStyleSheets {
                 const copy = this.insert(group, i + 1, rule.cssText);
 
                 if (!copy || !isRuleGroup(copy)) continue;
-                this.scopeCopy(copy, emulated, parent, false);
-                this.exclude(rule);
+                this.scopeCopy(copy, emulated, nesting, false);
+                this.exclude(rule, nesting, true);
                 i++;
             } else if (isRuleGroup(rule)) {
-                this.emulateGroup(rule, emulated, isStyleRule(rule) ? rule.selectorText : parent);
+                this.emulateGroup(rule, emulated, isStyleRule(rule) ? nestingIn(rule, nesting) : nesting);
             }
         }
     }
@@ -209,10 +217,12 @@ export class MediaStyleSheets {
      * answers in its conditions, its rules in the scope. Under `forced-colors`,
      * every declaration becomes `!important`, so that the author's rules for the
      * mode win against the palette the simulation forces, as they do in the real
-     * mode. `outer` is the selector of the style rule the copy is nested in, as
-     * long as no style rule of the copy lies in between.
+     * mode.
+     *
+     * A rule like `@keyframes` or `@font-face` is dropped from the copy: it would
+     * apply to the whole page, the shell included, and keeps its real condition.
      */
-    private scopeCopy(group: CSSRule & RuleGroup, emulated: EmulatedMedia, outer: string | null, forced: boolean): void {
+    private scopeCopy(group: CSSRule & RuleGroup, emulated: EmulatedMedia, nesting: Nesting, forced: boolean): void {
         if (isMediaRule(group)) {
             const forcedColors = emulated['forced-colors'];
 
@@ -221,54 +231,113 @@ export class MediaStyleSheets {
         }
         for (let i = 0; i < group.cssRules.length; i++) {
             const rule = group.cssRules[i];
+            let kept = true;
 
             if (isStyleRule(rule)) {
-                rule.selectorText = scopeIn(rule.selectorText);
-                if (forced) rule.style.cssText = important(rule.style.cssText);
-            } else if (outer !== null && hasStyle(rule)) {
-                // Bare declarations apply to what the outer rule matches, everywhere: in the copy,
-                // they go into a rule of their own that matches it in the scope only.
-                const selector = targetsRoot(outer) ? `& ${SCOPE_ROOTS}` : `&${SCOPE_IN_SUFFIX}`;
-                const declarations = forced ? important(rule.style.cssText) : rule.style.cssText;
+                kept = this.scopeCopiedRule(group, i, rule, emulated, nesting, forced);
+            } else if (isRuleGroup(rule)) {
+                this.scopeCopy(rule, emulated, nesting, forced);
+            } else if (nesting !== 'top' && hasStyle(rule)) {
+                // Bare declarations apply wherever the parent matches: in the copy, only in the scope.
+                const declarations = rewriteDeclarations(rule.style.cssText, { keep: nesting === 'root' ? isInheritable : undefined, important: forced });
 
                 group.deleteRule(i);
-                group.insertRule(`${selector} { ${declarations} }`, i);
-                continue;
+                kept = declarations !== '' && tryInsert(group, i, `${scopedParent(nesting)} { ${declarations} }`);
+            } else {
+                const name = prelude(rule.cssText);
+
+                this.warnOnce(name, `Not simulating "${name}": copied for the scope, it would apply to the whole page. It keeps its real condition.`);
+                group.deleteRule(i);
+                kept = false;
             }
-            if (isRuleGroup(rule)) this.scopeCopy(rule, emulated, isStyleRule(rule) ? null : outer, forced);
+            if (!kept) i--;
         }
     }
 
-    /** Takes every style rule in `group` out of the scope, nested ones included. */
-    private exclude(group: RuleGroup): void {
-        for (const rule of Array.from(group.cssRules)) {
+    /**
+     * Moves a style rule of a copy into the scope. Returns false when the rule
+     * had to go instead: the browser rejected the scoped selector, or nothing
+     * was left to set.
+     *
+     * A rule with nested rules keeps its selector, so that a nested `.b` still
+     * matches in the scope below a `.theme` outside it; the rule's own
+     * declarations move into a nested `&` restricted to the scope. A rule on the
+     * document root keeps only inheritable properties ({@link isInheritable}).
+     */
+    private scopeCopiedRule(group: RuleGroup, index: number, rule: CSSStyleRule, emulated: EmulatedMedia, nesting: Nesting, forced: boolean): boolean {
+        const inner = nestingIn(rule, nesting);
+        const declarations = rewriteDeclarations(rule.style.cssText, { keep: inner === 'root' ? isInheritable : undefined, important: forced });
+
+        if (isRuleGroup(rule) && rule.cssRules.length > 0) {
+            this.scopeCopy(rule, emulated, inner, forced);
+            rule.style.cssText = '';
+            if (declarations !== '') tryInsert(rule, 0, `${scopedParent(inner)} { ${declarations} }`);
+            return true;
+        }
+
+        const original = rule.selectorText;
+
+        rule.selectorText = scopeIn(original, nesting === 'root');
+        if (rule.selectorText === original) {
+            // The setter ignores a selector the engine does not accept.
+            this.warnOnce(original, `Cannot simulate media features for "${original}": the browser does not accept it with the simulation scope added.`);
+        }
+        if (rule.selectorText === original || declarations === '') {
+            group.deleteRule(index);
+            return false;
+        }
+        if (inner === 'root' || forced) rule.style.cssText = declarations;
+        return true;
+    }
+
+    /**
+     * Takes every rule in `group`, an original, out of the scope, nested ones
+     * included. Bare declarations nested in a rule that stays in the scope
+     * (`.btn { @media … { color: white } }`) have no selector to exclude by. They
+     * move into an `&` rule excluded from the scope, in their place, which keeps
+     * their order and, below a single selector, their specificity.
+     */
+    private exclude(group: RuleGroup, nesting: Nesting, parentInScope: boolean): void {
+        for (let i = 0; i < group.cssRules.length; i++) {
+            const rule = group.cssRules[i];
+
             if (isStyleRule(rule)) {
+                const inner = nestingIn(rule, nesting);
                 const original = rule.selectorText;
-                const excluded = scopeOut(original);
+                const excluded = scopeOut(original, nesting === 'root');
 
                 if (excluded !== original) {
                     rule.selectorText = excluded;
                     // The setter ignores a selector the engine does not accept.
                     if (rule.selectorText !== original) this.excluded.push({ rule, original });
                 }
+                // What is nested in an excluded rule is excluded with it.
+                if (isRuleGroup(rule)) this.exclude(rule, inner, false);
+            } else if (isRuleGroup(rule)) {
+                this.exclude(rule, nesting, parentInScope);
+            } else if (parentInScope && nesting === 'rule' && hasStyle(rule) && rule.style.cssText.trim() !== '') {
+                const declarations = rule.style.cssText;
+
+                // Inserted before the original goes, so that a rejection leaves the original in place.
+                if (!tryInsert(group, i + 1, `&${SCOPE_OUT_SUFFIX} { ${declarations} }`)) continue;
+                group.deleteRule(i);
+                this.moved.push({ group, rule: group.cssRules[i], declarations });
             }
-            if (isRuleGroup(rule)) this.exclude(rule);
         }
     }
 
-    /**
-     * Collects the properties that rules on the document root (`:root`, `html`,
-     * `body`) set under an emulated condition, into {@link rootProperties}.
-     */
-    private collectRootProperties(group: RuleGroup, emulated: EmulatedMedia, parent: string | null, emulatedHere: boolean): void {
+    /** Collects the inheritable properties that rules on the document root set under an emulated condition. */
+    private collectRootProperties(group: RuleGroup, emulated: EmulatedMedia, nesting: Nesting, emulatedHere: boolean): void {
         for (const rule of Array.from(group.cssRules)) {
-            const selector = isStyleRule(rule) ? rule.selectorText : parent;
+            const inner = isStyleRule(rule) ? nestingIn(rule, nesting) : nesting;
 
-            if (emulatedHere && hasStyle(rule) && selector !== null && targetsRoot(selector)) {
-                for (const name of Array.from(rule.style)) this.rootProperties.add(name);
+            if (emulatedHere && inner === 'root' && hasStyle(rule)) {
+                for (const property of declarationsOf(rule.style.cssText).map(propertyOf)) {
+                    if (isInheritable(property)) this.rootProperties.add(property);
+                }
             }
             if (isRuleGroup(rule)) {
-                this.collectRootProperties(rule, emulated, selector, emulatedHere || (isMediaRule(rule) && mentionsEmulated(rule.media.mediaText, emulated)));
+                this.collectRootProperties(rule, emulated, inner, emulatedHere || (isMediaRule(rule) && mentionsEmulated(rule.media.mediaText, emulated)));
             }
         }
     }
@@ -284,47 +353,60 @@ export class MediaStyleSheets {
      * nested rule instead, so that it comes before the copies nested in it, as
      * its declarations come before the originals.
      */
-    private copyRootValues(group: RuleGroup, emulated: EmulatedMedia, properties: ReadonlySet<string>): void {
+    private copyRootValues(group: RuleGroup, emulated: EmulatedMedia, properties: ReadonlySet<string>, nesting: Nesting): void {
         for (let i = 0; i < group.cssRules.length; i++) {
             const rule = group.cssRules[i];
 
             if (this.copies.has(rule) || (isMediaRule(rule) && mentionsEmulated(rule.media.mediaText, emulated))) continue;
-            if (isStyleRule(rule) && targetsRoot(rule.selectorText)) {
-                const style = rule.style;
-                const declarations = Array.from(style)
-                    .filter((name) => properties.has(name))
-                    .map((name) => `${name}: ${style.getPropertyValue(name)}${style.getPropertyPriority(name) ? ' !important' : ''};`)
-                    .join(' ');
 
-                if (declarations !== '') {
-                    if (isRuleGroup(rule) && rule.cssRules.length > 0) this.insert(rule, 0, `& ${SCOPE_ROOTS} { ${declarations} }`);
-                    else if (this.insert(group, i + 1, `${scopeIn(rule.selectorText)} { ${declarations} }`)) i++;
+            const inner = isStyleRule(rule) ? nestingIn(rule, nesting) : nesting;
+
+            if (inner === 'root' && hasStyle(rule)) {
+                const declarations = rewriteDeclarations(rule.style.cssText, { keep: (property) => isInheritable(property) && overlaps(property, properties) });
+
+                if (declarations === '') {
+                    // Nothing to copy.
+                } else if (isStyleRule(rule) && isRuleGroup(rule) && rule.cssRules.length > 0) {
+                    this.insert(rule, 0, `& ${SCOPE_ROOTS} { ${declarations} }`);
+                } else {
+                    const selector = isStyleRule(rule) ? scopeIn(rule.selectorText, nesting === 'root') : `& ${SCOPE_ROOTS}`;
+
+                    if (this.insert(group, i + 1, `${selector} { ${declarations} }`)) i++;
                 }
             }
-            if (isRuleGroup(rule)) this.copyRootValues(rule, emulated, properties);
+            if (isRuleGroup(rule)) this.copyRootValues(rule, emulated, properties, inner);
         }
     }
 
     /** Inserts a rule of the engine's own, which {@link restore} removes again. */
     private insert(group: RuleGroup, index: number, text: string): CSSRule | null {
-        try {
-            group.insertRule(text, index);
-        } catch {
-            if (isDevMode()) console.warn(`[ng-prism] Could not add a rule for the simulation: ${text.slice(0, text.indexOf('{')).trim()}`);
-            return null;
-        }
+        if (!tryInsert(group, index, text)) return null;
+
         const rule = group.cssRules[index];
 
         this.copies.set(rule, group);
         return rule;
     }
 
-    /** Removes the copies and gives every excluded rule its selector back. */
+    /** Removes the copies, puts moved declarations back and gives every excluded rule its selector back. */
     private restore(): void {
         for (const [rule, group] of this.copies) {
             const index = Array.from(group.cssRules).indexOf(rule);
 
             if (index >= 0) group.deleteRule(index);
+        }
+
+        for (const { group, rule, declarations } of this.moved) {
+            const index = Array.from(group.cssRules).indexOf(rule);
+
+            if (index < 0) continue;
+            try {
+                group.insertRule(declarations, index);
+                group.deleteRule(index + 1);
+            } catch {
+                // An engine that takes no bare declarations through insertRule keeps them in `& { … }`.
+                (rule as CSSStyleRule).selectorText = '&';
+            }
         }
 
         for (const { rule, original } of this.excluded) {
@@ -341,6 +423,7 @@ export class MediaStyleSheets {
         }
 
         this.copies.clear();
+        this.moved = [];
         this.excluded = [];
         this.sheets.clear();
         this.rootProperties.clear();
@@ -371,9 +454,10 @@ export class MediaStyleSheets {
         return this.outSuffix;
     }
 
-    private warnOnce(about: object, message: string): void {
-        if (this.warned.has(about)) return;
-        this.warned.add(about);
+    private warnOnce(about: object | string, message: string): void {
+        if (typeof about === 'string' ? this.warnedTexts.has(about) : this.warned.has(about)) return;
+        if (typeof about === 'string') this.warnedTexts.add(about);
+        else this.warned.add(about);
         if (isDevMode()) console.warn(`[ng-prism] ${message}`);
     }
 }
@@ -389,38 +473,4 @@ function unanswerable(media: string, where: string): string {
         `Cannot simulate "${media}" for ${where}: a condition on a <link>, <style> or @import keeps its real answer. ` +
         'Put it in an @media rule inside the stylesheet instead.'
     );
-}
-
-/** A declaration block's text with every declaration `!important`. */
-function important(cssText: string): string {
-    return declarationsOf(cssText)
-        .map((declaration) => (/!\s*important$/i.test(declaration) ? declaration : `${declaration} !important`))
-        .join('; ');
-}
-
-/**
- * The declarations in a block's text, split at the semicolons outside strings
- * and brackets (`url(a;b)`, a custom property's `{…}`). From the text rather
- * than property by property, since the longhands of a shorthand with a `var()`
- * have no value of their own to set again.
- */
-function declarationsOf(cssText: string): string[] {
-    const declarations: string[] = [];
-    let depth = 0;
-    let start = 0;
-
-    for (let i = 0; i < cssText.length; i++) {
-        const ch = cssText[i];
-
-        if (ch === '"' || ch === "'") i = stringEnd(cssText, i) - 1;
-        else if (ch === '\\') i++;
-        else if (ch === '(' || ch === '[' || ch === '{') depth++;
-        else if (ch === ')' || ch === ']' || ch === '}') depth--;
-        else if (ch === ';' && depth === 0) {
-            declarations.push(cssText.slice(start, i));
-            start = i + 1;
-        }
-    }
-    declarations.push(cssText.slice(start));
-    return declarations.map((declaration) => declaration.trim()).filter((declaration) => declaration !== '');
 }

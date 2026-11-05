@@ -133,6 +133,34 @@ describe('targetsRoot', () => {
         expect(targetsRoot('.a, .b')).toBe(false);
         expect(targetsRoot('')).toBe(false);
     });
+
+    it('takes `&` for the root in a rule nested in one', () => {
+        expect(targetsRoot('&.dark', true)).toBe(true);
+        expect(targetsRoot('&:hover', true)).toBe(true);
+        expect(targetsRoot('.x, &', true)).toBe(true);
+        expect(targetsRoot('& .x', true)).toBe(false);
+        expect(targetsRoot('&.dark')).toBe(false);
+    });
+});
+
+describe('a list nested in a rule on the document root', () => {
+    it('goes to the scope roots where `&` is the subject', () => {
+        expect(scopeIn('&.dark', true)).toBe(`&.dark ${S}`);
+        expect(scopeIn('&::before', true)).toBe(`& ${S}::before`);
+        expect(scopeIn('&.dark, & .x', true)).toBe(`&.dark ${S}, & .x${IN}`);
+        expect(scopeIn('body', true)).toBe(`body ${S}`);
+    });
+
+    it('is left alone outside the scope where `&` is the subject', () => {
+        expect(scopeOut('&.dark', true)).toBe('&.dark');
+        expect(scopeOut('&.dark, & .x', true)).toBe(`&.dark, & .x${SCOPE_OUT_SUFFIX}`);
+        expect(unscopeOut(scopeOut('&.dark, & .x', true))).toBe('&.dark, & .x');
+    });
+
+    it('treats `&` as any other subject in a rule nested elsewhere', () => {
+        expect(scopeIn('&.dark')).toBe(`&.dark${IN}`);
+        expect(scopeOut('&.dark')).toBe(`&.dark${SCOPE_OUT_SUFFIX}`);
+    });
 });
 
 describe('scopeOut', () => {

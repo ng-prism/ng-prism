@@ -49,13 +49,17 @@ const ROOT_COMPOUND = /^(?::root|html|body)(?![\w\\-])/i;
  * reaches the scope roots only while the document is `.dark`, and the
  * specificity is the original's.
  *
+ * `parentIsRoot` says that the list is nested in a rule whose subject is the
+ * document root. `&` stands for the root there, so `&.dark` in `:root { … }`
+ * counts as a selector on the root.
+ *
  * Only text is inserted, nothing is trimmed or reshaped, so the result keeps
  * the list's own whitespace.
  */
-export function scopeIn(selectorList: string): string {
+export function scopeIn(selectorList: string, parentIsRoot = false): string {
     return splitList(selectorList)
         .map((part) => {
-            const point = insertionPoint(part);
+            const point = insertionPoint(part, parentIsRoot);
 
             if (point === null) return part;
 
@@ -72,15 +76,15 @@ export function scopeIn(selectorList: string): string {
  *
  * A selector whose subject is the document root (`:root`, `html`, `body`) is
  * left alone: it never matches inside the scope anyway, and the exclusion
- * would only be noise.
+ * would only be noise. `parentIsRoot` is as for {@link scopeIn}.
  *
  * Only the suffix is inserted, so {@link unscopeOut} can take it out again
  * without knowing what the list looked like: `unscopeOut(scopeOut(x))` is `x`.
  */
-export function scopeOut(selectorList: string): string {
+export function scopeOut(selectorList: string, parentIsRoot = false): string {
     return splitList(selectorList)
         .map((part) => {
-            const point = insertionPoint(part);
+            const point = insertionPoint(part, parentIsRoot);
 
             return point === null || point.root ? part : part.slice(0, point.at) + SCOPE_OUT_SUFFIX + part.slice(point.at);
         })
@@ -96,7 +100,7 @@ export function scopeOut(selectorList: string): string {
 export function unscopeOut(selectorList: string, suffix: string = SCOPE_OUT_SUFFIX): string {
     return splitList(selectorList)
         .map((part) => {
-            const point = insertionPoint(part);
+            const point = insertionPoint(part, false);
 
             if (point === null || point.root || !part.slice(0, point.at).endsWith(suffix)) return part;
 
@@ -105,26 +109,31 @@ export function unscopeOut(selectorList: string, suffix: string = SCOPE_OUT_SUFF
         .join(',');
 }
 
-/** Whether a selector of the list has the document root (`:root`, `html`, `body`) as its subject. */
-export function targetsRoot(selectorList: string): boolean {
-    return splitList(selectorList).some((part) => insertionPoint(part)?.root === true);
+/**
+ * Whether a selector of the list has the document root (`:root`, `html`,
+ * `body`) as its subject. `parentIsRoot` is as for {@link scopeIn}.
+ */
+export function targetsRoot(selectorList: string, parentIsRoot = false): boolean {
+    return splitList(selectorList).some((part) => insertionPoint(part, parentIsRoot)?.root === true);
 }
 
 /**
  * Where a scope suffix goes in `part` (a selector with the whitespace around
  * it): behind the subject, in front of a trailing pseudo-element. `root` says
- * whether the subject is the document root. `null` for a blank part.
+ * whether the subject is the document root, or `&` for a rule nested in one
+ * (`parentIsRoot`). `null` for a blank part.
  */
-function insertionPoint(part: string): { at: number; root: boolean } | null {
+function insertionPoint(part: string, parentIsRoot: boolean): { at: number; root: boolean } | null {
     const selector = part.trim();
 
     if (selector === '') return null;
 
     const { lastStart, pseudoStart } = shapeOf(selector);
+    const subject = selector.slice(lastStart);
 
     return {
         at: part.length - part.trimStart().length + pseudoStart,
-        root: ROOT_COMPOUND.test(selector.slice(lastStart))
+        root: ROOT_COMPOUND.test(subject) || (parentIsRoot && subject.startsWith('&'))
     };
 }
 

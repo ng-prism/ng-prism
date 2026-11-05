@@ -1,7 +1,7 @@
 import { PseudoStyleSheets } from '../pseudo/pseudo-stylesheets.js';
 import { MEDIA_FALSE, MEDIA_TRUE } from './media-condition.js';
 import { MediaStyleSheets } from './media-stylesheets.js';
-import { SCOPE_OUT_SUFFIX, scopeIn } from './scope-selector.js';
+import { SCOPE_IN_SUFFIX, SCOPE_OUT_SUFFIX, scopeIn } from './scope-selector.js';
 
 function addStyle(css: string): CSSStyleSheet {
     const style = document.createElement('style');
@@ -27,6 +27,33 @@ const mediaOf = (rule: CSSRule): string => (rule as CSSMediaRule).media.mediaTex
 /** A sheet as `document.styleSheets` would list it, for what jsdom cannot load: `<link>`s and cross-origin rules. */
 function listSheets(...sheets: CSSStyleSheet[]): void {
     jest.spyOn(document, 'styleSheets', 'get').mockReturnValue(sheets as unknown as StyleSheetList);
+}
+
+/**
+ * Makes every style rule store its selector the way `write` says, as a browser
+ * may rewrite it, or keep the old one where `write` gives `null`, as a browser
+ * does with a selector it rejects. Returns what undoes it.
+ */
+function writeSelectorsAs(write: (selector: string) => string | null): () => void {
+    const proto = CSSStyleRule.prototype;
+    const own = Object.getOwnPropertyDescriptor(proto, 'selectorText');
+    const texts = new WeakMap<object, string>();
+
+    Object.defineProperty(proto, 'selectorText', {
+        configurable: true,
+        get(this: object): string {
+            return texts.get(this) ?? '';
+        },
+        set(this: object, value: string) {
+            const written = write(value);
+
+            if (written !== null) texts.set(this, written);
+        }
+    });
+    return () => {
+        if (own) Object.defineProperty(proto, 'selectorText', own);
+        else delete (proto as { selectorText?: string }).selectorText;
+    };
 }
 
 const REDUCE = { 'prefers-reduced-motion': 'reduce' } as const;
@@ -276,25 +303,75 @@ describe('MediaStyleSheets', () => {
             engine.clear();
             expect(Array.from(sheet.cssRules).map(selectorOf)).toEqual([':root', ':root']);
         });
+
+        it('passes only custom and inherited properties on to the scope roots', () => {
+            // The overlay container is one of them: a background there would cover the shell.
+            const sheet = addStyle('@media (prefers-color-scheme: dark) { body { background: #111; color: #eee; --x: 1 } }');
+
+            engine.apply(DARK);
+            const copy = (sheet.cssRules[1] as CSSMediaRule).cssRules[0] as CSSStyleRule;
+
+            expect(copy.selectorText).toBe(scopeIn('body'));
+            expect(Array.from(copy.style).sort()).toEqual(['--x', 'color']);
+            expect(copy.style.getPropertyValue('color')).toBe('#eee');
+        });
+
+        it('inserts no root copy that is left with nothing to set', () => {
+            const sheet = addStyle('body { background: #fff } @media (prefers-color-scheme: dark) { body { background: #111 } }');
+
+            engine.apply(LIGHT);
+            expect(sheet.cssRules).toHaveLength(3);
+            expect(selectorOf(sheet.cssRules[0])).toBe('body');
+            expect((sheet.cssRules[2] as CSSMediaRule).cssRules).toHaveLength(0);
+        });
+    });
+
+    describe('what a copy cannot carry', () => {
+        it('drops a rule whose scoped selector the browser rejects, with one warning', () => {
+            const warn = jest.spyOn(console, 'warn').mockImplementation();
+            // A browser that does not take the selector with the scope added.
+            const undo = writeSelectorsAs((selector) => (selector.includes(SCOPE_IN_SUFFIX) ? null : selector));
+
+            try {
+                const sheet = addStyle('@media (prefers-reduced-motion: reduce) { .spin { animation: none } .x { color: red } }');
+
+                engine.apply(REDUCE);
+                engine.apply({ ...REDUCE, ...DARK });
+                expect((sheet.cssRules[1] as CSSMediaRule).cssRules).toHaveLength(0);
+                expect(warn).toHaveBeenCalledTimes(2);
+                expect(warn).toHaveBeenCalledWith(expect.stringContaining('".spin"'));
+                expect(warn).toHaveBeenCalledWith(expect.stringContaining('".x"'));
+                // While rules still store their selectors the patched way.
+                engine.clear();
+            } finally {
+                undo();
+            }
+        });
+
+        it('drops @keyframes and @font-face, which would apply to the whole page, with one warning each', () => {
+            const warn = jest.spyOn(console, 'warn').mockImplementation();
+            const sheet = addStyle(
+                '@media (prefers-reduced-motion: reduce) { @keyframes fade-in { from { opacity: 0 } } @font-face { font-family: x; src: url(x.woff) } .x { animation: none } }'
+            );
+
+            engine.apply(REDUCE);
+            engine.apply({ ...REDUCE, ...DARK });
+            const [original, copy] = Array.from(sheet.cssRules) as CSSMediaRule[];
+
+            expect(original.cssRules).toHaveLength(3);
+            expect(Array.from(copy.cssRules).map(selectorOf)).toEqual([scopeIn('.x')]);
+            expect(warn).toHaveBeenCalledTimes(2);
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining('@keyframes fade-in'));
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining('@font-face'));
+        });
     });
 
     describe('selectors the browser writes back differently', () => {
         it('takes the suffix out in the form the browser writes it', () => {
             // An engine that drops the space after a comma whenever it stores a selector.
-            const proto = CSSStyleRule.prototype;
-            const own = Object.getOwnPropertyDescriptor(proto, 'selectorText');
-            const texts = new WeakMap<object, string>();
+            const undo = writeSelectorsAs((selector) => selector.replace(/,\s+/g, ','));
             const warn = jest.spyOn(console, 'warn');
 
-            Object.defineProperty(proto, 'selectorText', {
-                configurable: true,
-                get(this: object): string {
-                    return texts.get(this) ?? '';
-                },
-                set(this: object, value: string) {
-                    texts.set(this, value.replace(/,\s+/g, ','));
-                }
-            });
             try {
                 const sheet = addStyle('@media (prefers-reduced-motion: reduce) { .spin { animation: none } }');
 
@@ -305,8 +382,7 @@ describe('MediaStyleSheets', () => {
                 expect(selectorOf(sheet.cssRules[0])).toBe('.spin');
                 expect(warn).not.toHaveBeenCalled();
             } finally {
-                if (own) Object.defineProperty(proto, 'selectorText', own);
-                else delete (proto as { selectorText?: string }).selectorText;
+                undo();
             }
         });
 
