@@ -34,7 +34,7 @@ export class A11yPanelComponent {
 
     /** The sub-tabs; Violations carries the same open-findings badge as the panel's own tab. */
     protected readonly tabs = computed<PrismTabItem[]>(() => [
-        { id: 'violations', label: 'Violations', badge: normalizePanelBadge(a11yViolationBadge(this.auditService.scoreResult())) },
+        { id: 'violations', label: 'Violations', badge: normalizePanelBadge(a11yViolationBadge(this.auditService.scoreResult(), this.auditService.condition())) },
         { id: 'keyboard', label: 'Keyboard' },
         { id: 'tree', label: 'ARIA Tree' },
         { id: 'sr', label: 'Screen Reader' }

@@ -1,12 +1,13 @@
 import type { PanelDefinition, RuntimeComponent } from '../../../plugin/plugin.types.js';
 import { DEFAULT_A11Y_THRESHOLDS } from '../a11y/a11y-thresholds.js';
 import type { A11yScoreResult } from '../a11y/a11y.types.js';
-import { deprecatedBadgeVariantNotice, normalizePanelBadge, type PanelBadgeContext, resolvePanelBadge } from './panel-badge.js';
+import { a11yViolationBadge, deprecatedBadgeVariantNotice, normalizePanelBadge, type PanelBadgeContext, resolvePanelBadge } from './panel-badge.js';
 
 const EMPTY_CONTEXT: PanelBadgeContext = {
     inputCount: 0,
     eventCount: 0,
     a11yResult: null,
+    a11yCondition: null,
     a11yThresholds: DEFAULT_A11Y_THRESHOLDS
 };
 
@@ -119,6 +120,16 @@ describe('resolvePanelBadge', () => {
         expect(badge).toEqual({ kind: 'issues', text: '1', tone: 'danger', label: '1 violation' });
     });
 
+    it('names the condition the live violations were audited under', () => {
+        const badge = resolvePanelBadge(panel('a11y'), COMPONENT, {
+            ...EMPTY_CONTEXT,
+            a11yResult: auditResult({ score: 90, moderate: 2, minor: 1 }),
+            a11yCondition: 'Forced colors (approx.)'
+        });
+
+        expect(badge).toEqual({ kind: 'issues', text: '3', tone: 'warn', label: '3 violations under Forced colors (approx.)' });
+    });
+
     it('leaves a clean a11y tab bare whatever the score', () => {
         expect(resolvePanelBadge(panel('a11y'), COMPONENT, { ...EMPTY_CONTEXT, a11yResult: auditResult({ score: 100 }) })).toBeNull();
         expect(resolvePanelBadge(panel('a11y'), COMPONENT, EMPTY_CONTEXT)).toBeNull();
@@ -192,5 +203,26 @@ describe('deprecatedBadgeVariantNotice', () => {
     it('stays quiet for a badge without variant or no badge at all', () => {
         expect(deprecatedBadgeVariantNotice('my-panel', { kind: 'issues', text: '2', tone: 'warn' })).toBeNull();
         expect(deprecatedBadgeVariantNotice('my-panel', null)).toBeNull();
+    });
+});
+
+describe('a11yViolationBadge', () => {
+    it('counts the open violations and keeps the label plain in the real environment', () => {
+        expect(a11yViolationBadge(auditResult({ serious: 1 }))).toEqual({ kind: 'issues', text: '1', tone: 'danger', label: '1 violation' });
+        expect(a11yViolationBadge(auditResult({ serious: 1 }), null)).toEqual({ kind: 'issues', text: '1', tone: 'danger', label: '1 violation' });
+    });
+
+    it('appends the condition to the label, where the tab bar takes its accessible name from', () => {
+        expect(a11yViolationBadge(auditResult({ minor: 2 }), 'Dark scheme')).toEqual({
+            kind: 'issues',
+            text: '2',
+            tone: 'warn',
+            label: '2 violations under Dark scheme'
+        });
+    });
+
+    it('has no badge for a clean or missing audit, whatever the condition', () => {
+        expect(a11yViolationBadge(auditResult(), 'Dark scheme')).toBeNull();
+        expect(a11yViolationBadge(null, 'Dark scheme')).toBeNull();
     });
 });

@@ -75,6 +75,7 @@ export class PrismPanelHostComponent {
             inputCount: this.inputCount(),
             eventCount: this.eventLog.events().length,
             a11yResult: this.auditService.scoreResult(),
+            a11yCondition: this.auditService.condition(),
             a11yThresholds: this.a11yThresholds()
         });
         const notice = deprecatedBadgeVariantNotice(panel.id, badge);

@@ -89,7 +89,7 @@ describe('PrismPanelHostComponent: folding on a phone', () => {
 describe('PrismPanelHostComponent: the live audit', () => {
     const element = document.createElement('div');
     const condition = signal<string | null>(null);
-    const audit = { scheduleAudit: jest.fn(), clear: jest.fn(), scoreResult: signal(null) };
+    const audit = { scheduleAudit: jest.fn(), clear: jest.fn(), scoreResult: signal(null), condition: signal(null) };
     let fixture: ComponentFixture<PrismPanelHostComponent>;
 
     beforeEach(async () => {

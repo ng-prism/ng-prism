@@ -39,13 +39,15 @@ export class PrismHeadInfoComponent {
     readonly facts = input<readonly string[]>([]);
     /** The tone of a dot on the button: set by a compact head when a metric inside the card warns or alarms. */
     readonly dot = input<'warn' | 'danger' | null>(null);
+    /** What the dot stands for, for the button's accessible name: which metric, and under what it was measured when that is a simulation. */
+    readonly dotReason = input<string | null>(null);
 
     protected readonly label = computed(() => {
         if (this.selector() !== undefined) return 'Component details';
         return this.code() === undefined ? 'Service details' : 'Pipe details';
     });
 
-    protected readonly buttonLabel = computed(() => (this.dot() ? `${this.label()}, a metric needs attention` : this.label()));
+    protected readonly buttonLabel = computed(() => (this.dot() ? `${this.label()}, ${this.dotReason() ?? 'a metric needs attention'}` : this.label()));
 
     protected readonly codeBlock = computed(() => {
         const code = this.code();

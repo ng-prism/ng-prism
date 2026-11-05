@@ -1,7 +1,7 @@
 import { deriveA11ySummary } from '../panels/a11y/a11y-summary.js';
 import { DEFAULT_A11Y_THRESHOLDS } from '../panels/a11y/a11y-thresholds.js';
 import type { A11yScoreResult } from '../panels/a11y/a11y.types.js';
-import { chipTitle, gaugeChip, type HeadMetric, headMetrics, infoDotTone } from './head-metrics.js';
+import { chipMarker, chipTitle, gaugeChip, type HeadMetric, headMetrics, infoDotReason, infoDotTone } from './head-metrics.js';
 
 const audit = (patch: Partial<A11yScoreResult> = {}): A11yScoreResult => ({
     score: 100,
@@ -80,6 +80,13 @@ describe('headMetrics', () => {
         expect(metrics.filter((m) => m.note !== undefined).map((m) => m.id)).toEqual(['a11y']);
     });
 
+    it('notes no condition on a score that was not measured', () => {
+        const metric = byId(headMetrics({ meta: null, a11y: null, a11yThresholds: DEFAULT_A11Y_THRESHOLDS, a11yCondition: 'Dark scheme' }), 'a11y');
+
+        expect(metric.value).toBe('—');
+        expect('note' in metric).toBe(false);
+    });
+
     it('leaves the note key off when nothing is simulated', () => {
         const metric = byId(headMetrics({ meta: null, a11y: audit(), a11yThresholds: DEFAULT_A11Y_THRESHOLDS, a11yCondition: null }), 'a11y');
 
@@ -131,6 +138,52 @@ describe('chipTitle', () => {
 
     it('names the condition the shown metric was measured under', () => {
         expect(chipTitle(chip({ note: 'under Dark scheme' }))).toBe('Under Dark scheme. 2 metrics measured. Show all');
+    });
+});
+
+describe('chipMarker', () => {
+    const chip = (note?: string) => ({
+        metric: { id: 'a11y', label: 'A11y score', value: '92', threshold: '', variant: 'ok' as const, ...(note ? { note } : {}) },
+        variant: 'ok' as const,
+        measured: 1
+    });
+
+    it('has no marker for a figure measured in the real environment', () => {
+        expect(chipMarker(chip())).toBeNull();
+    });
+
+    it('marks a simulated figure with a short tag', () => {
+        expect(chipMarker(chip('under Dark scheme'))).toBe('sim');
+        expect(chipMarker(chip('under Light scheme'))).toBe('sim');
+    });
+
+    it('says approx. where the condition approximates, so it is not read as the real mode', () => {
+        expect(chipMarker(chip('under Forced colors (approx.)'))).toBe('sim · approx.');
+        expect(chipMarker(chip('under Dark scheme · Forced colors (approx.)'))).toBe('sim · approx.');
+    });
+});
+
+describe('infoDotReason', () => {
+    const metric = (id: string, variant: HeadMetric['variant'], note?: string): HeadMetric => ({
+        id,
+        label: id,
+        value: '1',
+        threshold: '',
+        variant,
+        ...(note ? { note } : {})
+    });
+
+    it('is null while the ⓘ shows no dot', () => {
+        expect(infoDotReason([metric('a', 'ok', 'under Dark scheme'), metric('b', 'none')])).toBeNull();
+        expect(infoDotReason([])).toBeNull();
+    });
+
+    it('says a metric needs attention when the worst one was measured in the real environment', () => {
+        expect(infoDotReason([metric('a', 'ok'), metric('b', 'warn')])).toBe('a metric needs attention');
+    });
+
+    it('names the condition when the worst metric was measured under a simulation', () => {
+        expect(infoDotReason([metric('a', 'ok'), metric('a11y', 'danger', 'under Dark scheme')])).toBe('a11y needs attention under Dark scheme');
     });
 });
 

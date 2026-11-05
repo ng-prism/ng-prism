@@ -35,7 +35,11 @@
                 dot
                 [tone]="tone()"
                 [label]="c.metric.label"
-                [value]="c.metric.value" />
+                [value]="c.metric.value">
+                @if (marker(); as m) {
+                    <span class="gauge__marker">{{ m }}</span>
+                }
+            </prism-badge>
         </button>
 
         <div

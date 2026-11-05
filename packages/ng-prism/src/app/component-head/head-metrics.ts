@@ -31,7 +31,7 @@ export interface HeadMetricInput {
     /** The live audit of the current variant, or `null` before it ran. */
     a11y: A11yScoreResult | null;
     a11yThresholds: A11yThresholds;
-    /** What the canvas simulates while the live audit runs, as the simulation names it, or `null` for the real environment. */
+    /** What the canvas simulates while the live audit runs, as the simulation names it, or `null` for the real environment. Noted only on a score that was measured. */
     a11yCondition: string | null;
 }
 
@@ -81,7 +81,7 @@ export function headMetrics(input: HeadMetricInput): HeadMetric[] {
             value: a11y === null ? '—' : String(a11y.score),
             threshold: `≥ ${input.a11yThresholds.score}`,
             variant: a11y === null ? 'none' : deriveA11ySummary(a11y, input.a11yThresholds).variant,
-            ...(input.a11yCondition ? { note: `under ${input.a11yCondition}` } : {})
+            ...(a11y !== null && input.a11yCondition ? { note: `under ${input.a11yCondition}` } : {})
         },
         {
             id: 'vrt',
@@ -121,6 +121,21 @@ export function chipTitle(chip: GaugeChip): string {
 }
 
 /**
+ * The short tag the chip shows after its value, or `null` for a figure measured
+ * in the real environment. The tooltip and the accessible name carry the whole
+ * condition ({@link chipTitle}); this is what a glance, a touch or a keyboard
+ * user sees, so a simulated score is never taken for the plain one. `approx.`
+ * stays in it where the condition approximates, so a forced-colors score is not
+ * read as the real high-contrast mode.
+ */
+export function chipMarker(chip: GaugeChip): string | null {
+    const note = chip.metric.note;
+
+    if (!note) return null;
+    return note.includes('approx.') ? 'sim · approx.' : 'sim';
+}
+
+/**
  * The one metric the chip shows: the worst, ties resolved by source order so
  * the chip does not flicker between two equally bad ones; when everything is
  * fine, the first measured one in the ok tone. `null` when nothing is
@@ -152,4 +167,17 @@ export function infoDotTone(metrics: readonly HeadMetric[]): 'warn' | 'danger' |
     const variant = gaugeChip(metrics)?.variant;
 
     return variant === 'warn' || variant === 'danger' ? variant : null;
+}
+
+/**
+ * What the ⓘ button says about its dot, or `null` while it has none: that a
+ * metric needs attention, and, when the metric that does was measured under a
+ * simulation, which one and under what. The card behind the button lists the
+ * same note on the row.
+ */
+export function infoDotReason(metrics: readonly HeadMetric[]): string | null {
+    if (infoDotTone(metrics) === null) return null;
+    const metric = gaugeChip(metrics)!.metric;
+
+    return metric.note ? `${metric.label} needs attention ${metric.note}` : 'a metric needs attention';
 }
