@@ -29,18 +29,28 @@ function weak<T extends object>(target: T): Ref<T> {
     return typeof WeakRef === 'function' ? new WeakRef(target) : { deref: () => target };
 }
 
+// Every feature an emulation can take, for asking whether a query tests one of
+// them at all. Typed as complete, so that a new feature cannot go without it.
+const EMULATABLE: Required<EmulatedMedia> = {
+    'prefers-reduced-motion': 'reduce',
+    'prefers-color-scheme': 'dark',
+    'forced-colors': 'active'
+};
+
 /**
  * Makes `win.matchMedia` answer for the emulated features, so component code
  * that asks `matchMedia('(prefers-reduced-motion: reduce)')` sees the same
  * environment as the rewritten stylesheets do.
  *
- * A query that tests an emulated feature gets a list of its own, see
- * {@link EmulatedMediaQueryList}. Every other query gets the browser's list
- * itself, not a copy: the shell asks `(max-width: 900px)` for its mobile layout
- * and has to keep the real answer, change events included.
+ * A query that tests any feature an emulation can take gets a list of its own,
+ * see {@link EmulatedMediaQueryList}, whether or not that feature is emulated
+ * right now: until it is, the list answers what the browser answers, and it
+ * fires `change` once an `update` emulates it. Every other query gets the
+ * browser's list itself, not a copy: the shell asks `(max-width: 900px)` for its
+ * mobile layout and has to keep the real answer, change events included.
  *
- * The decision is made when the list is asked for. A list for a feature the
- * emulation did not cover then is the browser's and stays so.
+ * Only lists asked for while the patch is installed follow it. One that a
+ * component got before stays the browser's.
  */
 export function patchMatchMedia(win: { matchMedia: MatchMedia }, emulated: EmulatedMedia): MatchMediaPatch {
     const original = win.matchMedia;
@@ -62,7 +72,7 @@ export function patchMatchMedia(win: { matchMedia: MatchMedia }, emulated: Emula
     }
 
     win.matchMedia = (query) => {
-        if (!mentionsEmulated(query, current)) return ask(query);
+        if (!mentionsEmulated(query, EMULATABLE)) return ask(query);
 
         const list = new EmulatedMediaQueryList(query, ask, current);
 

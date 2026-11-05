@@ -105,13 +105,30 @@ describe('patchMatchMedia', () => {
         expect(win.matchMedia).toBe(originalFn);
     });
 
-    it('hands out the browser own list for a query that tests no emulated feature', () => {
+    it('hands out the browser own list for a query that tests no emulatable feature', () => {
         const patch = patchMatchMedia(win, reduce);
 
-        // A feature the emulation leaves alone is as real as the width.
-        expect(win.matchMedia('(prefers-color-scheme: dark)')).toBe(browser.original('(prefers-color-scheme: dark)'));
+        // Width, media type and features nobody emulates are as real as ever.
+        expect(win.matchMedia('(max-width: 900px)')).toBe(browser.original('(max-width: 900px)'));
+        expect(win.matchMedia('(prefers-contrast: more)')).toBe(browser.original('(prefers-contrast: more)'));
         expect(win.matchMedia('print')).toBe(browser.original('print'));
         expect(win.matchMedia(MOTION_QUERY)).not.toBe(browser.original(MOTION_QUERY));
+
+        patch.uninstall();
+    });
+
+    it('wraps a query on an emulatable feature that is not emulated, and answers it for real', () => {
+        const patch = patchMatchMedia(win, reduce);
+        const dark = win.matchMedia('(prefers-color-scheme: dark)');
+        const forced = win.matchMedia('(forced-colors: active)');
+
+        expect(dark).not.toBe(browser.original('(prefers-color-scheme: dark)'));
+        expect(forced).not.toBe(browser.original('(forced-colors: active)'));
+
+        browser.answer('(prefers-color-scheme: dark)', true);
+
+        expect(dark.matches).toBe(true);
+        expect(forced.matches).toBe(false);
 
         patch.uninstall();
     });
@@ -258,11 +275,30 @@ describe('patchMatchMedia', () => {
         patch.uninstall();
     });
 
-    it('starts emulating a feature that update adds', () => {
-        const patch = patchMatchMedia(win, {});
-        const before = win.matchMedia(MOTION_QUERY);
+    it('starts emulating a feature that update adds, on lists handed out before', () => {
+        const patch = patchMatchMedia(win, reduce);
+        const dark = win.matchMedia('(prefers-color-scheme: dark)');
+        const seen: boolean[] = [];
 
-        expect(before).toBe(browser.original(MOTION_QUERY));
+        dark.addEventListener('change', (event) => seen.push(event.matches));
+
+        expect(dark.matches).toBe(false); // the browser's answer, as nothing emulates the scheme yet
+
+        patch.update({ 'prefers-reduced-motion': 'reduce', 'prefers-color-scheme': 'dark' });
+
+        expect(dark.matches).toBe(true);
+        expect(seen).toEqual([true]);
+
+        patch.uninstall();
+
+        expect(dark.matches).toBe(false);
+        expect(seen).toEqual([true, false]);
+    });
+
+    it('starts emulating a feature that update adds, on lists asked for after', () => {
+        const patch = patchMatchMedia(win, {});
+
+        expect(win.matchMedia(MOTION_QUERY).matches).toBe(false);
 
         patch.update(reduce);
 
