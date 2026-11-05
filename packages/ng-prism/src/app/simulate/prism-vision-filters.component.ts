@@ -15,8 +15,8 @@ import { VISION_MATRICES, visionFilterId, type VisionMatrix } from './vision-fil
     selector: 'prism-vision-filters',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { style: 'display: contents' },
-    templateUrl: './prism-vision-filters.component.html'
+    templateUrl: './prism-vision-filters.component.html',
+    styleUrl: './prism-vision-filters.component.css'
 })
 export class PrismVisionFiltersComponent {
     protected readonly filters = (Object.keys(VISION_MATRICES) as VisionMatrix[]).map((matrix) => ({

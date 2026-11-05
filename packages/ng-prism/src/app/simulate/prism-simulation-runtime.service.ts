@@ -26,7 +26,7 @@ function isPopover(child: Element): child is HTMLElement {
  * once, after the URL and the session have restored the simulation.
  */
 @Injectable({ providedIn: 'root' })
-export class PrismSimulationRuntime {
+export class PrismSimulationRuntimeService {
     private readonly sim = inject(PrismSimulationService);
     private readonly doc = inject(DOCUMENT);
     private readonly injector = inject(Injector);

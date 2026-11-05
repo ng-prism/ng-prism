@@ -45,6 +45,13 @@ describe('PrismVisionFiltersComponent', () => {
         expect(element.querySelector('feColorMatrix')?.namespaceURI).toBe('http://www.w3.org/2000/svg');
     });
 
+    it('lays its host out as its contents, from its own stylesheet rather than an inline style', async () => {
+        const css = await readFile(join(__dirname, 'prism-vision-filters.component.css'), 'utf-8').catch(() => '');
+
+        expect((await render()).getAttribute('style')).toBeNull();
+        expect(css).toMatch(/:host\s*\{\s*display: contents;\s*\}/);
+    });
+
     it('is hidden from assistive technology, takes no focus and no space', async () => {
         const svg = (await render()).querySelector('svg');
 

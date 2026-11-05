@@ -24,7 +24,7 @@ import { PrismVariantBgService } from '../services/prism-variant-bg.service.js';
 import { PrismLogoComponent } from '../shared/prism-logo.component.js';
 import { PrismSidebarComponent } from '../sidebar/prism-sidebar.component.js';
 import { overlayGround } from '../simulate/ground.js';
-import { PrismSimulationRuntime } from '../simulate/prism-simulation-runtime.service.js';
+import { PrismSimulationRuntimeService } from '../simulate/prism-simulation-runtime.service.js';
 import { PrismVisionFiltersComponent } from '../simulate/prism-vision-filters.component.js';
 import { PRISM_CONFIG } from '../tokens/prism-tokens.js';
 import { PrismVariantRibbonComponent } from '../variant-ribbon/prism-variant-ribbon.component.js';
@@ -72,7 +72,7 @@ export class PrismShellComponent {
     protected readonly panelService = inject(PrismPanelService);
     private readonly urlStateService = inject(PrismUrlStateService);
     private readonly persistenceService = inject(PrismPersistenceService);
-    private readonly simulationRuntime = inject(PrismSimulationRuntime);
+    private readonly simulationRuntime = inject(PrismSimulationRuntimeService);
     private readonly simulation = inject(PrismSimulationService);
     private readonly variantBg = inject(PrismVariantBgService);
 

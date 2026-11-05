@@ -4,7 +4,7 @@ import { PRISM_CONFIG } from '../tokens/prism-tokens.js';
 import { collectForcedColorRules, forcedColorsCss } from './forced-colors.js';
 import { MEDIA_TRUE } from './media-condition.js';
 import { MediaStyleSheets } from './media-stylesheets.js';
-import { PrismSimulationRuntime } from './prism-simulation-runtime.service.js';
+import { PrismSimulationRuntimeService } from './prism-simulation-runtime.service.js';
 
 /** Lets pending MutationObserver callbacks run. */
 const flushMutations = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -55,18 +55,18 @@ function stubAdoptedSheets(): { adopt: jest.Mock; textOf: (sheet: CSSStyleSheet)
     return { adopt, textOf: (sheet) => texts.get(sheet) };
 }
 
-function setUp(): { sim: PrismSimulationService; runtime: PrismSimulationRuntime } {
+function setUp(): { sim: PrismSimulationService; runtime: PrismSimulationRuntimeService } {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({ providers: [{ provide: PRISM_CONFIG, useValue: { colorScheme: { dark: { class: 'tl-dark' } } } }] });
     const sim = TestBed.inject(PrismSimulationService);
-    const runtime = TestBed.inject(PrismSimulationRuntime);
+    const runtime = TestBed.inject(PrismSimulationRuntimeService);
 
     runtime.init();
     TestBed.tick();
     return { sim, runtime };
 }
 
-describe('PrismSimulationRuntime', () => {
+describe('PrismSimulationRuntimeService', () => {
     afterEach(() => {
         TestBed.resetTestingModule();
         jest.restoreAllMocks();
