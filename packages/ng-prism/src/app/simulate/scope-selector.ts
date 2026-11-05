@@ -3,49 +3,65 @@ import { attributeEnd, escapeEnd, identEnd, LEGACY_PSEUDO_ELEMENTS, stringEnd, W
 /** The attribute on the element the simulation is applied to. */
 export const SIM_SCOPE_ATTR = 'data-prism-sim';
 
+const SCOPE_ROOT_ATTR = `[${SIM_SCOPE_ATTR}]`;
+const OVERLAY_ROOT = '.cdk-overlay-container';
+
 /**
  * What a simulation reaches: the simulated element and the CDK overlay
  * container, because overlays (menus, dialogs, tooltips) render outside the
  * component's own subtree and still belong to it.
  */
-export const SIM_SCOPE = `[${SIM_SCOPE_ATTR}], .cdk-overlay-container`;
+export const SIM_SCOPE = `${SCOPE_ROOT_ATTR}, ${OVERLAY_ROOT}`;
 
-/** The scope as a selector of zero specificity, so that a rewritten selector weighs what the original did. */
+/** The scope roots as a selector that weighs nothing. */
 const SCOPE = `:where(${SIM_SCOPE})`;
 
 /**
- * Appended to a selector, it stops matching inside the scope or at its root.
- * `:not()` weighs as its most specific argument, and every argument here weighs
+ * Appended to a selector, it stops matching inside the scope and at its roots.
+ * `:not()` weighs as its most specific argument and every argument here weighs
  * nothing, so the selector keeps its specificity.
  */
 export const SCOPE_OUT_SUFFIX = `:not(${SCOPE} *, ${SCOPE})`;
 
+/**
+ * Appended to a selector, it matches only inside the scope and at its roots:
+ * the exact complement of {@link SCOPE_OUT_SUFFIX}, and as light, since
+ * `:where()` weighs nothing.
+ */
+export const SCOPE_IN_SUFFIX = `:where(${SCOPE_ROOT_ATTR} *, ${OVERLAY_ROOT} *, ${SIM_SCOPE})`;
+
 /** A leading `:root`, `html` or `body`, and not a longer name that starts like one. */
 const ROOT_COMPOUND = /^(?::root|html|body)(?![\w\\-])/i;
 
-/** A descendant combinator: whitespace that no other combinator follows. */
-const DESCENDANT = /^[ \t\n\r\f]+(?![ \t\n\r\f>+~])/;
-
 /**
- * The selector list as it applies inside the scope, in two forms per selector:
- * below a scope root, and at one, for a selector whose subject is the scope
- * root itself. Both keep the specificity of the original, as {@link SCOPE} has
- * none, and a trailing pseudo-element stays at the end, where it has to be.
+ * The selector list as it applies inside the scope: each selector gets
+ * {@link SCOPE_IN_SUFFIX}, in front of a trailing pseudo-element, at the point
+ * where {@link scopeOut} puts its own. A copy of a rule scoped this way matches
+ * exactly what the scoped-out original no longer does, whatever the rest of the
+ * selector says. A chain that crosses the scope boundary stays whole:
+ * `.theme .b` with `.theme` outside, `.wrap .b` with `.wrap` as the scope root
+ * and `.cdk-overlay-container .item` all match their `.b` or `.item` inside.
  *
- * The document root has no place inside the scope, so the scope root stands in
- * for it: `html .card` becomes `:where(…) .card`, and what else the root
- * compound says goes on applying, to the scope root (`:root:not(.light)` becomes
- * `:where(…):not(.light)`).
+ * A selector whose subject is the document root (`:root`, `html`, `body`, with
+ * or without qualifiers such as `.dark`) cannot match inside the scope. Its
+ * copy goes to the scope roots instead, as `<original> :where(…)`: the
+ * original is evaluated on the real document root, so a `:root.dark` rule
+ * reaches the scope roots only while the document is `.dark`, and the
+ * specificity is the original's.
  *
- * The result is one list of selectors joined with `, `, whatever whitespace
- * the input used.
+ * Only text is inserted, nothing is trimmed or reshaped, so the result keeps
+ * the list's own whitespace.
  */
 export function scopeIn(selectorList: string): string {
     return splitList(selectorList)
-        .map((part) => part.trim())
-        .filter((selector) => selector !== '')
-        .flatMap(scopeInSelector)
-        .join(', ');
+        .map((part) => {
+            const point = insertionPoint(part);
+
+            if (point === null) return part;
+
+            return part.slice(0, point.at) + (point.root ? ` ${SCOPE}` : SCOPE_IN_SUFFIX) + part.slice(point.at);
+        })
+        .join(',');
 }
 
 /**
@@ -64,64 +80,55 @@ export function scopeIn(selectorList: string): string {
 export function scopeOut(selectorList: string): string {
     return splitList(selectorList)
         .map((part) => {
-            const at = exclusionPoint(part);
+            const point = insertionPoint(part);
 
-            return at === null ? part : part.slice(0, at) + SCOPE_OUT_SUFFIX + part.slice(at);
+            return point === null || point.root ? part : part.slice(0, point.at) + SCOPE_OUT_SUFFIX + part.slice(point.at);
         })
         .join(',');
-}
-
-/** The selector list as it was before {@link scopeOut}; a list that was not scoped out comes back unchanged. */
-export function unscopeOut(selectorList: string): string {
-    return splitList(selectorList)
-        .map((part) => {
-            const at = exclusionPoint(part);
-
-            return at !== null && part.slice(0, at).endsWith(SCOPE_OUT_SUFFIX) ? part.slice(0, at - SCOPE_OUT_SUFFIX.length) + part.slice(at) : part;
-        })
-        .join(',');
-}
-
-function scopeInSelector(selector: string): string[] {
-    const { firstEnd, pseudoStart } = shapeOf(selector);
-    const head = selector.slice(0, pseudoStart);
-    const tail = selector.slice(pseudoStart);
-    const root = ROOT_COMPOUND.exec(head);
-
-    if (root === null) return [`${SCOPE} ${head}${tail}`, `${head}${SCOPE}${tail}`];
-
-    const compoundEnd = Math.min(firstEnd, head.length);
-    const qualifiers = head.slice(root[0].length, compoundEnd);
-    const rest = head.slice(compoundEnd);
-    const inside = `${SCOPE}${qualifiers}${rest}${tail}`;
-
-    // Everything is a descendant of the root, so the subject may be the scope root itself. That does not
-    // hold for a child or a sibling, nor once the root compound has conditions the scope root may not meet.
-    if (qualifiers !== '' || !DESCENDANT.test(rest)) return [inside];
-
-    return [inside, `${rest.trimStart()}${SCOPE}${tail}`];
 }
 
 /**
- * Where {@link SCOPE_OUT_SUFFIX} sits in `part` (a selector with the whitespace
- * around it), or `null` where it does not belong: in a blank part and in a
- * selector that only targets the document root.
+ * The selector list as it was before {@link scopeOut}; a list that was not
+ * scoped out comes back unchanged. `suffix` is what to take out, for a list
+ * whose suffix the browser has written differently than {@link SCOPE_OUT_SUFFIX}
+ * after the list went through a stylesheet.
  */
-function exclusionPoint(part: string): number | null {
+export function unscopeOut(selectorList: string, suffix: string = SCOPE_OUT_SUFFIX): string {
+    return splitList(selectorList)
+        .map((part) => {
+            const point = insertionPoint(part);
+
+            if (point === null || point.root || !part.slice(0, point.at).endsWith(suffix)) return part;
+
+            return part.slice(0, point.at - suffix.length) + part.slice(point.at);
+        })
+        .join(',');
+}
+
+/** Whether a selector of the list has the document root (`:root`, `html`, `body`) as its subject. */
+export function targetsRoot(selectorList: string): boolean {
+    return splitList(selectorList).some((part) => insertionPoint(part)?.root === true);
+}
+
+/**
+ * Where a scope suffix goes in `part` (a selector with the whitespace around
+ * it): behind the subject, in front of a trailing pseudo-element. `root` says
+ * whether the subject is the document root. `null` for a blank part.
+ */
+function insertionPoint(part: string): { at: number; root: boolean } | null {
     const selector = part.trim();
 
     if (selector === '') return null;
 
     const { lastStart, pseudoStart } = shapeOf(selector);
 
-    if (ROOT_COMPOUND.test(selector.slice(lastStart))) return null;
-
-    return part.length - part.trimStart().length + pseudoStart;
+    return {
+        at: part.length - part.trimStart().length + pseudoStart,
+        root: ROOT_COMPOUND.test(selector.slice(lastStart))
+    };
 }
 
 interface SelectorShape {
-    /** Where the first compound ends: at the first whitespace or combinator on the top level, else at the end. */
-    firstEnd: number;
     /** Where the last compound, the subject, starts. */
     lastStart: number;
     /** Where the trailing pseudo-element starts, else the end. */
@@ -129,16 +136,15 @@ interface SelectorShape {
 }
 
 /**
- * Where the compounds of a complex selector begin and end, on the top level
- * only: a combinator, a comma or a pseudo-element inside `:is()`, `:not()`, an
- * attribute value, a string or an escape does not count. Takes a trimmed
- * selector, one of a list.
+ * Where the subject of a complex selector starts and where its trailing
+ * pseudo-element does, on the top level only: a combinator, a comma or a
+ * pseudo-element inside `:is()`, `:not()`, an attribute value, a string or an
+ * escape does not count. Takes a trimmed selector, one of a list.
  *
  * A pseudo-element runs to the end of the selector, `::part(x):hover` included.
  * A single colon makes one only for the four that CSS 2 wrote that way.
  */
 function shapeOf(selector: string): SelectorShape {
-    let firstEnd = -1;
     let lastStart = 0;
     let pseudoStart = -1;
     let i = 0;
@@ -149,7 +155,6 @@ function shapeOf(selector: string): SelectorShape {
         if (skipped > i) {
             i = skipped;
         } else if (isSeparator(selector[i])) {
-            if (firstEnd < 0) firstEnd = i;
             while (i < selector.length && isSeparator(selector[i])) i++;
             lastStart = i;
             pseudoStart = -1;
@@ -165,11 +170,7 @@ function shapeOf(selector: string): SelectorShape {
         }
     }
 
-    return {
-        firstEnd: firstEnd < 0 ? selector.length : firstEnd,
-        lastStart,
-        pseudoStart: pseudoStart < 0 ? selector.length : pseudoStart
-    };
+    return { lastStart, pseudoStart: pseudoStart < 0 ? selector.length : pseudoStart };
 }
 
 /**

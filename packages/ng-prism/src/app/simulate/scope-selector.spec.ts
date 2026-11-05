@@ -1,105 +1,137 @@
-import { SCOPE_OUT_SUFFIX, scopeIn, scopeOut, SIM_SCOPE, SIM_SCOPE_ATTR, unscopeOut } from './scope-selector.js';
+import { SCOPE_IN_SUFFIX, SCOPE_OUT_SUFFIX, scopeIn, scopeOut, SIM_SCOPE, SIM_SCOPE_ATTR, targetsRoot, unscopeOut } from './scope-selector.js';
 
 const S = ':where([data-prism-sim], .cdk-overlay-container)';
+const IN = SCOPE_IN_SUFFIX;
 
 describe('scope constants', () => {
     it('name the scope by its attribute and the overlay container', () => {
         expect(SIM_SCOPE_ATTR).toBe('data-prism-sim');
         expect(SIM_SCOPE).toBe('[data-prism-sim], .cdk-overlay-container');
         expect(SCOPE_OUT_SUFFIX).toBe(`:not(${S} *, ${S})`);
+        expect(SCOPE_IN_SUFFIX).toBe(':where([data-prism-sim] *, .cdk-overlay-container *, [data-prism-sim], .cdk-overlay-container)');
     });
 });
 
 describe('scopeIn', () => {
     it('matches inside or at a scope root, with the same specificity', () => {
-        expect(scopeIn('.a .b')).toBe(`${S} .a .b, .a .b${S}`);
-        expect(scopeIn('.a, .b')).toBe(`${S} .a, .a${S}, ${S} .b, .b${S}`);
-        expect(scopeIn('.x:hover::before')).toBe(`${S} .x:hover::before, .x:hover${S}::before`);
+        expect(scopeIn('.a .b')).toBe(`.a .b${IN}`);
+        expect(scopeIn('.a, .b')).toBe(`.a${IN}, .b${IN}`);
+        expect(scopeIn('.x:hover::before')).toBe(`.x:hover${IN}::before`);
+        expect(scopeIn('html .card')).toBe(`html .card${IN}`);
     });
 
-    it('maps the document root to the scope root', () => {
-        expect(scopeIn(':root')).toBe(S);
-        expect(scopeIn('html .card')).toBe(`${S} .card, .card${S}`);
-        expect(scopeIn('body')).toBe(S);
+    it('keeps a chain whole that crosses the scope boundary', () => {
+        expect(scopeIn('.theme .b')).toBe(`.theme .b${IN}`);
+        expect(scopeIn('.wrap .b')).toBe(`.wrap .b${IN}`);
+        expect(scopeIn('.cdk-overlay-container .item')).toBe(`.cdk-overlay-container .item${IN}`);
+        expect(scopeIn('html body .b')).toBe(`html body .b${IN}`);
+        expect(scopeIn('.dark [_nghost-x]')).toBe(`.dark [_nghost-x]${IN}`);
+    });
+
+    it('sends a rule on the document root to the scope roots, keeping specificity and qualifiers', () => {
+        expect(scopeIn(':root')).toBe(`:root ${S}`);
+        expect(scopeIn(':root.dark')).toBe(`:root.dark ${S}`);
+        expect(scopeIn('body')).toBe(`body ${S}`);
+        expect(scopeIn('html')).toBe(`html ${S}`);
+        expect(scopeIn('HTML')).toBe(`HTML ${S}`);
+        expect(scopeIn(':ROOT')).toBe(`:ROOT ${S}`);
+        expect(scopeIn(':root:not([data-theme="light"])')).toBe(`:root:not([data-theme="light"]) ${S}`);
+        expect(scopeIn('html body')).toBe(`html body ${S}`);
+        expect(scopeIn(':root, .a')).toBe(`:root ${S}, .a${IN}`);
+    });
+
+    it('puts the scope in front of the pseudo-element of a rule on the root', () => {
+        expect(scopeIn(':root::before')).toBe(`:root ${S}::before`);
+        expect(scopeIn('html::selection')).toBe(`html ${S}::selection`);
+    });
+
+    it('does not take a selector for the root that merely mentions it or starts like it', () => {
+        expect(scopeIn('html .card')).toBe(`html .card${IN}`);
+        expect(scopeIn(':root > .card')).toBe(`:root > .card${IN}`);
+        expect(scopeIn('.a:not(:root)')).toBe(`.a:not(:root)${IN}`);
+        expect(scopeIn('html-foo')).toBe(`html-foo${IN}`);
+        expect(scopeIn('.body')).toBe(`.body${IN}`);
+        expect(scopeIn('bodyx .a')).toBe(`bodyx .a${IN}`);
     });
 
     it('splits the list at top-level commas only', () => {
-        expect(scopeIn('.a:is(.b, .c)')).toBe(`${S} .a:is(.b, .c), .a:is(.b, .c)${S}`);
-        expect(scopeIn('.a:not(.b, .c) .d')).toBe(`${S} .a:not(.b, .c) .d, .a:not(.b, .c) .d${S}`);
-        expect(scopeIn('.a:where(.b, .c)')).toBe(`${S} .a:where(.b, .c), .a:where(.b, .c)${S}`);
-        expect(scopeIn('.a:has(> .b, + .c)')).toBe(`${S} .a:has(> .b, + .c), .a:has(> .b, + .c)${S}`);
-        expect(scopeIn('.a:is(.b:not(.c, .d), .e)')).toBe(`${S} .a:is(.b:not(.c, .d), .e), .a:is(.b:not(.c, .d), .e)${S}`);
-        expect(scopeIn('[data-x="a,b"], .c')).toBe(`${S} [data-x="a,b"], [data-x="a,b"]${S}, ${S} .c, .c${S}`);
-        expect(scopeIn("[data-x='a,b'] .c")).toBe(`${S} [data-x='a,b'] .c, [data-x='a,b'] .c${S}`);
+        expect(scopeIn('.a:is(.b, .c)')).toBe(`.a:is(.b, .c)${IN}`);
+        expect(scopeIn('.a:not(.b, .c) .d')).toBe(`.a:not(.b, .c) .d${IN}`);
+        expect(scopeIn('.a:where(.b, .c)')).toBe(`.a:where(.b, .c)${IN}`);
+        expect(scopeIn('.a:has(> .b, + .c)')).toBe(`.a:has(> .b, + .c)${IN}`);
+        expect(scopeIn('.a:is(.b:not(.c, .d), .e)')).toBe(`.a:is(.b:not(.c, .d), .e)${IN}`);
+        expect(scopeIn('[data-x="a,b"], .c')).toBe(`[data-x="a,b"]${IN}, .c${IN}`);
+        expect(scopeIn("[data-x='a,b'] .c")).toBe(`[data-x='a,b'] .c${IN}`);
     });
 
     it('ignores a comma that is escaped or inside a string', () => {
-        expect(scopeIn('.a\\,b')).toBe(`${S} .a\\,b, .a\\,b${S}`);
-        expect(scopeIn('[title="a, b"]')).toBe(`${S} [title="a, b"], [title="a, b"]${S}`);
+        expect(scopeIn('.a\\,b')).toBe(`.a\\,b${IN}`);
+        expect(scopeIn('[title="a, b"]')).toBe(`[title="a, b"]${IN}`);
     });
 
     it('keeps a trailing pseudo-element at the end', () => {
-        expect(scopeIn('.a::after')).toBe(`${S} .a::after, .a${S}::after`);
-        expect(scopeIn('input::placeholder')).toBe(`${S} input::placeholder, input${S}::placeholder`);
-        expect(scopeIn('.a > .b::marker')).toBe(`${S} .a > .b::marker, .a > .b${S}::marker`);
-        expect(scopeIn('.a::part(thumb):hover')).toBe(`${S} .a::part(thumb):hover, .a${S}::part(thumb):hover`);
-        expect(scopeIn('.a:is(.b, .c)::before')).toBe(`${S} .a:is(.b, .c)::before, .a:is(.b, .c)${S}::before`);
+        expect(scopeIn('.a::after')).toBe(`.a${IN}::after`);
+        expect(scopeIn('input::placeholder')).toBe(`input${IN}::placeholder`);
+        expect(scopeIn('.a > .b::marker')).toBe(`.a > .b${IN}::marker`);
+        expect(scopeIn('.a::part(thumb):hover')).toBe(`.a${IN}::part(thumb):hover`);
+        expect(scopeIn('.a:is(.b, .c)::before')).toBe(`.a:is(.b, .c)${IN}::before`);
     });
 
     it('keeps a legacy single-colon pseudo-element at the end', () => {
-        expect(scopeIn('.a:before')).toBe(`${S} .a:before, .a${S}:before`);
-        expect(scopeIn('.a:AFTER')).toBe(`${S} .a:AFTER, .a${S}:AFTER`);
-        expect(scopeIn('p:first-line')).toBe(`${S} p:first-line, p${S}:first-line`);
-        expect(scopeIn('p:first-letter')).toBe(`${S} p:first-letter, p${S}:first-letter`);
+        expect(scopeIn('.a:before')).toBe(`.a${IN}:before`);
+        expect(scopeIn('.a:AFTER')).toBe(`.a${IN}:AFTER`);
+        expect(scopeIn('p:first-line')).toBe(`p${IN}:first-line`);
+        expect(scopeIn('p:first-letter')).toBe(`p${IN}:first-letter`);
     });
 
     it('does not take a pseudo-class, an escaped colon or an attribute value for a pseudo-element', () => {
-        expect(scopeIn('.a:hover')).toBe(`${S} .a:hover, .a:hover${S}`);
-        expect(scopeIn('.a\\:before')).toBe(`${S} .a\\:before, .a\\:before${S}`);
-        expect(scopeIn('[title="::before"]')).toBe(`${S} [title="::before"], [title="::before"]${S}`);
-        expect(scopeIn('.a:not(:before)')).toBe(`${S} .a:not(:before), .a:not(:before)${S}`);
+        expect(scopeIn('.a:hover')).toBe(`.a:hover${IN}`);
+        expect(scopeIn('.a\\:before')).toBe(`.a\\:before${IN}`);
+        expect(scopeIn('[title="::before"]')).toBe(`[title="::before"]${IN}`);
+        expect(scopeIn('.a:not(:before)')).toBe(`.a:not(:before)${IN}`);
     });
 
     it('puts the scope in front of a pseudo-element that has no element of its own', () => {
-        expect(scopeIn('::selection')).toBe(`${S} ::selection, ${S}::selection`);
-        expect(scopeIn('.a ::before')).toBe(`${S} .a ::before, .a ${S}::before`);
+        expect(scopeIn('::selection')).toBe(`${IN}::selection`);
+        expect(scopeIn('.a ::before')).toBe(`.a ${IN}::before`);
     });
 
-    it('lets the scope root stand in for the root, keeping what else the root compound says', () => {
-        expect(scopeIn('html')).toBe(S);
-        expect(scopeIn('HTML')).toBe(S);
-        expect(scopeIn(':ROOT')).toBe(S);
-        expect(scopeIn(':root.dark')).toBe(`${S}.dark`);
-        expect(scopeIn(':root:not([data-theme="light"])')).toBe(`${S}:not([data-theme="light"])`);
-        expect(scopeIn('html.dark .card')).toBe(`${S}.dark .card`);
-        expect(scopeIn(':root::before')).toBe(`${S}::before`);
-        expect(scopeIn('body .a .b')).toBe(`${S} .a .b, .a .b${S}`);
-        expect(scopeIn(':root, .a')).toBe(`${S}, ${S} .a, .a${S}`);
-    });
-
-    it('does not mistake a longer name for the root', () => {
-        expect(scopeIn('html-foo')).toBe(`${S} html-foo, html-foo${S}`);
-        expect(scopeIn('.body')).toBe(`${S} .body, .body${S}`);
-        expect(scopeIn('bodyx .a')).toBe(`${S} bodyx .a, bodyx .a${S}`);
-    });
-
-    it('is only inside the scope for a root that a combinator other than whitespace follows', () => {
-        expect(scopeIn('html > .card')).toBe(`${S} > .card`);
-        expect(scopeIn(':root + .card')).toBe(`${S} + .card`);
-    });
-
-    it('treats a root deeper in the selector like any other compound', () => {
-        expect(scopeIn('.a :root')).toBe(`${S} .a :root, .a :root${S}`);
-        expect(scopeIn('.a:not(:root)')).toBe(`${S} .a:not(:root), .a:not(:root)${S}`);
-    });
-
-    it('returns an empty list for an empty list', () => {
+    it('leaves a list that has nothing to scope as it is', () => {
         expect(scopeIn('')).toBe('');
-        expect(scopeIn('  ')).toBe('');
+        expect(scopeIn('  ')).toBe('  ');
     });
 
-    it('trims each selector', () => {
-        expect(scopeIn('  .a  ,\n.b ')).toBe(`${S} .a, .a${S}, ${S} .b, .b${S}`);
+    it('keeps the whitespace of the list', () => {
+        expect(scopeIn('  .a  ,\n.b ')).toBe(`  .a${IN}  ,\n.b${IN} `);
+    });
+});
+
+describe('targetsRoot', () => {
+    it('is true when the subject of a selector is the document root', () => {
+        expect(targetsRoot(':root')).toBe(true);
+        expect(targetsRoot('html')).toBe(true);
+        expect(targetsRoot('BODY')).toBe(true);
+        expect(targetsRoot(':root.dark')).toBe(true);
+        expect(targetsRoot('html:not(.light)')).toBe(true);
+        expect(targetsRoot('html body')).toBe(true);
+        expect(targetsRoot(':root::before')).toBe(true);
+    });
+
+    it('is true when any selector of the list targets the root', () => {
+        expect(targetsRoot(':root, .x')).toBe(true);
+        expect(targetsRoot('.x, body')).toBe(true);
+        expect(targetsRoot('.x:is(.a, .b), html')).toBe(true);
+    });
+
+    it('is false when the root is only an ancestor or a name that starts like it', () => {
+        expect(targetsRoot('html .card')).toBe(false);
+        expect(targetsRoot(':root > .card')).toBe(false);
+        expect(targetsRoot('.a:not(:root)')).toBe(false);
+        expect(targetsRoot('.a:is(:root, body)')).toBe(false);
+        expect(targetsRoot('html-foo')).toBe(false);
+        expect(targetsRoot('.body')).toBe(false);
+        expect(targetsRoot('.a, .b')).toBe(false);
+        expect(targetsRoot('')).toBe(false);
     });
 });
 
@@ -194,5 +226,21 @@ describe('unscopeOut', () => {
     it('leaves a list alone that has no exclusion', () => {
         expect(unscopeOut('.a, .b::after')).toBe('.a, .b::after');
         expect(unscopeOut(':root')).toBe(':root');
+    });
+
+    it('takes out the suffix it is given, for a browser that wrote it differently', () => {
+        const written = ':not(:where([data-prism-sim],.cdk-overlay-container) *,:where([data-prism-sim],.cdk-overlay-container))';
+
+        expect(unscopeOut(`.a${written}::after, .b${written}, :root`, written)).toBe('.a::after, .b, :root');
+        expect(unscopeOut(`.a${written}`)).toBe(`.a${written}`);
+    });
+});
+
+describe('scopeIn and scopeOut', () => {
+    const SCOPED = ['.a', '.a .b', '.a, .b', '.a::after, .b', '.a:before', '.a ::before', '::selection', '  .a ,\n .b  ', 'html .card', '.a:is(.b, .c)::before'];
+
+    it.each(SCOPED)('insert at the same point in %j', (list) => {
+        expect(scopeIn(list).split(SCOPE_IN_SUFFIX).join('')).toBe(list);
+        expect(scopeOut(list).split(SCOPE_OUT_SUFFIX).join('')).toBe(list);
     });
 });
