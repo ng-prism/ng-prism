@@ -24,6 +24,7 @@ Everything deprecated in 22.x is removed in 23.0.0, see [Removed in 23.0.0](#rem
 - **`Date` values.** `new Date(…)` with arguments the scanner can read is a showcase value, in variants and as the default of an input. `new Date()` without arguments is dropped with a warning, see [Dates](guide/variants.md#dates).
 - **A date field** for `Date` inputs in the Controls panel, see [Input types and controls](guide/inputs-and-controls.md#input-types-and-controls).
 - **Readable dates** in the Events panel, the JSON editor, the parts popover and the API page of `@ng-prism/plugin-jsdoc`. `formatDateValue` from `@ng-prism/core/plugin` shows a `Date` the same way in a plugin.
+- **A narrower edge around pages on a phone.** In the phone layout a component page and a custom page keep 16 px to the sides instead of 24 px, and the title lines up with the page. A stylesheet of your own that narrowed this edge for phones can go, see [On a phone](guide/styleguide-ui.md#on-a-phone).
 
 ## Upgrading to 22.7.0
 
