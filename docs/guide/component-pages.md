@@ -42,7 +42,7 @@ import { ButtonComponent } from 'my-lib';
 export class ButtonPatternsPageComponent {}
 ```
 
-The styleguide shows the page's `title` as a heading above the component.
+The styleguide shows the page's `title` as a heading above the component and leaves an edge around the page, a narrower one [on a phone](guide/styleguide-ui.md#on-a-phone).
 
 ## Following the Theme
 

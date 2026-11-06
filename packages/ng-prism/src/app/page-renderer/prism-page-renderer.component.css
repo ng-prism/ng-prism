@@ -5,7 +5,7 @@
 }
 
 .prism-page-renderer__title {
-    padding: 16px 20px;
+    padding: var(--sp-5) 20px;
     margin: 0;
     font-family: var(--prism-font-sans);
     font-size: 18px;
@@ -102,10 +102,19 @@
 }
 
 .prism-page-renderer__json {
-    padding: 24px;
+    padding: var(--sp-6);
     margin: 0;
     font-family: monospace;
     font-size: 12px;
     color: var(--prism-text-muted);
     white-space: pre-wrap;
+}
+
+/* The phone layout: the desktop edge took 48px of a 390px screen before the
+   page added its own. One narrower edge for the title and either kind of page,
+   so the title lines up with the page. */
+:host-context([data-prism-mobile]) .prism-page-renderer__title,
+:host-context([data-prism-mobile]) .prism-page-renderer__component,
+:host-context([data-prism-mobile]) .prism-page-renderer__json {
+    padding: var(--sp-5);
 }
