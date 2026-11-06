@@ -223,6 +223,8 @@ describe('PrismCanvasToolbarComponent: phone layout', () => {
         const fixture = await render(true);
 
         expect(sections(fixture)).toContain('Simulate');
+        // Vision is a grid of its own under Simulate, labelled like a section rather than a row.
+        expect(sections(fixture)).toContain('Vision');
         expect(fixture.nativeElement.querySelectorAll('#prism-tools [data-sim]')).toHaveLength(4);
     });
 
