@@ -9,6 +9,7 @@
     @for (m of metrics(); track m.id) {
         <prism-stat
             [label]="m.label"
+            [note]="m.note ?? null"
             [threshold]="m.threshold"
             [value]="m.value"
             [variant]="m.variant" />
@@ -34,7 +35,11 @@
                 dot
                 [tone]="tone()"
                 [label]="c.metric.label"
-                [value]="c.metric.value" />
+                [value]="c.metric.value">
+                @if (marker(); as m) {
+                    <span class="gauge__marker">{{ m }}</span>
+                }
+            </prism-badge>
         </button>
 
         <div

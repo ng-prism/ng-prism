@@ -15,11 +15,17 @@ import type { A11yScoreResult, A11yThresholds } from '../a11y/a11y.types.js';
  * The navigation marker grades the build-time report against the configured
  * numbers; a tab grading the live audit on its own scale would put an amber
  * icon in the sidebar next to a red badge on the tab for the same component.
+ *
+ * Unlike the sidebar, which only ever shows the build-time report, the tab's
+ * figures are live and may have been audited under a simulation: the condition
+ * travels with the result and ends up in the badge's label.
  */
 export interface PanelBadgeContext {
     inputCount: number;
     eventCount: number;
     a11yResult: A11yScoreResult | null;
+    /** What the canvas simulated while `a11yResult` was audited, or `null` for the real environment. */
+    a11yCondition: string | null;
     a11yThresholds: A11yThresholds;
 }
 
@@ -51,7 +57,7 @@ export function resolvePanelBadge(panel: PanelDefinition, component: RuntimeComp
     }
 
     if (panel.id === 'a11y') {
-        return a11yViolationBadge(context.a11yResult);
+        return a11yViolationBadge(context.a11yResult, context.a11yCondition);
     }
 
     return null;
@@ -100,8 +106,14 @@ export function deprecatedBadgeVariantNotice(panelId: string, badge: PanelBadge 
  * findings, not the score. The score is graded in the gauge, the sidebar and
  * the panel. The tone follows the most severe violation, the same split the
  * build gate draws.
+ *
+ * The count is the live audit's, where the sidebar's marker is the build-time
+ * report's. `condition` names what the canvas simulated while it ran (see
+ * `PrismSimulationService.auditCondition`) and goes into the label, which is the
+ * tab's accessible name, so a count under a simulation is not read as the
+ * plain one.
  */
-export function a11yViolationBadge(result: A11yScoreResult | null): PanelBadge | null {
+export function a11yViolationBadge(result: A11yScoreResult | null, condition: string | null = null): PanelBadge | null {
     if (result === null) return null;
     const violations = result.critical + result.serious + result.moderate + result.minor;
 
@@ -110,6 +122,6 @@ export function a11yViolationBadge(result: A11yScoreResult | null): PanelBadge |
         kind: 'issues',
         text: String(violations),
         tone: result.critical + result.serious > 0 ? 'danger' : 'warn',
-        label: plural(violations, 'violation')
+        label: condition ? `${plural(violations, 'violation')} under ${condition}` : plural(violations, 'violation')
     };
 }

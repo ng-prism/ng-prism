@@ -42,6 +42,59 @@
     --prism-canvas-overlay-inline: 28px;
 }
 
+/* Forced colors paint the ground Canvas, over a background the variant
+   recommends or the user picked, as the real mode does: the component's text
+   turns CanvasText and would otherwise stand on a ground it never meets
+   there. The stage carries the palette's color-scheme meanwhile (the
+   renderer binds it), so this Canvas is the one the component is forced
+   against. The class outweighs the [data-bg] rules of CANVAS_BG_STYLES,
+   which come later. The edge stays: it is chrome.
+
+   The measurement colours follow the ground, not the background: the canvas
+   wrap carries the overlay tokens of the palette then (overlayGround), and
+   inherit takes them back from the [data-bg] rules that re-point them. */
+.prism-canvas-stage[data-sim-forced] {
+    background-color: Canvas;
+    background-image: none;
+
+    --prism-measure: inherit;
+    --prism-measure-plate: inherit;
+}
+
+/* The ground under a vision setting: a copy of the stage's background, drawn
+   with the filter that is on the component, so that what shows through the
+   component is filtered with it. Under forced colors it copies Canvas.
+
+   It is the stage's first box and positioned without a z-index, so every
+   child of the stage paints over it, unfiltered: all of them are positioned
+   (crosshair, rulers, measure, pills, grips and .demo-wrap). A child that is
+   not would paint under it. The stage's own edge, an outline, is painted
+   before positioned boxes and would be covered too; the clip leaves its 1px
+   free.
+
+   It scrolls with the content, the background it copies does not. The
+   renderer keeps the scroll position in two properties while the layer is
+   drawn, and the translation puts it back over the part on screen. Moved
+   there, it holds the scroll range open, so pinGroundLayer lets the stage
+   clamp whenever the canvas changes size or zoom. */
+.prism-canvas-stage[data-sim-vision]::before {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    content: '';
+    background: inherit;
+    filter: var(--prism-sim-filter);
+    clip-path: inset(1px);
+    transform: translate(var(--prism-sim-scroll-x, 0), var(--prism-sim-scroll-y, 0));
+}
+
+/* axe takes a positioned pseudo-element with a background behind the text as
+   covering it, and leaves every colour contrast undecided. The live audit
+   (canvas-audit.ts) measures against the stage's own ground instead. */
+.prism-canvas-stage[data-sim-vision][data-prism-auditing]::before {
+    content: none;
+}
+
 .stage-crosshair {
     position: absolute;
     inset: 0;
@@ -73,6 +126,55 @@
     bottom: 0;
     left: 50%;
     width: 1px;
+}
+
+/* The pills, top left, opposite the tool rail. The background pill used to
+   claim the right corner too and the rail won, hiding a notice whose whole job
+   is to be noticed. The rail is permanent and the pills are not, so the
+   permanent thing keeps the corner it sits in and these move. Nothing else
+   occupies the left corner: the zoom badge that used to live here was a
+   duplicate of the readout the rail carries.
+
+   The simulation pill stacks under the background pill. This container holds
+   the position, the overlay offsets (which the rulers shift) and their
+   transition for both; it takes no pointer events itself, so that only the
+   pills do, and a pill that is not there leaves nothing to click.
+
+   It stays inside the stage and clear of the tool rail: an absolute box that
+   spills past the edge opens a scroll range, and one that reaches the rail
+   goes under it (the rail is z-index 5, at the mirrored offsets on the right),
+   which hides a Reset button. A list of conditions can be wider than a phone,
+   so its label wraps (prism-sim-pill.component.css).
+
+   The reserve (--prism-toolrail-reserve) is the rail and an 8px gap. The rail
+   has no width of its own: it is its buttons, 4px of padding and a 1px border
+   either side. With a mouse the buttons are 26px, so the rail is 36px and the
+   reserve 48, a little over the gap for the zoom readout, which can be wider
+   than a button. A touch screen grows every icon button to 40px
+   (prism-icon-button.component.css), so there the rail is 50px and the reserve
+   60. A spec derives both widths from their parts. */
+.stage-pills {
+    --prism-toolrail-reserve: 48px;
+
+    position: absolute;
+    top: var(--prism-canvas-overlay-top, 12px);
+    left: var(--prism-canvas-overlay-inline, 20px);
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    align-items: flex-start;
+    max-width: calc(100% - 2 * var(--prism-canvas-overlay-inline, 20px) - var(--prism-toolrail-reserve));
+    pointer-events: none;
+    transition:
+        top var(--dur-base),
+        left var(--dur-base);
+}
+
+@media (pointer: coarse) {
+    .stage-pills {
+        --prism-toolrail-reserve: 60px;
+    }
 }
 
 .demo-wrap {
@@ -193,7 +295,7 @@
 
     /* The element is the guide line's full-height track and must not be
      clickable. It runs from the overlay band to the
-     bottom of the stage at z-index 4, straight over prism-canvas-bg-pill
+     bottom of the stage at z-index 4, straight over the pills
      at z-index 2, so leaving it hit-testable made part of the pill's
      Reset button unreachable whenever a viewport was on. Only the bar
      below takes pointer events back. */

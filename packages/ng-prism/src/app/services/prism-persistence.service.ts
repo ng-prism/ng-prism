@@ -2,11 +2,13 @@ import { effect, inject, Injectable, Injector } from '@angular/core';
 import type { NgPrismConfig } from '../../plugin/plugin.types.js';
 import { A11yPanelStateService, type A11ySubTab } from '../panels/a11y/a11y-panel-state.service.js';
 import { type A11yPerspectiveMode, A11yPerspectiveService } from '../panels/a11y/a11y-perspective.service.js';
+import { hasSimulationParams, parseSimulation, type Simulation } from '../simulate/simulation.js';
 import { PRISM_CONFIG } from '../tokens/prism-tokens.js';
 import { parsePersisted, stringifyPersisted } from './persisted-values.js';
 import { PrismCaptureService } from './prism-capture.service.js';
 import { PrismNavigationService } from './prism-navigation.service.js';
 import { PrismRendererService } from './prism-renderer.service.js';
+import { PrismSimulationService } from './prism-simulation.service.js';
 
 const STORAGE_KEY = 'ng-prism:state';
 const SCHEMA_VERSION = 1;
@@ -19,6 +21,8 @@ interface PrismPersistedState {
         activeTab?: A11ySubTab;
         perspective?: A11yPerspectiveMode;
     };
+    /** What the canvas simulates. Absent in a session an earlier version wrote. */
+    simulation?: Simulation;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -29,6 +33,7 @@ export class PrismPersistenceService {
     private readonly rendererService = inject(PrismRendererService);
     private readonly a11yPanelState = inject(A11yPanelStateService);
     private readonly a11yPerspective = inject(A11yPerspectiveService);
+    private readonly simulationService = inject(PrismSimulationService);
     private readonly injector = inject(Injector);
 
     private suppressSync = false;
@@ -70,6 +75,13 @@ export class PrismPersistenceService {
             if (parsed.a11y?.perspective === 'visual' || parsed.a11y?.perspective === 'screen-reader') {
                 this.a11yPerspective.mode.set(parsed.a11y.perspective);
             }
+            // A link that names the simulation, valid or not, is the reader's choice of the moment: it wins.
+            // Without URL state nothing applies the link, and a parameter of the same name is someone else's.
+            const linked = this.config.urlState !== false && hasSimulationParams(new URLSearchParams(window.location.search));
+
+            if (parsed.simulation !== undefined && !linked) {
+                this.simulationService.set(parseSimulation(parsed.simulation));
+            }
 
             const activeComp = this.navigationService.activeComponent();
 
@@ -105,6 +117,7 @@ export class PrismPersistenceService {
                 this.rendererService.inputValues();
                 this.a11yPanelState.activeTab();
                 this.a11yPerspective.mode();
+                this.simulationService.state();
 
                 if (this.suppressSync) return;
                 this.writeDebounced();
@@ -159,7 +172,8 @@ export class PrismPersistenceService {
             a11y: {
                 activeTab: this.a11yPanelState.activeTab(),
                 perspective: this.a11yPerspective.mode()
-            }
+            },
+            simulation: this.simulationService.state()
         };
     }
 }

@@ -30,4 +30,13 @@ describe('icon registry', () => {
         expect(ICON_NAMES).toContain('menu');
         expect(ICONS.menu).toBeTruthy();
     });
+
+    it('should carry a glyph of its own for each pseudo state the tools menu forces', () => {
+        // hover, active, focus, focus-visible, focus-within: five chips side by
+        // side, so five different drawings.
+        const names = ['mouse-pointer', 'mouse-pointer-click', 'scan', 'keyboard', 'box-select'];
+
+        for (const name of names) expect(ICON_NAMES).toContain(name);
+        expect(new Set(names.map((name) => ICONS[name])).size).toBe(names.length);
+    });
 });

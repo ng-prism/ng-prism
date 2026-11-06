@@ -1,12 +1,13 @@
 # Canvas State
 
-The canvas (`PrismRendererComponent`) is governed by cooperating services with distinct responsibilities: durable preferences, the effective background, the forced pseudo states and the measurements. This page describes how they work, for contributors. What a user sees and does is under [Tour of the UI](guide/styleguide-ui.md) and [Measuring](guide/measuring.md).
+The canvas (`PrismRendererComponent`) is governed by cooperating services with distinct responsibilities: durable preferences, the effective background, the forced pseudo states, the measurements and the simulation. This page describes how they work, for contributors. What a user sees and does is under [Tour of the UI](guide/styleguide-ui.md) and [Measuring](guide/measuring.md).
 
 ## `PrismCanvasService`
 
 Holds the user's globally persisted canvas preferences:
 
 - `bg`: global default canvas background (any `CanvasBg`: `dots | plain | light | dark | checker | transparent`), `'dots'` until the user picks one
+- `bgChosen`: whether the user picked `bg` (`setBg()`), persisted with it. The value alone cannot tell the default `dots` from a picked one, and only a background nobody picked follows a simulated color scheme (see [Simulation](#simulation)). Storage written without the flag counts any value but `dots` as picked. Only `setBg()` writes it, always `true`, so there is no way back to unpicked
 - `zoom`, `guides`, `rulers`: set from the floating canvas rail; guides and rulers are toggle buttons on the rail itself, zoom is a chooser in the rail's tools menu
 - `measure`: whether the measuring tool is on, a toggle button on the rail. It lives here rather than in `PrismMeasureService` because it is the same kind of state as `guides` and `rulers`, a preference about the working environment, not a statement about the variant. The measurements themselves are in `PrismMeasureService`, see [Measuring](#measuring).
 - `viewportWidth`: `number | null`; the width `.demo-wrap` is constrained to, or `null` for unconstrained. Toggled from the rail, set from the **Width** chooser in the tools menu, and dragged from the grips at either edge of the constrained area. `toggleViewport()` restores the last width of the session, a field that is not persisted and starts at `VIEWPORT_DEFAULT` (390).
@@ -19,20 +20,21 @@ Computes the actually-applied canvas background by resolving a fallback chain:
 
 ```
 recommended = variant.bg ?? component.bg
-effective   = override ?? recommended ?? canvas.bg()      // browsing
+effective   = override ?? recommended ?? (bgChosen ? canvas.bg() : schemeGround) ?? canvas.bg()   // browsing
 effective   = recommended ?? DEFAULT_VARIANT_BG           // capture mode ('transparent')
 ```
 
 - `recommended`: computed from the active component and variant (`Variant.bg` wins over `ShowcaseConfig.bg`), `null` when neither declares one
-- `override`: read-only view of a transient signal; set when the user picks a background from the tools menu's **Canvas** group while a recommendation is active
-- `effective`: the final `CanvasBg` value bound to the `data-bg` attribute of `.prism-canvas-stage`. Capture mode ignores the override, which is session UI state, and uses `DEFAULT_VARIANT_BG` where nothing is declared instead of `canvas.bg()`: `dots` paints a theme token, so a baseline would depend on the runner's theme. `DEFAULT_VARIANT_BG` is also what the discovery manifest reports, so the reported and the captured background cannot drift apart.
+- `schemeGround`: `PrismSimulationService.schemeGround()`, `light` or `dark` while the simulation emulates a color scheme, else `null`; the browsing chain is `playgroundGround()` (`simulate/ground.ts`)
+- `override`: read-only view of a transient signal; set when the user picks a background from the tools menu's **Background** group while a recommendation is active
+- `effective`: the final `CanvasBg` value bound to the `data-bg` attribute of `.prism-canvas-stage`. Capture mode ignores the override and the simulation, which are session UI state, and uses `DEFAULT_VARIANT_BG` where nothing is declared instead of `canvas.bg()`: `dots` paints a theme token, so a baseline would depend on the runner's theme. `DEFAULT_VARIANT_BG` is also what the discovery manifest reports, so the reported and the captured background cannot drift apart.
 - `isDeviating`: computed boolean; true when the override is non-null AND differs from the current recommendation. It shows the `Recommended: <bg> [Reset]` pill (`PrismCanvasBgPillComponent`), whose button calls `clearOverride()`.
 
 The override auto-clears whenever the active variant or component changes, so navigating back to a variant always shows its recommendation again.
 
-The **Canvas** group of the tools menu is a readout of this service as well: the filled button (`is-on`) is `effective()`, and the button of `recommended()` carries `is-rec`, a border in the primary colour. A click writes the override when `recommended()` is non-null and otherwise `canvas.setBg()`, the persisted default.
+The **Background** group of the tools menu is a readout of this service as well: the filled chip (`is-on`) is `effective()`, and the chip of `recommended()` carries `is-rec`, a border in the primary colour. Each chip's swatch carries `data-bg`, painted by the same `CANVAS_BG_STYLES` as the stage, which the toolbar includes in its `styles`. A click writes the override when `recommended()` is non-null and otherwise `canvas.setBg()`, the persisted default.
 
-The shell also binds `canvasOverlayTokens(effective())` (`canvas/canvas-overlay-tokens.ts`) on `.prism-canvas-wrap`. On `light` and `dark` these set the `--prism-canvas-overlay-*` tokens to fixed values, so the rail, the pill, the pin row and the rulers follow the ground rather than the theme; on the other grounds they are left to the theme, see [Canvas overlays](guide/theming.md#canvas-overlays).
+The shell also binds `canvasOverlayTokens(overlayGround(effective(), simulation.state()))` (`canvas/canvas-overlay-tokens.ts`, `simulate/ground.ts`) on `.prism-canvas-wrap`. On `light` and `dark` these set the `--prism-canvas-overlay-*` tokens to fixed values, so the rail, the pills, the pin row and the rulers follow the ground rather than the theme; on the other grounds they are left to the theme, see [Canvas overlays](guide/theming.md#canvas-overlays). Under simulated forced colors `overlayGround()` answers the palette (`light` or `dark`), since the stage paints `Canvas` then, whatever `effective()` is.
 
 ### Why a separate service?
 
@@ -58,7 +60,7 @@ Capture mode skips the toggles: both layers are what is declared.
 
 The service also owns the document's `PseudoStyleSheets`, which every marker shares, so each stylesheet is rewritten once whether the Playground or an Overview cell forces a state first.
 
-The tools menu's **State** group reads the service. Its chips come from `buildStateChips()` (`canvas/state-chips.ts`), at most one on; a click calls `PrismRendererService.selectState()`, and a click on the active chip passes `null`. Whether each state fits is `chipFits()`: the canvas's own `canvasFit` for the active state, `evaluateStateFit()` against the rendered element for the others, re-measured after every render, so a chip and the canvas cannot disagree. A chip that does not fit gets `is-na` and stays selectable. The toggles below bind `is-on` to `isForced()` and `is-rec` to `isDeclared()`, mirroring the Canvas group.
+The tools menu's **State** group reads the service. Its chips come from `buildStateChips()` (`canvas/state-chips.ts`), at most one on; a click calls `PrismRendererService.selectState()`, and a click on the active chip passes `null`. Whether each state fits is `chipFits()`: the canvas's own `canvasFit` for the active state, `evaluateStateFit()` against the rendered element for the others, re-measured after every render, so a chip and the canvas cannot disagree. A chip that does not fit gets `is-na` and stays selectable. The toggles below bind `is-on` to `isForced()` and `is-rec` to `isDeclared()`, mirroring the Background group.
 
 ### Markers
 
@@ -136,7 +138,7 @@ anything inside it would composite into every baseline.
   scaled by the canvas zoom, so an edge moving by `d` changes the width by `2d / zoom`, which keeps the
   grip under the cursor at any zoom level. Each is a handle on a faint 1px guide line that runs the full
   height of the stage. Only the handle is clickable: the line's track is `pointer-events: none`, or it
-  would cover the background pill's Reset button whenever a viewport is on. The handle's hit box is
+  would cover the Reset buttons of the pills whenever a viewport is on. The handle's hit box is
   larger than the mark it draws (`background-clip: content-box` over padding), and the **Width** chooser
   reaches the same presets for anyone who cannot hit a 9px target. The line crosses the specimen, so it
   stays faint and brightens with the handle on hover, drag and focus. Both grips are
@@ -146,7 +148,7 @@ anything inside it would composite into every baseline.
   directions for the same key.
 - **Dimension line**: a horizontal rule in `--prism-measure` spanning the painted width at the top of
   the stage, with the value set into a gap at its centre and a short tick at each end, which make it
-  read as a measurement instead of a divider. It is the middle resident of the overlay band (pill left,
+  read as a measurement instead of a divider. It is the middle resident of the overlay band (pills left,
   rail right) and reads the same `--prism-canvas-overlay-top` as the other two, so enabling rulers
   moves all three together. Its width carries the same `--prism-vp-w * --zoom` product the grips use.
 
@@ -156,8 +158,8 @@ The rail itself prints no width; `zoomTitle()` puts it into the zoom readout's t
 
 Capture mode never restores a persisted width, so a run always starts unconstrained and no viewport
 from an earlier session can leak into a baseline. The grips and the dimension line sit inside the
-renderer's `@if (!capture.active())` block, alongside the crosshair, the rulers and the background
-pill. Capture mode also never _writes_ the width back to storage (`PrismCanvasService.save()` is a
+renderer's `@if (!capture.active())` block, alongside the crosshair, the rulers and the
+pills. Capture mode also never _writes_ the width back to storage (`PrismCanvasService.save()` is a
 no-op while capture is active), so a capture run cannot corrupt the user's stored preference either.
 
 ### Phone layout
@@ -198,19 +200,19 @@ A stored `MeasurePoint` is `.demo-wrap`-local; every rect the overlay reads (`.d
 
 ### Where the overlay sits in the stack
 
-`<prism-canvas-measure>` carries `z-index: 1`, and both the floor and the ceiling are load-bearing. It needs one at all because `.demo-wrap` is `position: relative` with a `transform`, a stacking context of its own, and renders _after_ the overlay in the template: at `z-index: auto` the two paint in tree order, `.demo-wrap` wins, and the overlay's marks disappear behind the specimen while its `pointerdown` never arrives, which takes alt-click anchoring with it. And it has to be the lowest of the stage's overlays (below the background pill at 2, the rulers, grips and dimension line at 4, and the toolrail at 5), because it is the only one that takes pointer events across the stage's whole area: above the pill it covers that pill's Reset button, and above the rail it covers the button that switches the tool back off.
+`<prism-canvas-measure>` carries `z-index: 1`, and both the floor and the ceiling are load-bearing. It needs one at all because `.demo-wrap` is `position: relative` with a `transform`, a stacking context of its own, and renders _after_ the overlay in the template: at `z-index: auto` the two paint in tree order, `.demo-wrap` wins, and the overlay's marks disappear behind the specimen while its `pointerdown` never arrives, which takes alt-click anchoring with it. And it has to be the lowest of the stage's overlays (below the pills at 2, the rulers, grips and dimension line at 4, and the toolrail at 5), because it is the only one that takes pointer events across the stage's whole area: above the pills it covers their Reset buttons, and above the rail it covers the button that switches the tool back off.
 
 Sitting above `.demo-wrap` is also what makes `elementUnderPoint` read the hit list rather than its topmost entry. The overlay is now the topmost hit for every point over the specimen, so `document.elementFromPoint` answers the overlay itself; `document.elementsFromPoint` and the first entry the rendered root contains gives the element actually underneath. The `contains` guard stays either way, because the toolrail and the grips sit above the overlay and would otherwise be snapped to.
 
 ### Core chrome, not a plugin overlay
 
-`<prism-canvas-measure>` sits inside `.prism-canvas-stage` as a sibling of `.demo-wrap`, gated only by `canvasService.measure()` and the same `@if (!capture.active())` guard the crosshair, the rulers and the background pill sit behind, never by which panel is active. A plugin overlay does not have that option: it is rendered as an ordinary Angular component _inside_ `.demo-wrap`, through `NgComponentOutlet` bound to the active panel. Two problems follow from sitting there instead. It is scaled by the same `transform: scale(var(--zoom))` `.demo-wrap` carries, so a label sized at 10px in the overlay's own CSS renders at 5 real screen pixels the moment zoom drops to 50%, the same shrink the specimen itself gets. And it is confined to `.demo-wrap`'s box the way `plugin-box-model`'s own overlay is, whose host sits at `inset: 0` relative to `.demo-wrap` with its own `overflow: hidden`, so a margin box that would extend past the specimen's edge is clipped exactly there. Neither problem is particular to box-model's overlay: both are what any component rendered inside a scaled, bounded box inherits for free, and both are exactly wrong for a tool whose job is comparing two elements that are not necessarily at the same place or the same apparent size on screen.
+`<prism-canvas-measure>` sits inside `.prism-canvas-stage` as a sibling of `.demo-wrap`, gated only by `canvasService.measure()` and the same `@if (!capture.active())` guard the crosshair, the rulers and the pills sit behind, never by which panel is active. A plugin overlay does not have that option: it is rendered as an ordinary Angular component _inside_ `.demo-wrap`, through `NgComponentOutlet` bound to the active panel. Two problems follow from sitting there instead. It is scaled by the same `transform: scale(var(--zoom))` `.demo-wrap` carries, so a label sized at 10px in the overlay's own CSS renders at 5 real screen pixels the moment zoom drops to 50%, the same shrink the specimen itself gets. And it is confined to `.demo-wrap`'s box the way `plugin-box-model`'s own overlay is, whose host sits at `inset: 0` relative to `.demo-wrap` with its own `overflow: hidden`, so a margin box that would extend past the specimen's edge is clipped exactly there. Neither problem is particular to box-model's overlay: both are what any component rendered inside a scaled, bounded box inherits for free, and both are exactly wrong for a tool whose job is comparing two elements that are not necessarily at the same place or the same apparent size on screen.
 
 The deeper reason is architectural rather than visual: a panel overlay is _about_ the active panel, and box-model's overlay only makes sense while the Box Model panel is open. Measuring is not about any panel; it is orthogonal to them, chrome for the whole canvas the way guides and rulers are, rather than for one view. `resolveOverlay()` makes that explicit rather than incidental: it resolves to `{ kind: 'none' }` whenever the measuring tool is active, regardless of which panel is selected, and a lazy panel overlay is never even fetched while it runs, so the two are never competing for the same pointer. The function's own doc calls this a bridge: once the tool can attribute a measured gap to the CSS property that produced it, the box-model plugin has nothing left that it alone can do, and the reason for keeping them apart dissolves with it.
 
 ### The pin row
 
-Pinned measurements render in `<prism-canvas-pin-row>`, a row below the canvas, not in a corner of the stage. The space above the canvas is already spoken for (the background pill on the left, the dimension line in the centre, the toolrail on the right), and a fourth floating surface there would be the first to collide with one of the other three. The row is a direct child of `.prism-canvas-wrap` without a capture guard of its own: capture mode's structural rule removes every child of the wrap that does not contain the stage.
+Pinned measurements render in `<prism-canvas-pin-row>`, a row below the canvas, not in a corner of the stage. The space above the canvas is already spoken for (the pills on the left, the dimension line in the centre, the toolrail on the right), and a fourth floating surface there would be the first to collide with one of the other three. The row is a direct child of `.prism-canvas-wrap` without a capture guard of its own: capture mode's structural rule removes every child of the wrap that does not contain the stage.
 
 ### No keyboard start yet
 
@@ -218,12 +220,29 @@ Keyboard support only operates a draft that already exists: arrow keys nudge (`n
 
 The overlay is exposed as a labelled `group` rather than as an `application` for the same reason: `application` hands every keystroke to the widget and takes a screen-reader user out of browse mode, which would be a bad trade for a key set that cannot start anything. That changes the day the Tab mechanism exists, together with the overlay's `aria-label`.
 
+## Simulation
+
+`PrismSimulationService` holds what the tools menu's **Simulate** group sets: `motion`, `scheme`, `forced` and `vision`, each with a neutral default (`DEFAULT_SIMULATION` in `simulate/simulation.ts`, which also has the labels and the URL and storage parsers). Unlike the override and the toggles it survives a change of variant, component or view, because it describes the environment rather than the cell. `state` is `DEFAULT_SIMULATION` while capture mode is active, whatever was set, so nothing derived from it simulates there. Derived from it are `labels` for the pill (`PrismSimPillComponent`, in the stage under the background pill and above the Overview), `emulated` for the media engines (with an `equal`, so an unchanged emulation is the same object), `schemeGround` and `forcedActive` for the ground, `auditCondition` for the live audit (scheme and forced colors only, which change computed colours) and `scopeRoot` for the scope roots.
+
+**The scope.** The simulation applies to scope roots and what is inside them, never to the shell. A scope root is the host of the shown component, which the renderer and every Overview cell hold with `keepScopeRoot()`, and the CDK overlay container at the body. `applyScopeRoot()` (`simulate/scope-root.ts`) puts `data-prism-sim`, `color-scheme`, the vision `filter` and the class and attributes of the `colorScheme` config on it, records what each replaced, and takes back exactly that. Rewritten stylesheets reach the scope through `SIM_SCOPE` (`[data-prism-sim], .cdk-overlay-container`); `scopeIn()` and `scopeOut()` (`simulate/scope-selector.ts`) add suffixes that weigh nothing and are exact complements, so a rule keeps its specificity and matches inside or outside the scope but never both.
+
+`PrismSimulationRuntimeService`, which the shell starts after the URL and the session have restored the simulation, carries it into the page. Each part runs only while it has something to do and takes back what it changed:
+
+- `MediaStyleSheets` (`simulate/media-stylesheets.ts`), on the pattern of `PseudoStyleSheets`: every `@media` that tests an emulated feature, at any depth, gets a copy right behind it with the emulated answer settled in its condition (`substituteMedia()`) and its selectors scoped in; the original is scoped out. Rules on the document root re-declare their inheritable values on the scope roots. It watches `document.head` for new styles, undoes and forgets a sheet that has left the document (removed component styles, a hot reload), and warns once about what it cannot rewrite.
+- `patchMatchMedia()` (`simulate/match-media-patch.ts`) replaces `window.matchMedia` while a feature is emulated. A query that tests any emulatable feature gets a list that answers for the settled query and fires `change`; every other query gets the browser's own list, so the shell's width query stays real. A list is held weakly until its first `change` listener and from then on until the patch is uninstalled, as the browser keeps a list with listeners alive.
+- The forced colors sheet (`forcedColorsCss()` in `simulate/forced-colors.ts`), adopted after the rewrite and ignored by it. Its rules weigh nothing and are `!important`, so the author's forced-colors copies win against it: the engine makes `!important` what they set of the properties the sheet forces (`FORCED_PROPERTIES`, `isForced()`), and leaves the rest of their declarations as they are. It is rebuilt whenever new styles arrive, since they can bring exemptions or gradients of their own.
+- The overlay containers at the body as scope roots, and the vision filter on the overlays CDK opens in them as popovers (`applyTopLayerFilter()`): the top layer escapes an ancestor's `filter`, while the rest of the scope root reaches it by selector and inheritance.
+
+**The ground.** `playgroundGround()` and `overviewGround()` (`simulate/ground.ts`) fold the scheme into the background (above), and `groundSimulation()` gives the stage and each cell `data-sim-forced` (the ground becomes `Canvas`), `data-sim-vision` with `--prism-sim-filter` (a `::before` copy of the ground drawn through the filter) and, under forced colors, the palette's `color-scheme`. In the Playground `pinGroundLayer()` (`simulate/ground-layer.ts`) keeps that layer over the scrolled-to part of the stage. The live audit hides it, since axe takes it for something that covers the text.
+
+**The audit.** `PrismPanelHostComponent` reads `auditCondition()` in its audit effect, so a change of scheme or forced colors schedules a new audit, and hands the condition to `A11yAuditService.scheduleAudit()`. The service sets `condition` together with the results, so a result never carries a newer condition than it was measured under.
+
 ## URL and Session State
 
-Two services keep what is open across reloads; the user side is under [Links & State](guide/url-state.md). Neither carries canvas setup: zoom, guides, rulers, the measuring toggle and the viewport width are `localStorage` preferences of `PrismCanvasService`, not URL parameters.
+Two services keep what is open across reloads; the user side is under [Links & State](guide/url-state.md). Neither carries canvas setup: zoom, guides, rulers, the measuring toggle and the viewport width are `localStorage` preferences of `PrismCanvasService`, not URL parameters. Both carry the simulation.
 
-`PrismUrlStateService` reads the URL on startup via `window.location.search` and sets the initial navigation state: the component, service, pipe or page, then the variant, then the state (after the variant, which clears it), the view and the part, and the addon panel. It then follows the navigation signals with an effect and calls `history.pushState()` when what is open changes to another component, service, pipe or page, and `replaceState()` when only the variant, state, view, part or panel changes. The query string is built from scratch on every write, so a parameter the app does not own, `capture` included, never survives a navigation. A `popstate` restores from the URL again. With `urlState: false` it neither reads nor writes.
+`PrismUrlStateService` reads the URL on startup via `window.location.search` and sets the initial navigation state: the component, service, pipe or page, then the variant, then the state (after the variant, which clears it), the view and the part, and the addon panel. The simulation is restored first, before anything writes the URL back: at startup only when the URL names it (`hasSimulationParams()`), so that the session's can apply next, and on `popstate` always, absent parameters meaning none. It then follows the navigation signals and the simulation with an effect and calls `history.pushState()` when what is open changes to another component, service, pipe or page, and `replaceState()` when only the variant, state, view, part, panel or simulation changes. `writeSimulationParams()` writes the settings that differ from the default, last. The query string is built from scratch on every write, so a parameter the app does not own, `capture` included, never survives a navigation. A `popstate` restores from the URL again. With `urlState: false` it neither reads nor writes.
 
-`PrismPersistenceService` reads `sessionStorage` (`ng-prism:state`) after the URL service has selected the active component, then applies persisted control values that match the current `className` and variant index. It follows the same signals and writes back debounced (200 ms), skipping a write that would store what is already there. A different schema version, corrupted JSON, an exceeded quota and a missing `sessionStorage` are all handled without crashing the app. With `persistState: false`, and in capture mode, it neither reads nor writes.
+`PrismPersistenceService` reads `sessionStorage` (`ng-prism:state`) after the URL service has selected the active component, then applies persisted control values that match the current `className` and variant index, and the persisted simulation unless the URL names one. It follows the same signals and writes back debounced (200 ms), skipping a write that would store what is already there. A different schema version, corrupted JSON, an exceeded quota and a missing `sessionStorage` are all handled without crashing the app. With `persistState: false`, and in capture mode, it neither reads nor writes.
 
-`PrismShellComponent` initializes both at startup, in this order: `urlStateService.init()`, then `persistenceService.init()`.
+`PrismShellComponent` initializes both at startup, in this order: `urlStateService.init()`, then `persistenceService.init()`, and then `PrismSimulationRuntimeService.init()`, so the runtime starts from the restored simulation.

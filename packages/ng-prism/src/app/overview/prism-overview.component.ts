@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { RuntimeComponent } from '../../plugin/plugin.types.js';
+import { PrismSimPillComponent } from '../canvas/prism-sim-pill.component.js';
 import { PrismOverviewCellComponent } from './prism-overview-cell.component.js';
 import { PrismOverviewMatrixComponent } from './prism-overview-matrix.component.js';
 
@@ -12,12 +13,15 @@ import { PrismOverviewMatrixComponent } from './prism-overview-matrix.component.
  *
  * A component that declares `states` gets the matrix instead, variants against
  * states. Without states the sheet stays what it was.
+ *
+ * What the canvas simulates shows in one pill above either, since every cell
+ * is drawn under it.
  */
 @Component({
     selector: 'prism-overview',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [PrismOverviewCellComponent, PrismOverviewMatrixComponent],
+    imports: [PrismOverviewCellComponent, PrismOverviewMatrixComponent, PrismSimPillComponent],
     host: {
         // Hands the panel's height down to the matrix, which scrolls on its own.
         '[attr.data-matrix]': "hasStates() ? '' : null"

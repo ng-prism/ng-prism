@@ -499,6 +499,27 @@ export interface DiscoveryPage {
 
 // --- defineConfig types ---
 
+/**
+ * What a theme switched by a class or an attribute needs on the shown
+ * component for one color scheme. Since 22.8.0.
+ */
+export interface NgPrismColorSchemeTarget {
+    /** A class such as `'dark'`, or several separated by spaces. */
+    class?: string;
+    /**
+     * Attributes and their values, such as `{ 'data-mode': 'dark' }`. `class`,
+     * `style` and `data-prism-sim` are the simulation's own and left out, as is
+     * a name the DOM rejects, with a warning in dev mode.
+     */
+    attributes?: Readonly<Record<string, string>>;
+}
+
+/** The {@link NgPrismColorSchemeTarget} per emulated color scheme, see {@link NgPrismConfig.colorScheme}. Since 22.8.0. */
+export interface NgPrismColorSchemeConfig {
+    light?: NgPrismColorSchemeTarget;
+    dark?: NgPrismColorSchemeTarget;
+}
+
 export interface NgPrismConfig {
     plugins?: NgPrismPlugin[];
     pages?: StyleguidePage[];
@@ -539,6 +560,31 @@ export interface NgPrismConfig {
     };
     /** Accessibility (build-time audit + runtime live audit) configuration. */
     a11y?: import('../app/panels/a11y/a11y.types.js').NgPrismA11yConfig;
+    /**
+     * Switches a theme that hangs on a class or an attribute along with the
+     * color scheme the canvas simulates. While it emulates `light` or `dark`,
+     * the shown component's host element and the CDK overlay container get the
+     * class and the attributes named for that scheme, on top of the emulated
+     * `prefers-color-scheme` and `color-scheme`. Under `System` they get
+     * neither, and the component has its own classes and attributes back.
+     *
+     * Selectors such as `.dark .btn`, `:host-context(.dark)` or
+     * `[data-mode='dark'] .btn` follow it. A theme keyed on `:root`, `html` or
+     * `body` does not work: setting it there would hit the styleguide's own UI
+     * too. Avoid `data-theme` as well: the shell still sets it on `<html>`
+     * (deprecated since 22.8.0, removed in 23.0.0; its own theme is
+     * `data-prism-theme`), so the rules of both themes would match.
+     *
+     * ```ts
+     * colorScheme: {
+     *     dark: { class: 'dark' },
+     *     light: { attributes: { 'data-mode': 'light' } }
+     * }
+     * ```
+     *
+     * Since 22.8.0.
+     */
+    colorScheme?: NgPrismColorSchemeConfig;
     /**
      * When true, the build fails instead of warning whenever the scanner has
      * to drop a `@Showcase` value: one it cannot evaluate statically, an

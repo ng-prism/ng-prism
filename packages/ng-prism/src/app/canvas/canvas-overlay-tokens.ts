@@ -55,16 +55,18 @@ export function railToggleTitle(label: string, on: boolean): string {
     return `${label}: ${on ? 'on' : 'off'}`;
 }
 
-/** What the tools menu holds, the name of the menu and of its trigger. */
-export const TOOLS_LABEL = 'Canvas, state, zoom and width';
+/** What the tools menu holds, the name of the menu and of its trigger: its groups, in menu order. */
+export const TOOLS_LABEL = 'Background, state, zoom, width and simulate';
 
 /**
- * The tools trigger's name and tooltip: the menu, plus what is set in it on top
- * of the variant, an active state (`stateName`) or a toggled pseudo state. The
- * dot on the trigger marks the same while the menu is closed.
+ * The tools trigger's name and tooltip: the menu, plus what is set in it, an
+ * active state (`stateName`), a toggled pseudo state or a simulation. The dot
+ * on the trigger marks the same while the menu is closed.
  */
-export function toolsTitle(stateName: string | null, toggled: boolean): string {
-    const set = [stateName === null ? null : `${stateName} active`, toggled ? 'pseudo states toggled' : null].filter((part) => part !== null);
+export function toolsTitle(stateName: string | null, toggled: boolean, simulating: boolean): string {
+    const set = [stateName === null ? null : `${stateName} active`, toggled ? 'pseudo states toggled' : null, simulating ? 'simulation on' : null].filter(
+        (part) => part !== null
+    );
 
     return set.length === 0 ? TOOLS_LABEL : `${TOOLS_LABEL} (${set.join(', ')})`;
 }

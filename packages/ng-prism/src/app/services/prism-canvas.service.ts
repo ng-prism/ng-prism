@@ -10,6 +10,18 @@ const STORAGE_KEY = 'ng-prism-canvas';
 @Injectable({ providedIn: 'root' })
 export class PrismCanvasService {
     readonly bg = signal<CanvasBg>('dots');
+
+    private readonly _bgChosen = signal(false);
+
+    /**
+     * Whether the user picked the canvas background, as opposed to it being the
+     * default `dots`.
+     *
+     * The value alone cannot tell them apart, and the difference matters once
+     * an emulated color scheme moves the ground: a default ground follows it, a
+     * picked one stays, `dots` included.
+     */
+    readonly bgChosen = this._bgChosen.asReadonly();
     readonly zoom = signal(1);
     readonly guides = signal(false);
     readonly rulers = signal(false);
@@ -60,6 +72,7 @@ export class PrismCanvasService {
 
     setBg(bg: CanvasBg): void {
         this.bg.set(bg);
+        this._bgChosen.set(true);
         this.save();
     }
 
@@ -109,6 +122,9 @@ export class PrismCanvasService {
             if (CANVAS_BGS.includes(d['bg'] as CanvasBg)) {
                 this.bg.set(d['bg'] as CanvasBg);
             }
+            // Storage from before the flag existed has none: any background but
+            // the default can only have been picked.
+            this._bgChosen.set(typeof d['bgChosen'] === 'boolean' ? d['bgChosen'] : this.bg() !== 'dots');
             if (typeof d['zoom'] === 'number') this.zoom.set(d['zoom']);
             if (typeof d['guides'] === 'boolean') this.guides.set(d['guides']);
             if (typeof d['rulers'] === 'boolean') this.rulers.set(d['rulers']);
@@ -131,6 +147,7 @@ export class PrismCanvasService {
                 STORAGE_KEY,
                 JSON.stringify({
                     bg: this.bg(),
+                    bgChosen: this._bgChosen(),
                     zoom: this.zoom(),
                     guides: this.guides(),
                     rulers: this.rulers(),

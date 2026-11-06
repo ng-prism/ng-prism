@@ -76,7 +76,7 @@ import { PrismIconComponent } from '@ng-prism/core';
 
 `ICON_NAMES` (`readonly string[]`) lists the valid names. It comes from a module without dependencies, so a plugin's Node entry can import it from `@ng-prism/core/plugin` to check or name an icon without loading Angular components. The names:
 
-`search`, `refresh-cw`, `bell`, `sun`, `moon`, `more-horizontal`, `more-vertical`, `chevron-down`, `chevron-right`, `pin`, `box`, `sliders-horizontal`, `zap`, `accessibility`, `file-text`, `figma`, `box-select`, `activity`, `shield-check`, `camera`, `move`, `crosshair`, `ruler-dimension`, `ruler`, `copy`, `maximize-2`, `eye`, `code`, `x`, `menu`, `check`, `info`, `circle-dashed`, `plug`, `pipette`.
+`search`, `refresh-cw`, `bell`, `sun`, `moon`, `more-horizontal`, `more-vertical`, `chevron-down`, `chevron-right`, `pin`, `box`, `sliders-horizontal`, `zap`, `accessibility`, `file-text`, `figma`, `box-select`, `mouse-pointer`, `mouse-pointer-click`, `scan`, `keyboard`, `activity`, `shield-check`, `camera`, `move`, `crosshair`, `ruler-dimension`, `ruler`, `copy`, `maximize-2`, `eye`, `code`, `x`, `menu`, `check`, `info`, `circle-dashed`, `plug`, `pipette`.
 
 ## UI primitives
 

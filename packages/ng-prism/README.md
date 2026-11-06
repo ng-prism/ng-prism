@@ -18,6 +18,7 @@
 - **Plugin architecture**: JSDoc, Figma, Performance, Box Model, Coverage, Visual Regression
 - **Live Controls**: auto-generated input controls with type-aware editors
 - **Code Snippets**: live-updating Angular template snippets per variant
+- **Simulate**: show the component under reduced motion, a light or dark color scheme, an approximation of forced colors or a colour vision deficiency, without touching the styleguide around it
 - **Component Pages**: free-form demo pages for complex components
 - **Deep-linking**: URL state sync for sharing specific component/variant/view
 - **Themeable**: full CSS custom property system, and plugins add panels, header widgets and controls of their own

@@ -11,10 +11,12 @@ export function pseudoStateClass(state: PseudoState): string {
 const FORCEABLE: ReadonlySet<string> = new Set(PSEUDO_STATES);
 
 /** CSS 2 pseudo-elements, which still parse with a single colon. */
-const LEGACY_PSEUDO_ELEMENTS: ReadonlySet<string> = new Set(['before', 'after', 'first-line', 'first-letter']);
+export const LEGACY_PSEUDO_ELEMENTS: ReadonlySet<string> = new Set(['before', 'after', 'first-line', 'first-letter']);
+
+/** CSS whitespace, which is what separates compounds when no other combinator does. */
+export const WHITESPACE = /[ \t\n\r\f]/;
 
 const HEX_DIGIT = /[0-9a-f]/i;
-const WHITESPACE = /[ \t\n\r\f]/;
 const IDENT_CHAR = /[a-z0-9_-]/i;
 
 /**
@@ -85,7 +87,7 @@ export function rewritePseudoSelector(selectorText: string): string | null {
 }
 
 /** End of the escape starting at `start`: a hex escape takes up to six digits and one whitespace character. */
-function escapeEnd(s: string, start: number): number {
+export function escapeEnd(s: string, start: number): number {
     let i = start + 1;
 
     if (i >= s.length) return i;
@@ -95,7 +97,8 @@ function escapeEnd(s: string, start: number): number {
     return i < s.length && WHITESPACE.test(s[i]) ? i + 1 : i;
 }
 
-function identEnd(s: string, start: number): number {
+/** End of the identifier starting at `start`, escapes included. */
+export function identEnd(s: string, start: number): number {
     let i = start;
 
     while (i < s.length) {
@@ -110,7 +113,8 @@ function identEnd(s: string, start: number): number {
     return i;
 }
 
-function stringEnd(s: string, start: number): number {
+/** End of the string starting at `start`, which is a quote. */
+export function stringEnd(s: string, start: number): number {
     const quote = s[start];
     let i = start + 1;
 
@@ -122,7 +126,8 @@ function stringEnd(s: string, start: number): number {
     return i;
 }
 
-function attributeEnd(s: string, start: number): number {
+/** End of the attribute selector starting at `start`, which is its `[`. */
+export function attributeEnd(s: string, start: number): number {
     let i = start + 1;
 
     while (i < s.length) {

@@ -49,6 +49,36 @@
     outline-offset: 1px;
 }
 
+/* Forced colors and vision paint the ground as on the Playground's stage,
+   where prism-renderer.component.css says why. The class outweighs the
+   [data-bg] rules of CANVAS_BG_STYLES. A state that does not fit sets
+   neither attribute: it paints no ground. */
+.cell__stage[data-sim-forced] {
+    background-color: Canvas;
+    background-image: none;
+}
+
+/* The containing block of the ground layer: nothing above the cell is
+   positioned, so without it the layer would cover the document. */
+.cell__stage[data-sim-vision] {
+    position: relative;
+}
+
+/* First box of the stage, so .cell__mount, positioned, paints over it. The
+   frame is an outline, painted before it, so the clip leaves its 1px and the
+   rounded corner free. Unlike the Playground's, the layer needs no pin (the
+   cell does not scroll) and no exception for the live audit (it audits the
+   Playground only). */
+.cell__stage[data-sim-vision]::before {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    content: '';
+    background: inherit;
+    filter: var(--prism-sim-filter);
+    clip-path: inset(1px round calc(var(--radius-sm) - 1px));
+}
+
 /* The containing block for whatever the component positions absolutely, as
    .demo-wrap is in the Playground. Nothing above the cell is positioned, so
    such an element would resolve against the document root, escape every

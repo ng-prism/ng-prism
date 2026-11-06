@@ -1,18 +1,13 @@
-/* Top left, opposite the tool rail. Both used to claim the right corner and
-   the rail won, hiding a notice whose whole job is to be noticed. The rail
-   is permanent and the notice is not, so the permanent thing keeps the
-   corner it sits in and this moves. Nothing else occupies the left corner:
-   the zoom badge that used to live here was a duplicate of the readout the
-   rail carries. */
+/* Where it sits is the stage's business: .stage-pills in the renderer stacks
+   this pill and the simulation pill in the top left corner. A flex box, so
+   that its pill is a flex item there, and nothing at all while it is hidden:
+   the container's gap would count an empty host. */
 :host {
-    position: absolute;
-    top: var(--prism-canvas-overlay-top, 12px);
-    left: var(--prism-canvas-overlay-inline, 20px);
-    z-index: 2;
-    pointer-events: none;
-    transition:
-        top var(--dur-base),
-        left var(--dur-base);
+    display: flex;
+}
+
+:host:empty {
+    display: none;
 }
 
 .prism-bg-pill {

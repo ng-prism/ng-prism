@@ -1,4 +1,5 @@
 @if (activeComponent(); as component) {
+    <prism-sim-pill class="prism-overview__sim" />
     @if (hasStates()) {
         <prism-overview-matrix [component]="component" />
     } @else {

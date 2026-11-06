@@ -17,7 +17,7 @@ import {
 import type { RuntimeComponent } from '../../plugin/plugin.types.js';
 import { PRISM_VARIANT_INPUT } from '../../shared/composition.js';
 import type { ForcedPseudoStates } from '../../shared/pseudo-state.type.js';
-import { resolveVariantBg } from '../../shared/variant-bg.js';
+import { declaredVariantBg } from '../../shared/variant-bg.js';
 import { CANVAS_BG_STYLES } from '../canvas/canvas-bg.styles.js';
 import type { StateFit } from '../pseudo/state-fit.js';
 import { activeCase, renderTypeFor } from '../renderer/composition.js';
@@ -26,6 +26,9 @@ import { parseContentToNodes } from '../renderer/projectable-content.js';
 import { PrismPanelService } from '../services/prism-panel.service.js';
 import { PrismPseudoStateService } from '../services/prism-pseudo-state.service.js';
 import { computeVariantState, PrismRendererService } from '../services/prism-renderer.service.js';
+import { PrismSimulationService } from '../services/prism-simulation.service.js';
+import { groundSimulation, NO_GROUND_SIMULATION, overviewGround } from '../simulate/ground.js';
+import { keepScopeRoot } from '../simulate/keep-scope-root.js';
 import { isPlaygroundCombination, openInPlayground, playgroundLabel } from './open-in-playground.js';
 
 /**
@@ -88,13 +91,18 @@ export class PrismOverviewCellComponent {
     private readonly destroyRef = inject(DestroyRef);
     private readonly renderer = inject(PrismRendererService);
     private readonly panels = inject(PrismPanelService);
+    private readonly simulation = inject(PrismSimulationService);
     private readonly pseudoMarker = inject(PrismPseudoStateService).createMarker();
     private readonly outlet = viewChild.required('outlet', {
         read: ViewContainerRef
     });
 
-    /** Never null: `resolveVariantBg` falls back to `DEFAULT_VARIANT_BG`. */
-    protected readonly bg = computed(() => resolveVariantBg(this.component().meta.showcaseConfig, this.index()));
+    /**
+     * Never null: without a declaration, the emulated color scheme, or
+     * `DEFAULT_VARIANT_BG`. Not `resolveVariantBg`, which the discovery manifest
+     * reports and which must not depend on the session.
+     */
+    protected readonly bg = computed(() => overviewGround(declaredVariantBg(this.component().meta.showcaseConfig, this.index()), this.simulation.schemeGround()));
 
     protected readonly caption = computed(() => {
         const variant = this.component().meta.showcaseConfig.variants?.[this.index()];
@@ -110,6 +118,14 @@ export class PrismOverviewCellComponent {
 
     /** Why the state is not shown on this cell, `null` while the component is. */
     protected readonly unfitReason = signal<string | null>(null);
+
+    /** The host of the instance on the stage, `null` without one: the scope root of the simulation in this cell. */
+    private readonly mounted = signal<Element | null>(null);
+
+    /** How the simulation paints the cell's ground; not at all while a state does not fit, as the cell paints no ground then. */
+    protected readonly ground = computed(() =>
+        this.unfitReason() === null ? groundSimulation(this.simulation.scopeRoot(), this.simulation.forcedActive()) : NO_GROUND_SIMULATION
+    );
 
     protected readonly label = computed(() => {
         const config = this.component().meta.showcaseConfig;
@@ -149,6 +165,8 @@ export class PrismOverviewCellComponent {
             });
         });
 
+        keepScopeRoot(this.mounted);
+
         this.destroyRef.onDestroy(() => {
             this.pseudoMarker.clear();
             this.outlet().clear();
@@ -179,6 +197,7 @@ export class PrismOverviewCellComponent {
     // has no state or the variant failed to render.
     private mount(component: RuntimeComponent, index: number, stateIndex: number | null): StateFit | null {
         this.unfitReason.set(null);
+        this.mounted.set(null);
 
         try {
             this.outlet().clear();
@@ -210,6 +229,7 @@ export class PrismOverviewCellComponent {
                 projectableNodes
             });
 
+            this.mounted.set(ref.location.nativeElement);
             if (composed) ref.setInput(PRISM_VARIANT_INPUT, index);
             const inputBindings = buildInputBindings(component, index);
 
@@ -234,6 +254,7 @@ export class PrismOverviewCellComponent {
             // that says something else.
             this.pseudoMarker.clear();
             this.outlet().clear();
+            this.mounted.set(null);
             return this.unfit(fit.reason);
         } catch (error) {
             // `createComponent` attaches the host element and its structural DOM
@@ -246,6 +267,7 @@ export class PrismOverviewCellComponent {
             // with no indication of which cell caused it.
             this.pseudoMarker.clear();
             this.outlet().clear();
+            this.mounted.set(null);
             console.error(`[ng-prism] Variant ${index} of ${component.meta.className} failed to render:`, error);
             return null;
         }

@@ -29,6 +29,7 @@ A lightweight, Angular-native component showcase tool. Annotate your components 
 - **No iframe:** components render in the same document, so dialogs, overlays and CDK portals work out of the box
 - **Read at build time:** the TypeScript compiler extracts inputs, outputs and types, without runtime reflection, see [What the Scanner Reads](guide/scanner-reads.md)
 - **Accessibility built in:** every variant gets a live axe-core audit, and a library-wide report can gate the build, see [Accessibility Panel](guide/accessibility.md) and [A11y Reports](guide/a11y-reports.md)
+- **Simulate:** the canvas shows a component under reduced motion, a light or dark color scheme, forced colors or a colour vision deficiency, without touching the styleguide around it, see [Simulate](guide/styleguide-ui.md#simulate)
 - **Plugins:** API pages from JSDoc, Figma designs, the box model, performance, test coverage and visual regression, or a plugin of your own, see [Overview](plugins/overview.md)
 - **Compositions:** a component with the parts it works with, such as a form field with its input, as a compiled Angular template, see [Compositions](guide/compositions.md)
 - **Parts:** a component that only works inside another, such as an option in a select, shows on its parent's page, see [Parts](guide/parts.md)

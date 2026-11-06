@@ -150,7 +150,7 @@ The methods save the layout; setting a signal directly does not.
 
 ## PrismThemeService
 
-The colour mode and the theme tokens. It keeps the mode in `localStorage` under the key `ng-prism-theme`, sets `data-theme` on `<html>`, writes the resolved tokens onto `document.documentElement` and sets the favicon.
+The colour mode and the theme tokens. It keeps the mode in `localStorage` under the key `ng-prism-theme`, sets `data-prism-theme` on `<html>` (since 22.8.0) and `data-theme` with the same value (deprecated since 22.8.0, removed in 23.0.0), writes the resolved tokens onto `document.documentElement` and sets the favicon.
 
 | Member                         | Type                                | Description                                                                                                                                                                                                                                                                          |
 | ------------------------------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -180,7 +180,7 @@ The definitions are described in [NgPrismPlugin](api/ng-prism-plugin.md).
 
 ## PrismUrlStateService
 
-Keeps what is open in the URL: the component, service, pipe or page, the variant, the state, the view, the part and the addon panel, see [URL parameters](guide/url-state.md#url-parameters).
+Keeps what is open in the URL: the component, service, pipe or page, the variant, the state, the view, the part and the addon panel, and what the canvas simulates, see [URL parameters](guide/url-state.md#url-parameters).
 
 | Member   | Type   | Description                                                                                                                                                           |
 | -------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -188,11 +188,11 @@ Keeps what is open in the URL: the component, service, pipe or page, the variant
 
 ## PrismPersistenceService
 
-Keeps the input values of each component visited, with the variant they belong to, and the active tab and perspective of the A11y panel, in `sessionStorage` under the key `ng-prism:state`.
+Keeps the input values of each component visited, with the variant they belong to, the active tab and perspective of the A11y panel, and what the canvas simulates, in `sessionStorage` under the key `ng-prism:state`.
 
-| Member   | Type   | Description                                                                                                                                                                                                                                                                                                                                                       |
-| -------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `init()` | `void` | Restores the input values of the open component when its variant is the stored one, then saves every change, 200 ms after the last one. Does nothing when [`persistState`](api/ng-prism-config.md#persiststate) is `false` and in capture mode. An unreadable entry, a full storage or a browser without `sessionStorage` leave the styleguide working without it |
+| Member   | Type   | Description                                                                                                                                                                                                                                                                                                                                                                                                    |
+| -------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `init()` | `void` | Restores the input values of the open component when its variant is the stored one, and the simulation unless the URL names one, then saves every change, 200 ms after the last one. Does nothing when [`persistState`](api/ng-prism-config.md#persiststate) is `false` and in capture mode. An unreadable entry, a full storage or a browser without `sessionStorage` leave the styleguide working without it |
 
 `PrismShellComponent` calls `PrismUrlStateService.init()` and then `PrismPersistenceService.init()` at startup. Layout, theme and canvas settings are kept by their own services in `localStorage`. What survives a reload, and how, is described in [Links & State](guide/url-state.md).
 

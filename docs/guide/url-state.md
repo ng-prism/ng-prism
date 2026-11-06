@@ -2,8 +2,8 @@
 
 ng-prism keeps the UI state alive across full-page reloads, which helps a lot during component-driven development. Two layers cooperate:
 
-- **URL** carries shareable state (component, service or pipe, variant, state, view, the part a view shows, panel tab), so links are bookmarkable and deep-linkable.
-- **sessionStorage** carries per-session state (the values you changed in the Controls panel, the a11y sub-tab) and keeps it off the URL.
+- **URL** carries shareable state (component, service or pipe, variant, state, view, the part a view shows, panel tab, and what the canvas simulates), so links are bookmarkable and deep-linkable.
+- **sessionStorage** carries per-session state (the values you changed in the Controls panel, the a11y sub-tab, and the simulation) and keeps the control values off the URL.
 
 When a change in your library reloads the page, you land back on the same component, the same variant, with the same control values applied. No more clicking your way back to where you were.
 
@@ -20,6 +20,10 @@ When a change in your library reloads the page, you land back on the same compon
 | `view`      | `?view=overview`               | Active view tab: `overview`, `jsdoc` for the API tab of the JSDoc plugin, or the id of another view panel. Omitted for the Playground                                                 |
 | `part`      | `?part=OptionComponent`        | The [part](guide/parts.md) of the component that the active view shows, as its class name (since 22.7.0), `~2` appended for a second part of the same class name. See [Parts](#parts) |
 | `panel`     | `?panel=a11y`                  | Active tab of the addons panel (default: `controls`, omitted when default)                                                                                                            |
+| `motion`    | `?motion=reduce`               | The [simulated](guide/styleguide-ui.md#simulate) motion preference, `reduce` (since 22.8.0). Omitted for `System`. See [Simulation](#simulation)                                      |
+| `scheme`    | `?scheme=dark`                 | The simulated color scheme, `light` or `dark` (since 22.8.0). Omitted for `System`                                                                                                    |
+| `forced`    | `?forced=active`               | Simulated forced colors, `active` (since 22.8.0). Omitted for `Off`                                                                                                                   |
+| `vision`    | `?vision=deuteranopia`         | The simulated vision: `protanopia`, `deuteranopia`, `tritanopia`, `achromatopsia` or `blurred` (since 22.8.0). Omitted for `None`                                                     |
 | `capture`   | `?capture=1`                   | Read-only input flag. Enables [capture isolation mode](guide/external-tooling.md#capture-isolation-mode) for screenshot tooling. Never written back to the URL.                       |
 
 Example URL:
@@ -56,6 +60,19 @@ A [part](guide/parts.md) (`@Showcase({ partOf })`, since 22.7.0) has no page of 
 - **Switching the component or the view removes `part`.** It marks where the reader was sent to, not a setting that follows them. Coming back to the same component and view inside the app does not scroll to the part again. The browser's back and forward buttons restore a history entry as it was, `part` included, so going back to an entry with a part scrolls to it.
 - **`part` is not persisted.** Like the other navigation parameters it lives in the URL only, not in `sessionStorage`.
 
+## Simulation
+
+`motion`, `scheme`, `forced` and `vision` carry what the [Simulate](guide/styleguide-ui.md#simulate) group of the tools menu sets (since 22.8.0). They come last in the query string:
+
+```
+http://localhost:4400/?component=ButtonComponent&scheme=dark&vision=deuteranopia
+```
+
+- **Only what differs from the default is written**, so a URL without a simulation has none of them.
+- **A link that names any of them sets the whole simulation.** A setting it leaves out is off, and the simulation kept in the session does not apply. An unknown value counts as left out, so it costs only its own setting.
+- **A change of the simulation rewrites the current history entry** and never adds one. The back and forward buttons restore the simulation of the entry they open, and an entry without these parameters has none.
+- **Capture mode ignores them**: a capture never simulates, see [Capture Isolation Mode](guide/external-tooling.md#capture-isolation-mode).
+
 ## Deep-Linking
 
 Share a URL pointing directly to a specific component and variant. Anyone opening the link lands on the same state.
@@ -74,7 +91,7 @@ The state is part of the address next to the variant. It goes from the URL when 
 
 ## Browser Back/Forward
 
-Selecting another component or page pushes a new browser history entry. Changing the variant, the state, the view, the shown part or the panel tab rewrites the current entry instead, so stepping through variants does not fill the history. The browser back and forward buttons move between components and pages, and an entry holds the variant, state, view, part and panel its component was last left in.
+Selecting another component or page pushes a new browser history entry. Changing the variant, the state, the view, the shown part, the panel tab or the simulation rewrites the current entry instead, so stepping through variants does not fill the history. The browser back and forward buttons move between components and pages, and an entry holds the variant, state, view, part, panel and simulation its component was last left in.
 
 A component you select in the sidebar opens on the Playground, see [Tour of the UI](guide/styleguide-ui.md#playground-overview-and-api). A link, a reload and the back and forward buttons open the view their URL names, so going back returns to the Overview or API tab an entry was left on. The sidebar scrolls to the entry they open, see [Sidebar](guide/styleguide-ui.md#sidebar).
 
@@ -84,6 +101,7 @@ URL state does not carry the values you change in the Controls panel, since long
 
 - Control values, one entry per component class with the variant they belong to. Each component keeps its own entry; switching components does not discard the others.
 - The active sub-tab of the A11y panel (`violations` | `keyboard` | `tree` | `sr`).
+- What the canvas [simulates](guide/styleguide-ui.md#simulate) (since 22.8.0). It applies when the URL names no simulation; a link that names one wins, see [Simulation](#simulation). A new session starts without one.
 
 Writes are debounced by 200 ms, so rapid keystrokes in a text input do not thrash storage. On reload, a component's control values are applied only if their variant is still the one restored from the URL. That keeps stale values from leaking into a different variant. Capture mode reads none of this, so a screenshot shows the variant as declared.
 
@@ -98,11 +116,11 @@ import { defineConfig } from '@ng-prism/core/config';
 
 export default defineConfig({
     urlState: false, // disables URL sync
-    persistState: false // disables sessionStorage for controls + a11y
+    persistState: false // disables sessionStorage for controls, a11y and the simulation
 });
 ```
 
-When `urlState` is `false`, the URL never changes and no state is read from it on load. When `persistState` is `false`, control values and the a11y sub-tab reset on every reload.
+When `urlState` is `false`, the URL never changes and no state is read from it on load, so the simulation lasts through the session only. When `persistState` is `false`, control values and the a11y sub-tab reset on every reload, and the simulation is kept by the URL only.
 
 ## Related
 

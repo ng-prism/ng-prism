@@ -85,6 +85,13 @@ the Node way, without tsconfig `paths`.
 - `a11y`: report path, `thresholds` (grade the header pill, navigation markers and gauges) and `gate` (since 22.7:
   the limits the build fails on; left out it is `thresholds`, `false` never fails, e.g. when CI gates on its own; the
   dev server only warns) for the accessibility audit (`api/ng-prism-config.md`).
+- `colorScheme` (since 22.8): for a library whose theme hangs on a class or an attribute rather than on
+  `prefers-color-scheme`, e.g. `colorScheme: { dark: { class: 'dark' }, light: { attributes: { 'data-mode': 'light' } } }`.
+  While the tools menu's Simulate group emulates the color scheme Light or Dark, the shown component's host and the CDK
+  overlay container get that class and those attributes, so `.dark .btn` and `:host-context(.dark)` follow. A theme
+  keyed on `:root`, `html` or `body` can't be switched this way (it would switch the styleguide too). The attribute
+  names `class`, `style` and `data-prism-sim` are left out with a console warning; avoid `data-theme`, which the
+  styleguide still sets on `<html>` until 23.0. A library that themes through `prefers-color-scheme` needs nothing.
 - `strictShowcase` (default `false`): a dropped `@Showcase` value fails the build instead of warning.
 
 `ui`, `appComponent`, `themeStylesheet` and `headless` are in the typings, but nothing has ever read them; they are
@@ -133,8 +140,10 @@ itself. Keep the core and every plugin on the same version: plugins require `@ng
 
 Theme values are CSS custom properties, set inline on `<html>`. The order: built-in tokens, the built-in dark or light
 theme, `darkTheme` / `lightTheme`, then `theme`, which wins in both modes. Dark is the default; the user's choice is
-stored in localStorage (`ng-prism-theme`). The main tokens: `--prism-primary` (text and indicators; overriding it
-alone also recolours the fills `--prism-primary-fill`, `-fill-hover` and `--prism-toggle-on`), `--prism-on-primary`
+stored in localStorage (`ng-prism-theme`) and set on `<html>` as `data-prism-theme="dark|light"` (since 22.8; the old
+`data-theme` is deprecated, removed in 23.0): key styles of a component page or a plugin panel on `data-prism-theme`.
+The main tokens: `--prism-primary` (text and indicators; overriding it alone also recolours the fills
+`--prism-primary-fill`, `-fill-hover` and `--prism-toggle-on`), `--prism-on-primary`
 (text on a fill; set it with a light primary of your own), `--prism-accent`, `--prism-bg`, `--prism-bg-surface`,
 `--prism-bg-elevated`, `--prism-text`, `--prism-text-muted`, `--prism-border`, `--prism-success`, `--prism-warn`,
 `--prism-danger`, `--prism-font-sans`, `--prism-font-mono`. The header is a navy brand band in both modes and renders
@@ -171,6 +180,10 @@ In Nx, a target with `"command": "npx ng-prism-strip dist/<path>"` and `"depends
   `--prism-primary-fill`, the `--prism-mark-*`, `--prism-spectrum` and `--prism-primary-from/-to` tokens are deprecated
   (the build names any override of them), and `PanelBadge.variant` gives way to `kind`. See
   `guide/upgrade-notes-22.md#upgrading-to-2270`.
+- 22.8.0 changes nothing in a config or a showcase. `data-theme` on `<html>` is deprecated: replace it with
+  `data-prism-theme` in the styleguide app's own styles and scripts (an attribute can't warn, so search for it). The
+  tools menu's first group is called Background now and its button `Background, state, zoom, width and simulate`,
+  which matters only to end-to-end tests that find them by name. See `guide/upgrade-notes-22.md#upgrading-to-2280`.
 - Update the core and all plugins in one call: `ng update @ng-prism/core @ng-prism/plugin-jsdoc …`.
 - The migrations to v22 (manifest moved to `ng-prism-cache/`, `.ng-prism/` renamed) read `angular.json` only; in an Nx
   workspace apply them by hand following `guide/migration-v22.md`. They need Angular CLI 22 and a Node version it
@@ -180,4 +193,5 @@ In Nx, a target with `"command": "npx ng-prism-strip dist/<path>"` and `"depends
 
 - `guide/installation.md`, `guide/configuration.md`, `api/ng-prism-config.md`, `api/builders.md`
 - `plugins/overview.md` and one page per plugin (`plugins/jsdoc.md`, `plugins/figma.md`, …)
-- `guide/theming.md`, `guide/library-publishing.md`, `guide/upgrade-notes-22.md`, `guide/migration-v22.md`
+- `guide/theming.md`, `guide/styleguide-ui.md#simulate` (what `colorScheme` serves), `guide/library-publishing.md`,
+  `guide/upgrade-notes-22.md`, `guide/migration-v22.md`

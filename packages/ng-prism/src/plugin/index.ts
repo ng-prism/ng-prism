@@ -14,6 +14,8 @@ export type {
     InputMeta,
     NavigationDecoration,
     NavigationDecorationDefinition,
+    NgPrismColorSchemeConfig,
+    NgPrismColorSchemeTarget,
     NgPrismConfig,
     NgPrismPlugin,
     OutputMeta,

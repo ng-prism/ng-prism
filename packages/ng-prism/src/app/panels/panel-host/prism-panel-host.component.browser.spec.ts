@@ -4,8 +4,12 @@ import { signal, ɵresolveComponentResources as resolveComponentResources } from
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { PrismMobileLayoutService } from '../../services/prism-mobile-layout.service.js';
+import { PrismNavigationService } from '../../services/prism-navigation.service.js';
 import { PrismPanelService } from '../../services/prism-panel.service.js';
+import { PrismRendererService } from '../../services/prism-renderer.service.js';
+import { PrismSimulationService } from '../../services/prism-simulation.service.js';
 import { PRISM_MANIFEST } from '../../tokens/prism-tokens.js';
+import { A11yAuditService } from '../a11y/a11y-audit.service.js';
 import { PrismPanelHostComponent } from './prism-panel-host.component.js';
 
 /** A classic-decorator double for the tab bar, whose signal inputs the JIT compiler of these specs cannot see. */
@@ -79,5 +83,52 @@ describe('PrismPanelHostComponent: folding on a phone', () => {
 
         expect(mobileLayout.onPanelTab).not.toHaveBeenCalled();
         expect(mobileLayout.expandPanel).not.toHaveBeenCalled();
+    });
+});
+
+describe('PrismPanelHostComponent: the live audit', () => {
+    const element = document.createElement('div');
+    const condition = signal<string | null>(null);
+    const audit = { scheduleAudit: jest.fn(), clear: jest.fn(), scoreResult: signal(null), condition: signal(null) };
+    let fixture: ComponentFixture<PrismPanelHostComponent>;
+
+    beforeEach(async () => {
+        audit.scheduleAudit.mockClear();
+        condition.set(null);
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+            providers: [
+                { provide: PRISM_MANIFEST, useValue: { components: [] } },
+                { provide: A11yAuditService, useValue: audit },
+                { provide: PrismSimulationService, useValue: { auditCondition: condition } },
+                { provide: PrismNavigationService, useValue: { activeComponent: signal({ meta: { inputs: [], showcaseConfig: {} } }) } },
+                {
+                    provide: PrismRendererService,
+                    useValue: { renderedElement: signal(element), inputValues: signal({}), activeVariantIndex: signal(0) }
+                }
+            ]
+        });
+        await resolveComponentResources(readAppResource);
+        TestBed.inject(PrismPanelService).activePanelId.set('none');
+        fixture = TestBed.createComponent(PrismPanelHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('audits under the simulated condition', () => {
+        condition.set('Dark scheme');
+        fixture.detectChanges();
+
+        expect(audit.scheduleAudit).toHaveBeenLastCalledWith(element, { accept: [] }, undefined, 'Dark scheme');
+    });
+
+    it('audits again when the condition changes', () => {
+        audit.scheduleAudit.mockClear();
+        condition.set('Forced colors (approx.)');
+        fixture.detectChanges();
+        condition.set(null);
+        fixture.detectChanges();
+
+        expect(audit.scheduleAudit).toHaveBeenCalledTimes(2);
+        expect(audit.scheduleAudit).toHaveBeenLastCalledWith(element, { accept: [] }, undefined, null);
     });
 });
