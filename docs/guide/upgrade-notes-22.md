@@ -47,6 +47,7 @@ Everything deprecated in 22.x is removed in 23.0.0, see [Removed in 23.0.0](#rem
 - **`colorScheme`** in the config switches a theme of your library that hangs on a class or an attribute along with the simulated color scheme, see [`colorScheme`](api/ng-prism-config.md#colorscheme).
 - **A tools menu that shows what each choice does:** a swatch per background, painted the way the canvas paints it, an icon per pseudo-class, a bar to scale over each width, and a preview of each simulated condition.
 - **Four more icons** in `ICON_NAMES`, for a plugin: `mouse-pointer`, `mouse-pointer-click`, `scan` and `keyboard`, see [Plugin UI Kit: Icons](api/plugin-ui.md#icons).
+- **A narrower edge around pages on a phone.** In the phone layout a component page and a custom page keep 16 px to the sides instead of 24 px, and the title lines up with the page. A stylesheet of your own that narrowed this edge for phones can go, see [On a phone](guide/styleguide-ui.md#on-a-phone).
 
 ## Upgrading to 22.7.0
 
