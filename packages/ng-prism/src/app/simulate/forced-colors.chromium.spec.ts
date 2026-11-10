@@ -10,7 +10,23 @@ function scope(css: string, body: string): string {
 }
 
 /** The elements of the fixture `background-var-among-values`, by class. */
-const BACKGROUNDS = ['chip', 'on', 'kept', 'kept-fallback', 'two-vars', 'written', 'last-layer', 'mix', 'mix-system', 'fallback', 'ring', 'translucent', 'image', 'named', 'no-color'];
+const BACKGROUNDS = [
+    'chip',
+    'on',
+    'kept',
+    'kept-fallback',
+    'two-vars',
+    'written',
+    'last-layer',
+    'mix',
+    'mix-system',
+    'fallback',
+    'ring',
+    'translucent',
+    'image',
+    'named',
+    'no-color'
+];
 
 /** A check mark, as a mask. */
 const CHECK = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8l3 3 7-7' fill='none' stroke='black' stroke-width='2'/%3E%3C/svg%3E")`;
@@ -546,7 +562,11 @@ color: red;
                 <div class="two">Two</div><div class="colors">Colors</div><button class="f">Focus</button>`
             ),
             probes: [
-                { name: 'card', selector: '.card', properties: ['border-top-color', 'outline-color', 'text-decoration-color', 'text-emphasis-color', 'column-rule-color'] },
+                {
+                    name: 'card',
+                    selector: '.card',
+                    properties: ['border-top-color', 'outline-color', 'text-decoration-color', 'text-emphasis-color', 'column-rule-color']
+                },
                 { name: 'written', selector: '.written', properties: ['border-top-color', 'outline-color', 'text-decoration-color'] },
                 { name: 'red', selector: '.red', properties: ['border-top-color', 'outline-color'] },
                 { name: 'sides', selector: '.sides', properties: ['border-top-color', 'border-left-color', 'border-bottom-color'] },

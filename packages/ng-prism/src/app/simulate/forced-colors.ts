@@ -389,7 +389,14 @@ function declares(stem: string, properties: readonly string[]): string {
     return `:where([style*="${stem}" i]):where(${names.join(', ')})`;
 }
 
-const BORDERS = ['border', 'border-color', ...['top', 'right', 'bottom', 'left', 'block', 'inline', 'block-start', 'block-end', 'inline-start', 'inline-end'].flatMap((side) => [`border-${side}`, `border-${side}-color`])];
+const BORDERS = [
+    'border',
+    'border-color',
+    ...['top', 'right', 'bottom', 'left', 'block', 'inline', 'block-start', 'block-end', 'inline-start', 'inline-end'].flatMap((side) => [
+        `border-${side}`,
+        `border-${side}-color`
+    ])
+];
 
 /**
  * The net for inline styles, which no rule of the author's styles carries and so no twin: for an

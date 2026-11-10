@@ -381,7 +381,8 @@ function behindShadows(names: readonly string[], fallback: string): string {
 }
 
 /** A color written out as a part: a hex color, a color function, `transparent`, `currentcolor` or a system color. Not a named color, which needs a list. */
-const WRITTEN_COLOR = /^(?:#[0-9a-f]{3,8}|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix|light-dark|contrast-color|device-cmyk)\(.*\)|transparent|currentcolor)$/i;
+const WRITTEN_COLOR =
+    /^(?:#[0-9a-f]{3,8}|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix|light-dark|contrast-color|device-cmyk)\(.*\)|transparent|currentcolor)$/i;
 
 function isWrittenColor(part: string): boolean {
     return WRITTEN_COLOR.test(part) || isSystemColor(part);
@@ -545,7 +546,8 @@ function backgroundColorOf(value: string, context: TwinContext): string | null {
     const written = parts.find(isBackgroundColor);
     const vars = partVars(parts);
     // The colors of the last layers of the background lists among them, the first that applies, or `last`.
-    const layerColors = (last: string): string => vars.filter((name) => context.layerVars.has(name)).reduceRight((inner, name) => `var(${layerColorName(name)}, ${inner})`, last);
+    const layerColors = (last: string): string =>
+        vars.filter((name) => context.layerVars.has(name)).reduceRight((inner, name) => `var(${layerColorName(name)}, ${inner})`, last);
 
     if (written !== undefined) return forcedColor(written, groundOf(written), context.palette);
     if (vars.length === 0) return null;

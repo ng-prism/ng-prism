@@ -187,8 +187,12 @@ describe('forcedTwin', () => {
             const ground = (original: string): string => `rgb(from ${original} var(--prism-sim-bg-rgb) / alpha)`;
 
             // One var() among the parts is the color, or else holds no color and leaves the ground transparent, as in the browser.
-            expect(forcedTwin([d('background', 'var(--surface) no-repeat')], ctx)).toEqual([d('background-color', `var(--prism-sim-sys-surface, ${ground('var(--surface)')})`)]);
-            expect(forcedTwin([d('background', 'url(a.png), var(--c) center / cover')], ctx)).toEqual([d('background-color', `var(--prism-sim-sys-c, ${ground('var(--c)')})`)]);
+            expect(forcedTwin([d('background', 'var(--surface) no-repeat')], ctx)).toEqual([
+                d('background-color', `var(--prism-sim-sys-surface, ${ground('var(--surface)')})`)
+            ]);
+            expect(forcedTwin([d('background', 'url(a.png), var(--c) center / cover')], ctx)).toEqual([
+                d('background-color', `var(--prism-sim-sys-c, ${ground('var(--c)')})`)
+            ]);
             expect(forcedTwin([d('background', 'var(--tok, red)')], ctx)).toEqual([d('background-color', `var(--prism-sim-sys-tok, ${ground('var(--tok, red)')})`)]);
             // A color written out, a named one included, and a function, whose system colors are forced.
             expect(forcedTwin([d('background', 'var(--img) #c008')], ctx)).toEqual([d('background-color', ground('#c008'))]);
@@ -202,7 +206,11 @@ describe('forcedTwin', () => {
                 d('background-color', 'var(--prism-sim-sys-c, var(--prism-sim-sys-pos, rgb(var(--prism-sim-bg-rgb))))')
             ]);
             expect(forcedTwin([d('background', 'var(--ring) var(--pos)', true)], ctx)).toEqual([
-                d('background-color', `var(--prism-sim-sys-ring, var(--prism-sim-sys-pos, ${ground('var(--prism-sim-layer-color-ring, rgb(var(--prism-sim-bg-rgb)))')}))`, true),
+                d(
+                    'background-color',
+                    `var(--prism-sim-sys-ring, var(--prism-sim-sys-pos, ${ground('var(--prism-sim-layer-color-ring, rgb(var(--prism-sim-bg-rgb)))')}))`,
+                    true
+                ),
                 d('background-image', 'none', true)
             ]);
             // Without a color, which the original leaves at the initial transparent.
@@ -259,7 +267,9 @@ describe('forcedTwin', () => {
                 d('border-left-color', 'var(--prism-sim-sys-b, currentcolor)')
             ]);
             // The color of the element stands.
-            expect(forcedTwin([d('border-inline-color', 'var(--a) currentcolor')], ctx)).toEqual([d('border-inline-start-color', 'var(--prism-sim-sys-a, currentcolor)')]);
+            expect(forcedTwin([d('border-inline-color', 'var(--a) currentcolor')], ctx)).toEqual([
+                d('border-inline-start-color', 'var(--prism-sim-sys-a, currentcolor)')
+            ]);
             // More parts than sides: one color, forced.
             expect(forcedTwin([d('border-block-color', 'var(--a) red blue')], ctx)).toEqual([
                 d('border-block-start-color', 'currentcolor'),

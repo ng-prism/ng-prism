@@ -820,7 +820,8 @@ describe('forcedColorsCss', () => {
 
             // A state forced on the whole component puts the class on the scope root and on every element inside it.
             for (const element of [at('#stage'), ...Array.from(at('#stage').querySelectorAll('*'))]) element.classList.add(focusVisible);
-            for (const selector of ['#focus-host', '#in-focus', '#field', '#link']) expect([selector, computedOn(css, at(selector))['outline-color']]).toEqual([selector, DARK.highlight]);
+            for (const selector of ['#focus-host', '#in-focus', '#field', '#link'])
+                expect([selector, computedOn(css, at(selector))['outline-color']]).toEqual([selector, DARK.highlight]);
         });
 
         describe('the net for inline styles', () => {
