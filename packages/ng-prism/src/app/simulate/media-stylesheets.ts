@@ -18,7 +18,7 @@ import { exemptionSelector, type ForcedColorRules, sameForcedColorRules } from '
 import { type ForcedPaletteName, resolveSystemColors } from './forced-palette.js';
 import { declarationsOfStyle, exemptTwin, forcedKeyframe, forcedTwin, keyframesTwinName, serializeDeclarations, type TwinContext } from './forced-values.js';
 import { mentionsEmulated, substituteMedia } from './media-condition.js';
-import { SCOPE_IN_SUFFIX, SCOPE_OUT_SUFFIX, scopeIn, scopeOut, SIM_SCOPE, targetsRoot, unscopeOut } from './scope-selector.js';
+import { SCOPE_IN_SUFFIX, SCOPE_OUT_SUFFIX, scopeIn, scopeOut, SIM_SCOPE, splitList, targetsRoot, unscopeOut } from './scope-selector.js';
 import { type EmulatedMedia, sameMedia } from './simulation.js';
 
 /** The forced colors the engine simulates: the palette, and what the author's styles say about forced colors. */
@@ -64,6 +64,62 @@ function nestingIn(rule: CSSStyleRule, nesting: Nesting): Nesting {
 /** `&` restricted to the scope: what it matches in the scope, or the scope roots below the document root. */
 function scopedParent(nesting: Nesting): string {
     return nesting === 'root' ? `& ${SCOPE_ROOTS}` : `&${SCOPE_IN_SUFFIX}`;
+}
+
+/**
+ * Where the scope's version of a rule goes, and what it may set there: on the
+ * scope roots, for a selector on the document root, only what they may inherit
+ * ({@link isInheritable}); anywhere else, everything.
+ */
+interface ScopedTarget {
+    /** The selector, given a condition that goes right behind the scope. */
+    readonly selector: (extra: string) => string;
+    readonly onRoot: boolean;
+}
+
+/**
+ * A selector list as the selectors on the document root and the others, each a
+ * list again, `null` where there is none; a list that does not mix the two stays
+ * as it is written. `parentIsRoot` is as for {@link scopeIn}.
+ */
+function splitByRoot(selectorList: string, parentIsRoot: boolean): { root: string | null; others: string | null } {
+    const root: string[] = [];
+    const others: string[] = [];
+
+    for (const part of splitList(selectorList)) if (part.trim() !== '') (targetsRoot(part, parentIsRoot) ? root : others).push(part.trim());
+    if (root.length === 0) return { root: null, others: selectorList };
+    if (others.length === 0) return { root: selectorList, others: null };
+    return { root: root.join(', '), others: others.join(', ') };
+}
+
+/**
+ * The targets of a style rule's own declarations in the scope: its selector
+ * list scoped in, split where it mixes the document root with other selectors.
+ * Every selector of a list has its own specificity, so the two weigh what the
+ * list did; and the one for the root sets nothing the other does not, so where
+ * both reach a scope root they agree.
+ */
+function ruleTargets(selectorList: string, parentIsRoot: boolean): ScopedTarget[] {
+    const { root, others } = splitByRoot(selectorList, parentIsRoot);
+    const targets: ScopedTarget[] = [];
+
+    if (others !== null) targets.push({ selector: (extra) => scopeIn(others, parentIsRoot, extra), onRoot: false });
+    if (root !== null) targets.push({ selector: (extra) => scopeIn(root, parentIsRoot, extra), onRoot: true });
+    return targets;
+}
+
+/**
+ * {@link ruleTargets} for the declarations of a rule with nested rules, which go
+ * into a nested `&` ({@link scopedParent}): for the other selectors in the scope,
+ * for the ones on the document root on the scope roots below it.
+ */
+function parentTargets(selectorList: string, parentIsRoot: boolean): ScopedTarget[] {
+    const { root, others } = splitByRoot(selectorList, parentIsRoot);
+    const targets: ScopedTarget[] = [];
+
+    if (others !== null) targets.push({ selector: (extra) => `${scopedParent('rule')}${extra}`, onRoot: false });
+    if (root !== null) targets.push({ selector: (extra) => `${scopedParent('root')}${extra}`, onRoot: true });
+    return targets;
 }
 
 /** Whether `sheet` is one of `roots`, or imported by one of them at any depth. */
@@ -308,9 +364,9 @@ export class MediaStyleSheets {
                 i += this.twinStyleRule(rewrite, group, i, rule, nesting);
             } else if (this.forcing && nesting !== 'top' && hasStyle(rule)) {
                 // Bare declarations nested in a style rule apply wherever it matches.
-                const twins = this.twinsOf(rule.style, nesting === 'root', (extra) => `${scopedParent(nesting)}${extra}`);
+                const twins = this.twinsOf(rule.style, [{ selector: (extra) => `${scopedParent(nesting)}${extra}`, onRoot: nesting === 'root' }]);
 
-                i += this.insertTwins(rewrite, group, i + 1, twins);
+                i += this.insertTwins(rewrite, group, i + 1, twins, '&');
             }
             if (isRuleGroup(rule)) this.emulateGroup(rewrite, rule, emulated, isStyleRule(rule) ? nestingIn(rule, nesting) : nesting);
         }
@@ -322,49 +378,40 @@ export class MediaStyleSheets {
      * it, and so do their twins. Returns how many it put behind the rule in `group`.
      */
     private twinStyleRule(rewrite: Rewrite, group: RuleGroup, index: number, rule: CSSStyleRule, nesting: Nesting): number {
-        const inner = nestingIn(rule, nesting);
+        const selector = rule.selectorText;
 
         if (isRuleGroup(rule) && rule.cssRules.length > 0) {
-            const twins = this.twinsOf(rule.style, inner === 'root', (extra) => `${scopedParent(inner)}${extra}`);
-
-            this.insertTwins(rewrite, rule, 0, twins);
+            this.insertTwins(rewrite, rule, 0, this.twinsOf(rule.style, parentTargets(selector, nesting === 'root')), selector);
             return 0;
         }
-
-        const selector = rule.selectorText;
-        const twins = this.twinsOf(rule.style, inner === 'root', (extra) => scopeIn(selector, nesting === 'root', extra));
-
-        return this.insertTwins(rewrite, group, index + 1, twins);
+        return this.insertTwins(rewrite, group, index + 1, this.twinsOf(rule.style, ruleTargets(selector, nesting === 'root')), selector);
     }
 
     /**
-     * The twins of the declarations of `style`, as rules: the one that forces
-     * them, for what is not exempt, and the one with the system colors of the
-     * palette, for what is, where the declarations name one. `selector` makes the
-     * selector of a twin from the condition that goes behind the scope. Of a rule
-     * on the document root, whose twin goes to the scope roots, only what they
-     * may inherit ({@link isInheritable}). `[]` while forced colors are off and
-     * for a rule that forces nothing.
+     * The twins of the declarations of `style` for each of `targets`, as rules:
+     * the one that forces them, for what is not exempt, and the one with the
+     * system colors of the palette, for what is, where the declarations name one.
+     * `[]` while forced colors are off and for a rule that forces nothing.
      *
      * Read from the declarations as they are, before the system colors of a copy
      * resolve in the palette: a resolved one is no system color any more, and
      * would be forced.
      */
-    private twinsOf(style: CSSStyleDeclaration, onRoot: boolean, selector: (extra: string) => string): string[] {
+    private twinsOf(style: CSSStyleDeclaration, targets: readonly ScopedTarget[]): string[] {
         const forcing = this.forcing;
 
         if (!forcing) return [];
 
         const read = declarationsOfStyle(style);
-        const declarations = onRoot ? read.filter(({ property }) => isInheritable(property)) : read;
-
-        if (declarations.length === 0) return [];
-
         const twins: string[] = [];
-        const twin = forcedTwin(declarations, forcing.context);
 
-        if (twin.length > 0) twins.push(`${selector(forcing.notExempt)} { ${serializeDeclarations(twin)} }`);
-        if (forcing.exemption !== null) {
+        for (const { selector, onRoot } of targets) {
+            const declarations = onRoot ? read.filter(({ property }) => isInheritable(property)) : read;
+            const twin = forcedTwin(declarations, forcing.context);
+
+            if (twin.length > 0) twins.push(`${selector(forcing.notExempt)} { ${serializeDeclarations(twin)} }`);
+            if (forcing.exemption === null) continue;
+
             const exempt = exemptTwin(declarations, forcing.context);
 
             if (exempt.length > 0) twins.push(`${selector(forcing.exemption)} { ${serializeDeclarations(exempt)} }`);
@@ -373,15 +420,18 @@ export class MediaStyleSheets {
     }
 
     /**
-     * Inserts `rules` at `index` in `group`, in order, and returns how many the
-     * browser took. With a `rewrite` they are recorded to be undone; without one
-     * they go into a copy, which goes as a whole.
+     * Inserts the twins `rules` of the rule with the selector `of` at `index` in
+     * `group`, in order, and returns how many the browser took. With a `rewrite`
+     * they are recorded to be undone; without one they go into a copy, which goes
+     * as a whole. A twin the browser rejects is warned about once by the selector
+     * of its rule: its own text changes with the palette and the exemptions.
      */
-    private insertTwins(rewrite: Rewrite | null, group: RuleGroup, index: number, rules: readonly string[]): number {
+    private insertTwins(rewrite: Rewrite | null, group: RuleGroup, index: number, rules: readonly string[], of: string): number {
+        const rejected = `Cannot force colors for "${of}": the browser does not accept it with the simulation scope added.`;
         let inserted = 0;
 
         for (const text of rules) {
-            const taken = rewrite ? this.insert(rewrite, group, index + inserted, text) !== null : this.tryInsert(group, index + inserted, text);
+            const taken = rewrite ? this.insert(rewrite, group, index + inserted, text, rejected) !== null : this.tryInsert(group, index + inserted, text, rejected);
 
             if (taken) inserted++;
         }
@@ -440,13 +490,13 @@ export class MediaStyleSheets {
                 this.scopeCopy(rule, emulated, nesting);
             } else if (nesting !== 'top' && hasStyle(rule)) {
                 // Bare declarations apply wherever the parent matches: in the copy, only in the scope.
-                const twins = this.twinsOf(rule.style, nesting === 'root', (extra) => `${scopedParent(nesting)}${extra}`);
+                const twins = this.twinsOf(rule.style, [{ selector: (extra) => `${scopedParent(nesting)}${extra}`, onRoot: nesting === 'root' }]);
                 const declarations = this.copiedDeclarations(rule.style.cssText, nesting === 'root').text;
 
                 group.deleteRule(i);
                 kept = 0;
                 if (declarations !== '' && this.tryInsert(group, i, `${scopedParent(nesting)} { ${declarations} }`)) {
-                    kept = 1 + this.insertTwins(null, group, i + 1, twins);
+                    kept = 1 + this.insertTwins(null, group, i + 1, twins, '&');
                 }
             } else {
                 const name = prelude(rule.cssText);
@@ -471,25 +521,38 @@ export class MediaStyleSheets {
      * matches in the scope below a `.theme` outside it; the rule's own
      * declarations move into a nested `&` restricted to the scope, their twins
      * behind them. A rule on the document root keeps only inheritable properties
-     * ({@link isInheritable}).
+     * ({@link isInheritable}). A list that mixes the document root with other
+     * selectors is split, as its twin is ({@link ruleTargets}): the rule keeps the
+     * other selectors and everything it sets, and a rule for the document root
+     * follows it.
      */
     private scopeCopiedRule(group: RuleGroup, index: number, rule: CSSStyleRule, emulated: EmulatedMedia, nesting: Nesting): number {
-        const inner = nestingIn(rule, nesting);
-        const { text: declarations, changed } = this.copiedDeclarations(rule.style.cssText, inner === 'root');
+        const original = rule.selectorText;
+        const parentIsRoot = nesting === 'root';
+        const cssText = rule.style.cssText;
 
         if (isRuleGroup(rule) && rule.cssRules.length > 0) {
-            const twins = this.twinsOf(rule.style, inner === 'root', (extra) => `${scopedParent(inner)}${extra}`);
+            const targets = parentTargets(original, parentIsRoot);
+            const twins = this.twinsOf(rule.style, targets);
+            let at = 0;
 
-            this.scopeCopy(rule, emulated, inner);
+            this.scopeCopy(rule, emulated, nestingIn(rule, nesting));
             rule.style.cssText = '';
-            if (declarations !== '' && this.tryInsert(rule, 0, `${scopedParent(inner)} { ${declarations} }`)) this.insertTwins(null, rule, 1, twins);
+            for (const { selector, onRoot } of targets) {
+                const declarations = this.copiedDeclarations(cssText, onRoot).text;
+
+                if (declarations !== '' && this.tryInsert(rule, at, `${selector('')} { ${declarations} }`)) at++;
+            }
+            if (at > 0) this.insertTwins(null, rule, at, twins, original);
             return 1;
         }
 
-        const original = rule.selectorText;
-        const twins = this.twinsOf(rule.style, inner === 'root', (extra) => scopeIn(original, nesting === 'root', extra));
+        const { root, others } = splitByRoot(original, parentIsRoot);
+        const onRoot = others === null;
+        const { text: declarations, changed } = this.copiedDeclarations(cssText, onRoot);
+        const twins = this.twinsOf(rule.style, ruleTargets(original, parentIsRoot));
 
-        rule.selectorText = scopeIn(original, nesting === 'root');
+        rule.selectorText = scopeIn(others ?? original, parentIsRoot);
         if (rule.selectorText === original) {
             // The setter ignores a selector the engine does not accept.
             this.warnOnce(original, `Cannot simulate media features for "${original}": the browser does not accept it with the simulation scope added.`);
@@ -499,8 +562,16 @@ export class MediaStyleSheets {
             return 0;
         }
         // Only where a declaration goes or a value changes: setting the text of every copy would cost as much as the rest of the pass.
-        if (inner === 'root' || changed) rule.style.cssText = declarations;
-        return 1 + this.insertTwins(null, group, index + 1, twins);
+        if (onRoot || changed) rule.style.cssText = declarations;
+
+        let kept = 1;
+
+        if (root !== null && others !== null) {
+            const inherited = this.copiedDeclarations(cssText, true).text;
+
+            if (inherited !== '' && this.tryInsert(group, index + 1, `${scopeIn(root, parentIsRoot)} { ${inherited} }`)) kept++;
+        }
+        return kept + this.insertTwins(null, group, index + kept, twins, original);
     }
 
     /**
@@ -618,8 +689,8 @@ export class MediaStyleSheets {
     }
 
     /** Inserts a rule of the engine's own, which {@link undo} removes again. */
-    private insert(rewrite: Rewrite, group: RuleGroup, index: number, text: string): CSSRule | null {
-        if (!this.tryInsert(group, index, text)) return null;
+    private insert(rewrite: Rewrite, group: RuleGroup, index: number, text: string, rejected?: string): CSSRule | null {
+        if (!this.tryInsert(group, index, text, rejected)) return null;
 
         const rule = group.cssRules[index];
 
@@ -627,13 +698,15 @@ export class MediaStyleSheets {
         return rule;
     }
 
-    /** Inserts `text`, or warns once per text in dev mode and says no. */
-    private tryInsert(group: RuleGroup, index: number, text: string): boolean {
+    /** Inserts `text`, or warns once in dev mode, with `rejected` or else about the text, and says no. */
+    private tryInsert(group: RuleGroup, index: number, text: string, rejected?: string): boolean {
         try {
             group.insertRule(text, index);
             return true;
         } catch {
-            this.warnOnce(text, `Could not add a rule for the simulation: ${prelude(text)}`);
+            const message = rejected ?? `Could not add a rule for the simulation: ${prelude(text)}`;
+
+            this.warnOnce(message, message);
             return false;
         }
     }

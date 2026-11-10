@@ -316,6 +316,23 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
             probes: [{ name: 'root', selector: '[data-prism-sim]', properties: ['background-color'] }]
         }));
 
+    // A theme written for the document root and for a class at once: the element with the class is forced whole.
+    it('mixed-root-list', () =>
+        expectSimulationToMatch({
+            html: scope(
+                ':root, .theme-dark { color: #eee; background-color: #111; border-color: red } .box { border-style: solid; border-width: 2px }',
+                '<div class="theme-dark box">Themed</div>'
+            ),
+            probes: [{ name: 'themed', selector: '.theme-dark', properties: ['color', 'background-color', 'border-top-color'] }]
+        }));
+
+    // The same with the theme on the scope root itself, where the `colorScheme` config puts its attribute.
+    it('mixed-root-list-on-scope-root', () =>
+        expectSimulationToMatch({
+            html: `<div class="host" data-prism-sim data-theme="dark"><style>:root, [data-theme=dark] { color: #eee; background-color: #111; border-color: red } .host { border-style: solid; border-width: 2px }</style>Label</div>`,
+            probes: [{ name: 'root', selector: '[data-prism-sim]', properties: ['color', 'background-color', 'border-top-color'] }]
+        }));
+
     it('gradient-var', () =>
         expectSimulationToMatch({
             html: scope(':root { --ai: linear-gradient(90deg, #a0f, #0af) } .b { background: var(--ai) }', '<div class="b">Gradient</div>'),

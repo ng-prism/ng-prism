@@ -494,7 +494,7 @@ describe('MediaStyleSheets', () => {
 
         it("warns once and keeps going when the browser rejects a twin's selector", () => {
             const warn = jest.spyOn(console, 'warn').mockImplementation();
-            const sheet = addStyle('.bad::part(x) { color: red } .ok { color: red }');
+            const sheet = addStyle('.bad::part(x) { color: Highlight } .ok { color: red }');
             const insertRule = sheet.insertRule.bind(sheet);
 
             // A browser that does not take the first selector with the scope and the exemption added.
@@ -502,12 +502,54 @@ describe('MediaStyleSheets', () => {
                 if (text.startsWith('.bad')) throw new DOMException('Failed to parse the rule', 'SyntaxError');
                 return insertRule(text, index);
             });
+            // Each palette and each exemption gives the twin another text.
             engine.apply(FORCED, forced('dark'));
             engine.apply(FORCED, forced('light'));
+            engine.apply(FORCED, forced('light', { exempt: ['.dot'] }));
 
-            expect(styleRules(sheet).map(selectorOf)).toEqual(['.bad::part(x)', '.ok', scopeIn('.ok')]);
+            expect(styleRules(sheet).map(selectorOf)).toEqual([
+                '.bad::part(x)',
+                '.ok',
+                scopeIn('.ok', false, `:not(${exemptionSelector({ ...NO_RULES, exempt: ['.dot'] })})`)
+            ]);
             expect(warn).toHaveBeenCalledTimes(1);
-            expect(warn).toHaveBeenCalledWith(expect.stringContaining('.bad'));
+            // The selector as the author wrote it, and not the twin with the scope and the exemption.
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining('".bad::part(x)"'));
+            expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('data-prism-sim'));
+        });
+
+        it('splits the twin of a list that mixes the document root with other selectors, so that the others are forced whole', () => {
+            const sheet = addStyle(':root, .theme-dark { color: #eee; background-color: #111; border-color: red }');
+
+            engine.apply(FORCED, forced());
+            const [, others, root] = styleRules(sheet);
+
+            expect(sheet.cssRules).toHaveLength(3);
+            expect(others.selectorText).toBe(scopeIn('.theme-dark'));
+            expect(others.style.getPropertyValue('color')).toBe('var(--prism-sim-fg)');
+            expect(others.style.getPropertyValue('background-color')).toBe('rgb(from #111 var(--prism-sim-bg-rgb) / alpha)');
+            expect(others.style.getPropertyValue('border-top-color')).toBe('currentcolor');
+            // The scope roots only take what they may inherit.
+            expect(root.selectorText).toBe(scopeIn(':root'));
+            expect(Array.from(root.style)).toEqual(['color']);
+        });
+
+        it('splits a copy of such a list, and its twin, in the same way', () => {
+            const sheet = addStyle('@media (forced-colors: active) { :root, [data-theme=dark] { --x: red; background-color: #111 } }');
+
+            engine.apply(FORCED, forced());
+            const [others, root, othersTwin, rootTwin] = styleRules(sheet.cssRules[1] as CSSMediaRule);
+
+            expect([others, root, othersTwin, rootTwin].map(selectorOf)).toEqual([
+                scopeIn('[data-theme=dark]'),
+                scopeIn(':root'),
+                scopeIn('[data-theme=dark]'),
+                scopeIn(':root')
+            ]);
+            expect(others.style.getPropertyValue('background-color')).toBe('#111');
+            expect(Array.from(root.style)).toEqual(['--x']);
+            expect(othersTwin.style.getPropertyValue('background-color')).toBe('rgb(from #111 var(--prism-sim-bg-rgb) / alpha)');
+            expect(Array.from(rootTwin.style)).toEqual(['--prism-sim-sys-x']);
         });
 
         it.each([
@@ -527,27 +569,34 @@ describe('MediaStyleSheets', () => {
             expect(styleRules(sheet).map(selectorOf)).toEqual([widened]);
         });
 
+        /** A rule jsdom can parse. */
+        const parse = (text: string): CSSRule => {
+            const scratch = new CSSStyleSheet();
+
+            scratch.insertRule(text, 0);
+            return scratch.cssRules[0];
+        };
+        const group = (rules: CSSRule[]): { cssRules: CSSRule[]; insertRule(text: string, index?: number): number; deleteRule(index: number): void } => ({
+            cssRules: rules,
+            insertRule(text, index = 0) {
+                rules.splice(index, 0, parse(text));
+                return index;
+            },
+            deleteRule(index) {
+                rules.splice(index, 1);
+            }
+        });
+        /** A style rule with nested rules, which jsdom cannot parse, from rules it can, alone in a sheet the document lists. */
+        const nestedRule = (selectorText: string, declarations: string, ...rules: string[]): { cssRules: CSSRule[] } => {
+            const rule = Object.assign(group(rules.map(parse)), { selectorText, style: (parse(`.x { ${declarations} }`) as CSSStyleRule).style });
+
+            listSheets(Object.assign(group([rule as unknown as CSSRule]), { media: { mediaText: '' }, href: null }) as unknown as CSSStyleSheet);
+            return rule;
+        };
+
         it("twins a nested rule's own declarations as its first nested rule", () => {
-            // A style rule with nested rules, which jsdom cannot parse, from rules it can.
-            const parse = (text: string): CSSRule => {
-                const scratch = new CSSStyleSheet();
+            const card = nestedRule('.card', 'color: red', '.icon { color: blue }');
 
-                scratch.insertRule(text, 0);
-                return scratch.cssRules[0];
-            };
-            const group = (rules: CSSRule[]): { cssRules: CSSRule[]; insertRule(text: string, index?: number): number; deleteRule(index: number): void } => ({
-                cssRules: rules,
-                insertRule(text, index = 0) {
-                    rules.splice(index, 0, parse(text));
-                    return index;
-                },
-                deleteRule(index) {
-                    rules.splice(index, 1);
-                }
-            });
-            const card = Object.assign(group([parse('.icon { color: blue }')]), { selectorText: '.card', style: (parse('.card { color: red }') as CSSStyleRule).style });
-
-            listSheets(Object.assign(group([card as unknown as CSSRule]), { media: { mediaText: '' }, href: null }) as unknown as CSSStyleSheet);
             engine.apply(FORCED, forced());
 
             // Before the nested rules, as the declarations of the rule come before them.
@@ -556,6 +605,17 @@ describe('MediaStyleSheets', () => {
 
             engine.clear();
             expect(card.cssRules.map(selectorOf)).toEqual(['.icon']);
+        });
+
+        it('gives a nested rule of a list that mixes the document root with other selectors a twin for each', () => {
+            const theme = nestedRule(':root, .theme-dark', 'color: #eee; background-color: #111', '.icon { color: blue }');
+
+            engine.apply(FORCED, forced());
+            const [others, root] = theme.cssRules as CSSStyleRule[];
+
+            expect([others, root].map(selectorOf)).toEqual([`&${SCOPE_IN_SUFFIX}`, '& :where([data-prism-sim], .cdk-overlay-container)']);
+            expect(others.style.getPropertyValue('background-color')).toBe('rgb(from #111 var(--prism-sim-bg-rgb) / alpha)');
+            expect(Array.from(root.style)).toEqual(['color']);
         });
     });
 
