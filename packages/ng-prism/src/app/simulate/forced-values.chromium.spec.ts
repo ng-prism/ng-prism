@@ -140,6 +140,48 @@ describe('the twin of a rule in Chromium', () => {
         });
     });
 
+    it('takes the color of the element for borders, outlines and carets, a system color that stands among them', async () => {
+        // Chromium forces them to the element's own color, not to the foreground of the context.
+        const computed = await computedWithTwin('.t { color: Highlight; border: 4px solid red; outline: 4px solid red; caret-color: red }', [
+            'color',
+            'border-top-color',
+            'outline-color',
+            'caret-color'
+        ]);
+
+        expect(computed).toEqual({
+            color: 'rgba(0, 230, 255, 0.8)',
+            'border-top-color': 'rgba(0, 230, 255, 0.8)',
+            'outline-color': 'rgba(0, 230, 255, 0.8)',
+            'caret-color': 'rgba(0, 230, 255, 0.8)'
+        });
+    });
+
+    it('leaves currentcolor and an automatic caret standing: a border without a color has the color of the element', async () => {
+        const standing = await computedWithTwin('.t { color: Highlight; border: 2px solid; caret-color: auto }', ['border-top-color', 'caret-color']);
+        const forced = await computedWithTwin('.t { color: red; border: 2px solid red }', ['color', 'border-top-color']);
+
+        expect(standing).toEqual({ 'border-top-color': 'rgba(0, 230, 255, 0.8)', 'caret-color': 'rgba(0, 230, 255, 0.8)' });
+        // An author color is forced, to the forced text color for both.
+        expect(forced).toEqual({ color: 'rgba(1, 2, 3, 1)', 'border-top-color': 'rgba(1, 2, 3, 1)' });
+    });
+
+    it('takes the outline of the focus for an outline that has no color of its own', async () => {
+        // The context of an element with visible focus, set by the rule so that the outline can be told from the color.
+        const computed = await computedWithTwin('.t { --prism-sim-outline: rgb(9, 9, 9); color: Highlight; outline: 2px solid }', ['outline-color']);
+
+        expect(computed).toEqual({ 'outline-color': 'rgba(9, 9, 9, 1)' });
+    });
+
+    it('takes the color of the element for a border that var() left whole as well', async () => {
+        const computed = await computedWithTwin('.t { --c: red; color: Highlight; border: 2px solid var(--c); outline: 2px solid var(--c) }', [
+            'border-left-color',
+            'outline-color'
+        ]);
+
+        expect(computed).toEqual({ 'border-left-color': 'rgba(0, 230, 255, 0.8)', 'outline-color': 'rgba(0, 230, 255, 0.8)' });
+    });
+
     it('turns a transparent color opaque in the foreground and keeps a transparent ground', async () => {
         const computed = await computedWithTwin('.t { color: red; border-top-color: transparent; background-color: transparent; -webkit-text-fill-color: transparent }', [
             'border-top-color',

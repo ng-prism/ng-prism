@@ -8,23 +8,76 @@ function d(property: string, value: string, important = false): Declaration {
 
 describe('forcedTwin', () => {
     describe('foreground colors', () => {
-        it('takes the foreground of the context, a transparent color included', () => {
+        it('takes the foreground of the context for the text color, a transparent color included', () => {
             expect(forcedTwin([d('color', 'red')], ctx)).toEqual([d('color', 'var(--prism-sim-fg)')]);
-            expect(forcedTwin([d('border-top-color', 'transparent')], ctx)).toEqual([d('border-top-color', 'var(--prism-sim-fg)')]);
-            expect(forcedTwin([d('border-inline-end-color', 'red'), d('text-decoration-color', 'red'), d('caret-color', 'red')], ctx)).toEqual([
-                d('border-inline-end-color', 'var(--prism-sim-fg)'),
-                d('text-decoration-color', 'var(--prism-sim-fg)'),
-                d('caret-color', 'var(--prism-sim-fg)')
+            expect(forcedTwin([d('color', 'transparent')], ctx)).toEqual([d('color', 'var(--prism-sim-fg)')]);
+        });
+
+        it('takes the color of the element itself for every other foreground color, as Chromium does', () => {
+            expect(forcedTwin([d('border-top-color', 'transparent')], ctx)).toEqual([d('border-top-color', 'currentcolor')]);
+            expect(
+                forcedTwin(
+                    [
+                        d('border-inline-end-color', 'red'),
+                        d('text-decoration-color', 'red'),
+                        d('text-emphasis-color', 'red'),
+                        d('column-rule-color', 'red'),
+                        d('caret-color', 'red'),
+                        d('stop-color', 'red'),
+                        d('flood-color', 'red'),
+                        d('lighting-color', 'red')
+                    ],
+                    ctx
+                )
+            ).toEqual([
+                d('border-inline-end-color', 'currentcolor'),
+                d('text-decoration-color', 'currentcolor'),
+                d('text-emphasis-color', 'currentcolor'),
+                d('column-rule-color', 'currentcolor'),
+                d('caret-color', 'currentcolor'),
+                d('stop-color', 'currentcolor'),
+                d('flood-color', 'currentcolor'),
+                d('lighting-color', 'currentcolor')
             ]);
         });
 
-        it('takes the outline of the focus before the foreground for an outline', () => {
-            expect(forcedTwin([d('outline-color', 'transparent')], ctx)).toEqual([d('outline-color', 'var(--prism-sim-outline, var(--prism-sim-fg))')]);
+        it('takes the outline of the focus before the color of the element for an outline', () => {
+            expect(forcedTwin([d('outline-color', 'transparent')], ctx)).toEqual([d('outline-color', 'var(--prism-sim-outline, currentcolor)')]);
+        });
+
+        it.each(['currentcolor', 'currentColor', 'CURRENTCOLOR'])('leaves %s standing, which is the forced color of the element already', (keyword) => {
+            expect(
+                forcedTwin(
+                    [
+                        d('color', keyword),
+                        d('border-top-color', keyword),
+                        d('outline-color', keyword),
+                        d('text-decoration-color', keyword),
+                        d('caret-color', keyword),
+                        d('-webkit-text-fill-color', keyword)
+                    ],
+                    ctx
+                )
+            ).toEqual([]);
+        });
+
+        it('gives the outline that the browser expands without a color the outline of the focus, which Chromium forces on any outline', () => {
+            // `outline: 2px solid` sets `outline-color: initial`.
+            expect(forcedTwin([d('outline-color', 'initial'), d('outline-color', 'UNSET', true)], ctx)).toEqual([
+                d('outline-color', 'var(--prism-sim-outline, currentcolor)'),
+                d('outline-color', 'var(--prism-sim-outline, currentcolor)', true)
+            ]);
+            expect(forcedTwin([d('outline-color', 'inherit'), d('border-top-color', 'initial'), d('text-decoration-color', 'initial')], ctx)).toEqual([]);
+        });
+
+        it('leaves an automatic caret standing, which follows the color of the element', () => {
+            expect(forcedTwin([d('caret-color', 'auto'), d('caret-color', 'AUTO', true)], ctx)).toEqual([]);
         });
 
         it('leaves a system color standing, in the palette, with its priority', () => {
             expect(forcedTwin([d('border-top-color', 'Highlight', true)], ctx)).toEqual([d('border-top-color', 'rgba(0, 230, 255, 0.8)', true)]);
             expect(forcedTwin([d('color', 'light-dark(Highlight, Mark)')], ctx)).toEqual([d('color', 'light-dark(rgba(0, 230, 255, 0.8), #ffff00)')]);
+            expect(forcedTwin([d('outline-color', 'Highlight')], ctx)).toEqual([d('outline-color', 'rgba(0, 230, 255, 0.8)')]);
         });
 
         it('forces the system colors that Chromium forces like any other color', () => {
@@ -40,8 +93,9 @@ describe('forcedTwin', () => {
         it('lets a system color stand that a custom property holds', () => {
             expect(forcedTwin([d('color', 'var(--tok)')], ctx)).toEqual([d('color', 'var(--prism-sim-sys-tok, var(--prism-sim-fg))')]);
             expect(forcedTwin([d('outline-color', 'var(--tok)', true)], ctx)).toEqual([
-                d('outline-color', 'var(--prism-sim-sys-tok, var(--prism-sim-outline, var(--prism-sim-fg)))', true)
+                d('outline-color', 'var(--prism-sim-sys-tok, var(--prism-sim-outline, currentcolor))', true)
             ]);
+            expect(forcedTwin([d('border-top-color', 'var(--tok)')], ctx)).toEqual([d('border-top-color', 'var(--prism-sim-sys-tok, currentcolor)')]);
         });
 
         it('forces a value in which var() is only a part, or has a fallback', () => {
@@ -105,38 +159,38 @@ describe('forcedTwin', () => {
     });
 
     describe('shorthands that var() left without longhands', () => {
-        it('forces the colors of a border to the foreground', () => {
+        it('forces the colors of a border to the color of the element', () => {
             expect(forcedTwin([d('border', '1px solid var(--c)', true)], ctx)).toEqual([
-                d('border-top-color', 'var(--prism-sim-fg)', true),
-                d('border-right-color', 'var(--prism-sim-fg)', true),
-                d('border-bottom-color', 'var(--prism-sim-fg)', true),
-                d('border-left-color', 'var(--prism-sim-fg)', true)
+                d('border-top-color', 'currentcolor', true),
+                d('border-right-color', 'currentcolor', true),
+                d('border-bottom-color', 'currentcolor', true),
+                d('border-left-color', 'currentcolor', true)
             ]);
-            expect(forcedTwin([d('border-bottom', '1px solid var(--c)')], ctx)).toEqual([d('border-bottom-color', 'var(--prism-sim-fg)')]);
+            expect(forcedTwin([d('border-bottom', '1px solid var(--c)')], ctx)).toEqual([d('border-bottom-color', 'currentcolor')]);
             expect(forcedTwin([d('border-block', '1px solid var(--c)')], ctx)).toEqual([
-                d('border-block-start-color', 'var(--prism-sim-fg)'),
-                d('border-block-end-color', 'var(--prism-sim-fg)')
+                d('border-block-start-color', 'currentcolor'),
+                d('border-block-end-color', 'currentcolor')
             ]);
-            expect(forcedTwin([d('border-inline-start', 'var(--b)')], ctx)).toEqual([d('border-inline-start-color', 'var(--prism-sim-fg)')]);
+            expect(forcedTwin([d('border-inline-start', 'var(--b)')], ctx)).toEqual([d('border-inline-start-color', 'currentcolor')]);
         });
 
         it('lets the system color stand that a custom property of a border color holds', () => {
             expect(forcedTwin([d('border-color', 'var(--tok)')], ctx)).toEqual([
-                d('border-top-color', 'var(--prism-sim-sys-tok, var(--prism-sim-fg))'),
-                d('border-right-color', 'var(--prism-sim-sys-tok, var(--prism-sim-fg))'),
-                d('border-bottom-color', 'var(--prism-sim-sys-tok, var(--prism-sim-fg))'),
-                d('border-left-color', 'var(--prism-sim-sys-tok, var(--prism-sim-fg))')
+                d('border-top-color', 'var(--prism-sim-sys-tok, currentcolor)'),
+                d('border-right-color', 'var(--prism-sim-sys-tok, currentcolor)'),
+                d('border-bottom-color', 'var(--prism-sim-sys-tok, currentcolor)'),
+                d('border-left-color', 'var(--prism-sim-sys-tok, currentcolor)')
             ]);
         });
 
-        it('forces an outline to the outline of the focus', () => {
-            expect(forcedTwin([d('outline', '2px solid var(--c)')], ctx)).toEqual([d('outline-color', 'var(--prism-sim-outline, var(--prism-sim-fg))')]);
+        it('forces an outline to the outline of the focus, or else to the color of the element', () => {
+            expect(forcedTwin([d('outline', '2px solid var(--c)')], ctx)).toEqual([d('outline-color', 'var(--prism-sim-outline, currentcolor)')]);
         });
 
-        it('forces the color of a text decoration, a text emphasis and a column rule', () => {
-            expect(forcedTwin([d('text-decoration', 'underline var(--c)')], ctx)).toEqual([d('text-decoration-color', 'var(--prism-sim-fg)')]);
-            expect(forcedTwin([d('text-emphasis', 'dot var(--c)')], ctx)).toEqual([d('text-emphasis-color', 'var(--prism-sim-fg)')]);
-            expect(forcedTwin([d('column-rule', '1px solid var(--c)')], ctx)).toEqual([d('column-rule-color', 'var(--prism-sim-fg)')]);
+        it('forces the color of a text decoration, a text emphasis and a column rule to the color of the element', () => {
+            expect(forcedTwin([d('text-decoration', 'underline var(--c)')], ctx)).toEqual([d('text-decoration-color', 'currentcolor')]);
+            expect(forcedTwin([d('text-emphasis', 'dot var(--c)')], ctx)).toEqual([d('text-emphasis-color', 'currentcolor')]);
+            expect(forcedTwin([d('column-rule', '1px solid var(--c)')], ctx)).toEqual([d('column-rule-color', 'currentcolor')]);
         });
     });
 
@@ -306,6 +360,14 @@ describe('forcedKeyframe', () => {
             d('--prism-sim-sys-gap', 'initial'),
             d('--tok', '#ffffff'),
             d('--prism-sim-sys-tok', '#ffffff')
+        ]);
+    });
+
+    it('takes the color of the element for a border, and leaves currentcolor standing', () => {
+        expect(forcedKeyframe([d('border-top-color', 'red'), d('outline-color', 'currentcolor'), d('color', 'currentColor')], ctx)).toEqual([
+            d('border-top-color', 'currentcolor'),
+            d('outline-color', 'currentcolor'),
+            d('color', 'currentColor')
         ]);
     });
 

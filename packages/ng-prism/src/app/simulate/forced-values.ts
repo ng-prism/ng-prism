@@ -28,9 +28,9 @@ export interface TwinContext {
 }
 
 /**
- * The properties whose color Chromium forces to the one of the context: the text color, the
- * colors of borders, outlines, text decorations and emphasis, column rules, the caret, and the
- * colors of SVG filters and gradient stops.
+ * The properties whose color Chromium forces: the text color, to the foreground of the context,
+ * and the colors of borders, outlines, text decorations and emphasis, column rules, the caret and
+ * of SVG filters and gradient stops, to the forced color of the element itself.
  *
  * `getComputedStyle` in Chromium's mode still reports what the author wrote for
  * `text-decoration-color` and for `-webkit-text-fill-color` (which a twin forces as well, though
@@ -58,21 +58,36 @@ export const FOREGROUND_PROPERTIES: ReadonlySet<string> = new Set([
 ]);
 
 const FOREGROUND = 'var(--prism-sim-fg)';
-const OUTLINE = 'var(--prism-sim-outline, var(--prism-sim-fg))';
+const CURRENT_COLOR = 'currentcolor';
+const OUTLINE = `var(--prism-sim-outline, ${CURRENT_COLOR})`;
 const GROUND_CHANNELS = 'var(--prism-sim-bg-rgb)';
 
 /**
- * What the properties that take the color of the context take: the foreground, the outline of the
- * focus for `outline-color`, the color for the text fill (a transparent fill over a gradient
- * would vanish with the gradient), `auto` for the two that Chromium resets to it.
+ * What a property whose color Chromium forces takes. The text color takes the foreground of the
+ * context. Every other foreground color takes the color of the element, which is the forced text
+ * color (`currentcolor`): a border, an outline or a caret is `Highlight` next to a text of
+ * `Highlight`, not the foreground of the context. Only an outline reads the outline of the focus
+ * first. The text fill follows the color as well (a transparent fill over a gradient would vanish
+ * with the gradient), and `accent-color` and `scrollbar-color` Chromium resets to `auto`.
  */
 const COLOR_REPLACEMENTS: ReadonlyMap<string, string> = new Map([
-    ...Array.from(FOREGROUND_PROPERTIES, (property): [string, string] => [property, FOREGROUND]),
+    ...Array.from(FOREGROUND_PROPERTIES, (property): [string, string] => [property, CURRENT_COLOR]),
+    ['color', FOREGROUND],
     ['outline-color', OUTLINE],
-    ['-webkit-text-fill-color', 'currentcolor'],
+    ['-webkit-text-fill-color', CURRENT_COLOR],
     ['accent-color', 'auto'],
     ['scrollbar-color', 'auto']
 ]);
+
+/** The properties whose `currentcolor` Chromium leaves standing, since it is the forced color of the element already: the foreground colors and the text fill. */
+const FOLLOWS_COLOR: ReadonlySet<string> = new Set([...FOREGROUND_PROPERTIES, '-webkit-text-fill-color']);
+
+/** Whether Chromium leaves `value` of the foreground property `name` standing: `currentcolor`, and the automatic caret, which has the color of the element. */
+function standsForced(name: string, value: string): boolean {
+    const keyword = value.toLowerCase();
+
+    return (keyword === CURRENT_COLOR && FOLLOWS_COLOR.has(name)) || (keyword === 'auto' && name === 'caret-color');
+}
 
 /** The longhands a color shorthand sets, as far as a twin forces them. `colorOnly`: the whole value of the shorthand is one color. */
 interface ColorShorthand {
@@ -157,9 +172,12 @@ function nameOf(property: string): string {
  * The forced declarations of a twin: what Chromium replaces in the value the cascade chose for
  * each of them, as the sheet of the simulation reads it. `[]` when the rule forces nothing.
  *
- * - **Foreground colors** ({@link FOREGROUND_PROPERTIES}) take the foreground of the context,
- *   `transparent` included; `outline-color` the outline of the focus before it;
- *   `-webkit-text-fill-color` the text color; `accent-color` and `scrollbar-color` `auto`.
+ * - **The text color** takes the foreground of the context, `transparent` included.
+ * - **Every other foreground color** ({@link FOREGROUND_PROPERTIES}) takes the color of the
+ *   element, `currentcolor`, as Chromium does; `outline-color` the outline of the focus before it;
+ *   `-webkit-text-fill-color` follows the text color; `accent-color` and `scrollbar-color` are
+ *   `auto`. A `currentcolor` and the automatic caret are left: they have the forced color of
+ *   the element already.
  * - **`background-color`** takes the ground of the context with the alpha of the original,
  *   `rgb(from <original> <ground> / alpha)`, so a transparent surface stays transparent.
  * - **Shadows** become `none`, **a gradient without a `url()`** in `background-image` too, whether
@@ -223,15 +241,19 @@ function twinOf({ property, value, important }: Declaration, context: TwinContex
     const set = (target: string, to: string): Declaration => ({ property: target, value: to, important });
 
     if (name.startsWith('--')) return customPropertyTwin(name, text, important, context);
+    // The initial outline color is the text color, but Chromium gives any outline of the element with visible focus its color, and `outline: 2px solid` sets that initial one.
+    if (name === 'outline-color' && /^(?:initial|unset)$/i.test(text)) return [set(name, OUTLINE)];
     if (CSS_WIDE.has(text.toLowerCase())) return [];
 
     const replacement = COLOR_REPLACEMENTS.get(name);
 
-    if (replacement !== undefined) return [set(name, forcedColor(text, replacement, context.palette))];
+    if (replacement !== undefined) return standsForced(name, text) ? [] : [set(name, forcedColor(text, replacement, context.palette))];
 
     const shorthand = COLOR_SHORTHANDS.get(name);
 
     if (shorthand) {
+        if (shorthand.colorOnly && text.toLowerCase() === CURRENT_COLOR) return [];
+
         return shorthand.colors.map((longhand) => {
             const forced = COLOR_REPLACEMENTS.get(longhand) as string;
 

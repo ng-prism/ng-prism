@@ -152,12 +152,14 @@ const ROOTS_AND_INSIDE = `*${SCOPE_IN_SUFFIX}`;
  * what is inside inherits it. The sheet keeps that context in custom properties, which inherit as
  * well, and the forced colors read it:
  *
- * - `--prism-sim-fg`, the text color, for the text and every foreground color,
+ * - `--prism-sim-fg`, the text color. Every other foreground color, a border, an outline or a caret,
+ *   is `currentcolor`: Chromium forces it to the color of the element itself, which is the text
+ *   color and no other (`Highlight` next to a text of `Highlight`),
  * - `--prism-sim-bg-rgb`, the ground as channels (`r g b`), for a background. Unlike the text
  *   color it stops at the element that sets it: what is inside a `<mark>`, and its generated
  *   content, gets `Canvas`, not `Mark`,
  * - `--prism-sim-outline`, the outline of the element with visible focus, and of no other, not
- *   even its generated content.
+ *   even its generated content; any other outline is `currentcolor`.
  */
 
 // The properties of CSS Color Adjust 1, "Properties Affected by Forced Colors Mode", and the
@@ -173,23 +175,26 @@ const ROOTS_AND_INSIDE = `*${SCOPE_IN_SUFFIX}`;
 const INHERITED: readonly string[] = [
     'color: var(--prism-sim-fg)',
     '-webkit-text-fill-color: currentColor',
-    'caret-color: var(--prism-sim-fg)',
+    'caret-color: currentcolor',
     'text-shadow: none',
     'accent-color: auto',
     'scrollbar-color: auto'
 ];
 
-/** Colors that nothing can hide behind: they are set on the generated content too. */
+/**
+ * Colors that nothing can hide behind: they are set on the generated content too. They follow the
+ * color of the element, which the sheet forces to the foreground of the context, as Chromium does.
+ */
 const COLORS: readonly string[] = [
-    'border-color: var(--prism-sim-fg)',
-    'outline-color: var(--prism-sim-outline, var(--prism-sim-fg))',
-    'text-decoration-color: var(--prism-sim-fg)',
-    'text-emphasis-color: var(--prism-sim-fg)',
-    'column-rule-color: var(--prism-sim-fg)',
-    'row-rule-color: var(--prism-sim-fg)',
-    'stop-color: var(--prism-sim-fg)',
-    'flood-color: var(--prism-sim-fg)',
-    'lighting-color: var(--prism-sim-fg)'
+    'border-color: currentcolor',
+    'outline-color: var(--prism-sim-outline, currentcolor)',
+    'text-decoration-color: currentcolor',
+    'text-emphasis-color: currentcolor',
+    'column-rule-color: currentcolor',
+    'row-rule-color: currentcolor',
+    'stop-color: currentcolor',
+    'flood-color: currentcolor',
+    'lighting-color: currentcolor'
 ];
 
 /**
@@ -220,7 +225,7 @@ const NO_GRADIENT: readonly string[] = ['background-image: none'];
 // An inline background loses its alpha, which a selector cannot read.
 const INLINE_COLOR: readonly string[] = ['color: var(--prism-sim-fg)'];
 const INLINE_BACKGROUND: readonly string[] = ['background-color: rgb(var(--prism-sim-bg-rgb))'];
-const INLINE_BORDER: readonly string[] = ['border-color: var(--prism-sim-fg)'];
+const INLINE_BORDER: readonly string[] = ['border-color: currentcolor'];
 
 /**
  * Every property the sheet forces. A copy of the author's own `@media (forced-colors: active)`
@@ -298,7 +303,8 @@ const INLINE_BORDERS = ':where([style*="border" i])';
  * `CanvasText` on `Canvas`, a link to `LinkText`, a disabled button to
  * `GrayText`, a `<mark>` to `MarkText` on `Mark`, and the element with visible
  * focus has a `Highlight` outline. The text color of a context reaches what is
- * inside; text, borders and every other foreground read it.
+ * inside and is the one the text reads; borders and every other foreground are
+ * `currentcolor`, the forced color of their own element.
  *
  * Every rule weighs nothing (`:where()`) and every declaration is `!important`.
  * So the author's normal declarations lose, as the browser overrides them, and

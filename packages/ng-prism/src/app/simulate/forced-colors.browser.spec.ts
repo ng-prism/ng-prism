@@ -248,11 +248,19 @@ function substituteVars(value: string, lookup: (name: string) => string | undefi
     return value.slice(0, start) + substituted + substituteVars(value.slice(end + 1), lookup);
 }
 
-/** {@link forcedOn} with the `var()`s of the context resolved: what the element computes from the sheet. */
+/**
+ * {@link forcedOn} with the `var()`s of the context resolved and `currentcolor` taken to the color
+ * of the element: what the element computes from the sheet.
+ */
 function computedOn(css: string, element: Element, pseudo: Pseudo = ''): Record<string, string> {
     const forced = forcedOn(css, element, pseudo);
+    const resolved = Object.fromEntries(
+        Object.entries(forced).map(([property, value]) => [property, substituteVars(value, (name) => customOn(css, element, name, pseudo))])
+    );
 
-    return Object.fromEntries(Object.entries(forced).map(([property, value]) => [property, substituteVars(value, (name) => customOn(css, element, name, pseudo))]));
+    return Object.fromEntries(
+        Object.entries(resolved).map(([property, value]) => [property, property !== 'color' && /^currentcolor$/i.test(value) ? (resolved['color'] ?? value) : value])
+    );
 }
 
 describe('forcedColorsCss', () => {
@@ -406,6 +414,30 @@ describe('forcedColorsCss', () => {
             });
         });
 
+        it('forces the text to the foreground of the context and every other foreground to the color of the element, as Chromium does', () => {
+            // A border, an outline, a decoration and a caret take the element's own color, whatever it is: the text color, `LinkText` on a link.
+            expect(forcedOn(css, at('#text'))).toMatchObject({
+                color: 'var(--prism-sim-fg)',
+                'border-color': 'currentcolor',
+                'outline-color': 'var(--prism-sim-outline, currentcolor)',
+                'text-decoration-color': 'currentcolor',
+                'text-emphasis-color': 'currentcolor',
+                'column-rule-color': 'currentcolor',
+                'row-rule-color': 'currentcolor',
+                'caret-color': 'currentcolor',
+                'stop-color': 'currentcolor',
+                'flood-color': 'currentcolor',
+                'lighting-color': 'currentcolor'
+            });
+            expect(computedOn(css, at('#link'))).toMatchObject({
+                color: DARK.linktext,
+                'border-color': DARK.linktext,
+                'outline-color': DARK.linktext,
+                'caret-color': DARK.linktext
+            });
+            expect(computedOn(css, at('#in-link'), '::before')).toMatchObject({ color: DARK.linktext, 'border-color': DARK.linktext });
+        });
+
         it('forces the overlay container and what it holds in the same way', () => {
             expect(computedOn(css, at('#pane'))).toMatchObject({ color: DARK.canvastext, 'background-color': DARK.canvas, 'box-shadow': 'none' });
             expect(computedOn(css, at('#menu-button'))).toMatchObject({ color: DARK.buttontext, 'background-color': DARK.buttonface });
@@ -494,7 +526,7 @@ describe('forcedColorsCss', () => {
 
         it('takes links to LinkText and native disabled buttons to GrayText, through the context', () => {
             // The element sets the context, its color and borders read it, and what is inside inherits it.
-            expect(forcedOn(css, at('#link'))).toMatchObject({ '--prism-sim-fg': DARK.linktext, color: 'var(--prism-sim-fg)', 'border-color': 'var(--prism-sim-fg)' });
+            expect(forcedOn(css, at('#link'))).toMatchObject({ '--prism-sim-fg': DARK.linktext, color: 'var(--prism-sim-fg)', 'border-color': 'currentcolor' });
             expect(forcedOn(css, at('#in-link'))).not.toHaveProperty('--prism-sim-fg');
             expect(forcedOn(css, at('#disabled'))).toMatchObject({ '--prism-sim-fg': DARK.graytext, color: 'var(--prism-sim-fg)' });
             for (const selector of ['#link', '#in-link']) {
@@ -569,7 +601,7 @@ describe('forcedColorsCss', () => {
 
             // `!important` at the weight of nothing: an inline declaration has no weight to beat it with.
             expect(netOn(at('#inline'))).toEqual({ color: 'var(--prism-sim-fg) !important', 'background-color': 'rgb(var(--prism-sim-bg-rgb)) !important' });
-            expect(netOn(at('#inline-border'))).toEqual({ 'border-color': 'var(--prism-sim-fg) !important' });
+            expect(netOn(at('#inline-border'))).toEqual({ 'border-color': 'currentcolor !important' });
             expect(computedOn(css, at('#inline'))).toMatchObject({ color: DARK.canvastext, 'background-color': 'rgb(0 0 0)', 'border-color': DARK.canvastext });
             // The ground of the context: Mark on a mark, the page's inside it.
             expect(computedOn(css, at('#inline-mark'))['background-color']).toBe('rgb(255 255 0)');
