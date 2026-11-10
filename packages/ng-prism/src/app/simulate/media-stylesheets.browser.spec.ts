@@ -1,7 +1,9 @@
 import { PseudoStyleSheets } from '../pseudo/pseudo-stylesheets.js';
-import { FORCED_PALETTES } from './forced-palette.js';
+import { prelude } from './css-rules.js';
+import { exemptionSelector, type ForcedColorRules } from './forced-colors.js';
+import { FORCED_PALETTES, type ForcedPaletteName } from './forced-palette.js';
 import { MEDIA_FALSE, MEDIA_TRUE } from './media-condition.js';
-import { MediaStyleSheets } from './media-stylesheets.js';
+import { type ForcedOptions, MediaStyleSheets } from './media-stylesheets.js';
 import { SCOPE_IN_SUFFIX, SCOPE_OUT_SUFFIX, scopeIn } from './scope-selector.js';
 
 function addStyle(css: string): CSSStyleSheet {
@@ -287,54 +289,74 @@ describe('MediaStyleSheets', () => {
     });
 
     describe('forced colors', () => {
-        it('marks what a copied forced-colors rule sets that the forced sheet forces !important, and nothing else', () => {
-            const sheet = addStyle(
-                '@media (forced-colors: active) { .t { outline-color: Highlight; border: 1px solid ButtonText; display: none; padding: 2px; --ring: Highlight } }'
-            );
+        const FORCED = { 'forced-colors': 'active' } as const;
+        const NO_RULES: ForcedColorRules = { exempt: [], reenabled: [], gradientVars: [] };
+        const forced = (palette: ForcedPaletteName = 'dark', rules: Partial<ForcedColorRules> = {}): ForcedOptions => ({ palette, rules: { ...NO_RULES, ...rules } });
+        const styleRules = (group: { cssRules: CSSRuleList }): CSSStyleRule[] => Array.from(group.cssRules) as CSSStyleRule[];
+        /** A sheet's text, rule by rule. */
+        const textOf = (sheet: CSSStyleSheet): string => Array.from(sheet.cssRules, (rule) => rule.cssText).join('\n');
 
-            engine.apply({ 'forced-colors': 'active' });
-            const copy = (sheet.cssRules[1] as CSSMediaRule).cssRules[0] as CSSStyleRule;
+        it('puts a twin right behind every rule that sets a forced property, scoped and as important as the original', () => {
+            const sheet = addStyle('.a { color: red } .b { padding: 1px } .c { border-color: blue !important }');
 
-            // The colours have to win against the forced sheet; everything else keeps the cascade it has in the real mode.
-            expect(copy.style.getPropertyPriority('outline-color')).toBe('important');
-            expect(copy.style.getPropertyPriority('border')).toBe('important');
-            for (const property of ['display', 'padding-top', '--ring']) expect([property, copy.style.getPropertyPriority(property)]).toEqual([property, '']);
+            engine.apply(FORCED, forced());
+            const rules = styleRules(sheet);
+
+            expect(rules.map(selectorOf)).toEqual(['.a', scopeIn('.a'), '.b', '.c', scopeIn('.c')]);
+            expect(rules[1].style.getPropertyValue('color')).toBe('var(--prism-sim-fg)');
+            expect(rules[1].style.getPropertyPriority('color')).toBe('');
+            expect(rules[4].style.getPropertyValue('border-top-color')).toBe('currentcolor');
+            expect(rules[4].style.getPropertyPriority('border-top-color')).toBe('important');
         });
 
-        it('marks the nested rules of the copy, and leaves the original as it is', () => {
-            const sheet = addStyle(
-                '@media (forced-colors: active) { @supports (outline-style: solid) { .t { outline: 2px solid CanvasText; background: url("a;b.png") } } }'
-            );
+        it("gives an exempt subtree a twin with the palette's system colors only", () => {
+            const sheet = addStyle('.a { color: Highlight; background-color: red } .b { color: red }');
+            const exemption = exemptionSelector({ ...NO_RULES, exempt: ['.dot'] }) as string;
 
-            engine.apply({ 'forced-colors': 'active' });
-            const original = ((sheet.cssRules[0] as CSSMediaRule).cssRules[0] as CSSSupportsRule).cssRules[0] as CSSStyleRule;
-            const copy = ((sheet.cssRules[1] as CSSMediaRule).cssRules[0] as CSSSupportsRule).cssRules[0] as CSSStyleRule;
+            engine.apply(FORCED, forced('dark', { exempt: ['.dot'] }));
+            const [, twin, exemptTwin, , bTwin] = styleRules(sheet);
 
-            expect(original.style.getPropertyPriority('background')).toBe('');
-            expect(copy.style.getPropertyPriority('background')).toBe('important');
-            expect(copy.style.getPropertyValue('background')).toBe(original.style.getPropertyValue('background'));
+            expect(sheet.cssRules).toHaveLength(5);
+            expect(twin.selectorText).toBe(scopeIn('.a', false, `:not(${exemption})`));
+            expect(twin.style.getPropertyValue('color')).toBe(FORCED_PALETTES.dark.highlight);
+            expect(twin.style.getPropertyValue('background-color')).toBe('rgb(from red var(--prism-sim-bg-rgb) / alpha)');
+            expect(exemptTwin.selectorText).toBe(scopeIn('.a', false, exemption));
+            expect(Array.from(exemptTwin.style)).toEqual(['color']);
+            expect(exemptTwin.style.getPropertyValue('color')).toBe(FORCED_PALETTES.dark.highlight);
+            // A rule without a system color has nothing to resolve for an exempt subtree.
+            expect(bTwin.selectorText).toBe(scopeIn('.b', false, `:not(${exemption})`));
         });
 
-        it('leaves the priorities of a copy alone when forced colors are not emulated', () => {
-            const sheet = addStyle('@media (prefers-color-scheme: dark) and (forced-colors: active) { .t { color: white } }');
+        it('leaves a copied forced-colors rule as important as the original, its system colors in the palette', () => {
+            const sheet = addStyle('@media (forced-colors: active) { .t { outline-color: Highlight; border-top-color: red !important; display: none } }');
+
+            engine.apply(FORCED, forced('light'));
+            const [copy, twin] = styleRules(sheet.cssRules[1] as CSSMediaRule);
+
+            expect(copy.selectorText).toBe(scopeIn('.t'));
+            expect(copy.style.getPropertyValue('outline-color')).toBe(FORCED_PALETTES.light.highlight);
+            for (const [property, priority] of [
+                ['outline-color', ''],
+                ['border-top-color', 'important'],
+                ['display', '']
+            ]) {
+                expect([property, copy.style.getPropertyPriority(property)]).toEqual([property, priority]);
+            }
+            // Computed from the keyword, which stays standing, and not from the value it resolves to, which would be forced.
+            expect(twin.selectorText).toBe(scopeIn('.t'));
+            expect(twin.style.getPropertyValue('outline-color')).toBe(FORCED_PALETTES.light.highlight);
+            expect(twin.style.getPropertyValue('border-top-color')).toBe('currentcolor');
+            expect(twin.style.getPropertyPriority('border-top-color')).toBe('important');
+            expect(((sheet.cssRules[0] as CSSMediaRule).cssRules[0] as CSSStyleRule).style.getPropertyValue('outline-color')).toBe('Highlight');
+        });
+
+        it('leaves the copies alone when forced colors are not emulated', () => {
+            const sheet = addStyle('@media (prefers-color-scheme: dark) and (forced-colors: active) { .t { color: GrayText } } .a { color: red }');
 
             engine.apply(DARK);
-            expect(((sheet.cssRules[1] as CSSMediaRule).cssRules[0] as CSSStyleRule).style.getPropertyPriority('color')).toBe('');
-        });
-
-        it('resolves the system colors of a copy in the palette, and builds the copies anew for another palette', () => {
-            const sheet = addStyle('@media (forced-colors: active) { .t { outline-color: Highlight } }');
-            const copy = (): CSSStyleRule => (sheet.cssRules[1] as CSSMediaRule).cssRules[0] as CSSStyleRule;
-
-            engine.apply({ 'forced-colors': 'active' }, 'dark');
-            expect(copy().style.getPropertyValue('outline-color')).toBe('rgba(0, 230, 255, 0.8)');
-            // Still `!important`, to win against the forced colors sheet.
-            expect(copy().style.getPropertyPriority('outline-color')).toBe('important');
-
-            engine.apply({ 'forced-colors': 'active' }, 'light');
-            expect(sheet.cssRules).toHaveLength(2);
-            expect(copy().style.getPropertyValue('outline-color')).toBe('rgba(5, 0, 73, 0.8)');
-            expect(((sheet.cssRules[0] as CSSMediaRule).cssRules[0] as CSSStyleRule).style.getPropertyValue('outline-color')).toBe('Highlight');
+            expect((sheet.cssRules[1] as CSSMediaRule).cssRules).toHaveLength(1);
+            expect(((sheet.cssRules[1] as CSSMediaRule).cssRules[0] as CSSStyleRule).style.getPropertyValue('color')).toBe('GrayText');
+            expect(sheet.cssRules).toHaveLength(3);
         });
 
         it('resolves system colors only where a color can be, and a custom property only when it is one', () => {
@@ -342,7 +364,7 @@ describe('MediaStyleSheets', () => {
                 '@media (forced-colors: active) { .t { border: 1px solid ButtonText; transition: background 0.2s; font: menu; --ring: Highlight; --word: Background; --mix: 0 0 0 2px Highlight } }'
             );
 
-            engine.apply({ 'forced-colors': 'active' }, 'dark');
+            engine.apply(FORCED, forced('dark'));
             const copy = (sheet.cssRules[1] as CSSMediaRule).cssRules[0] as CSSStyleRule;
 
             expect(copy.style.getPropertyValue('border')).toBe('1px solid #ffffff');
@@ -354,17 +376,186 @@ describe('MediaStyleSheets', () => {
             expect(copy.style.getPropertyValue('--mix')).toBe('0 0 0 2px Highlight');
         });
 
-        it('resolves the system colors of every copy under a palette, and of none without one', () => {
+        it('resolves the system colors of every copy under a palette, builds everything anew for another one, and resolves none without one', () => {
             const sheet = addStyle('@media (prefers-reduced-motion: reduce) { .t { color: GrayText } }');
             const copy = (): CSSStyleRule => (sheet.cssRules[1] as CSSMediaRule).cssRules[0] as CSSStyleRule;
 
-            engine.apply({ ...REDUCE, 'forced-colors': 'active' }, 'light');
+            engine.apply({ ...REDUCE, ...FORCED }, forced('light'));
             expect(copy().style.getPropertyValue('color')).toBe(FORCED_PALETTES.light.graytext);
-            // Not a forced-colors rule: its weight stays.
             expect(copy().style.getPropertyPriority('color')).toBe('');
+
+            engine.apply({ ...REDUCE, ...FORCED }, forced('dark'));
+            expect(sheet.cssRules).toHaveLength(2);
+            expect(copy().style.getPropertyValue('color')).toBe(FORCED_PALETTES.dark.graytext);
 
             engine.apply(REDUCE, null);
             expect(copy().style.getPropertyValue('color')).toBe('GrayText');
+            expect((sheet.cssRules[1] as CSSMediaRule).cssRules).toHaveLength(1);
+        });
+
+        it('rewrites a copy only where a system color changes it', () => {
+            const sheet = addStyle('@media (prefers-reduced-motion: reduce) { .plain { color: red } .system { color: GrayText } }');
+            // The declarations of the sheet's rules, as the CSSOM of jsdom makes them.
+            const set = jest.spyOn(Object.getPrototypeOf(((sheet.cssRules[0] as CSSMediaRule).cssRules[0] as CSSStyleRule).style), 'cssText', 'set');
+
+            engine.apply({ ...REDUCE, ...FORCED }, forced('light'));
+            expect(set).toHaveBeenCalledTimes(1);
+            expect(((sheet.cssRules[1] as CSSMediaRule).cssRules[0] as CSSStyleRule).style.getPropertyValue('color')).toBe('red');
+        });
+
+        it('builds anew for other rules, and only then', () => {
+            const sheet = addStyle('.a { color: red }');
+            const insertRule = jest.spyOn(sheet, 'insertRule');
+
+            engine.apply(FORCED, forced('dark'));
+            engine.apply(FORCED, forced('dark'));
+            expect(insertRule).toHaveBeenCalledTimes(1);
+
+            engine.apply(FORCED, forced('dark', { exempt: ['.dot'] }));
+            expect(insertRule).toHaveBeenCalledTimes(2);
+            expect(selectorOf(sheet.cssRules[1])).toBe(scopeIn('.a', false, `:not(${exemptionSelector({ ...NO_RULES, exempt: ['.dot'] })})`));
+        });
+
+        it('twins @keyframes that set a forced property and renames them in the twins of rules that use them', () => {
+            const sheet = addStyle(
+                '@keyframes p { from { background-color: #c00; opacity: 0 } } @keyframes q { from { opacity: 0 } } .k { animation-name: p } .q { animation-name: q }'
+            );
+
+            engine.apply(FORCED, forced());
+            const rules = Array.from(sheet.cssRules);
+            const twin = rules[1] as CSSKeyframesRule;
+            const frame = twin.cssRules[0] as CSSKeyframeRule;
+
+            expect(rules.map((rule) => prelude(rule.cssText))).toEqual(['@keyframes p', '@keyframes p-prism-sim', '@keyframes q', '.k', scopeIn('.k'), '.q']);
+            expect(twin.name).toBe('p-prism-sim');
+            expect(frame.keyText).toBe('from');
+            // What a twin does not force stays, so that the animation keeps its course.
+            expect(frame.style.getPropertyValue('background-color')).toBe('rgb(from #c00 var(--prism-sim-bg-rgb) / alpha)');
+            expect(frame.style.getPropertyValue('opacity')).toBe('0');
+            expect((rules[4] as CSSStyleRule).style.getPropertyValue('animation-name')).toBe('p-prism-sim');
+        });
+
+        it('gives a rule on the document root a twin of only what the scope roots may inherit', () => {
+            const sheet = addStyle('body { background-color: #fff; color: #333; --tok: Highlight }');
+
+            engine.apply(FORCED, forced('dark'));
+            const twin = sheet.cssRules[1] as CSSStyleRule;
+
+            expect(twin.selectorText).toBe(scopeIn('body'));
+            expect(Array.from(twin.style).sort()).toEqual(['--prism-sim-sys-tok', '--tok', 'color']);
+            expect(twin.style.getPropertyValue('--tok')).toBe(FORCED_PALETTES.dark.highlight);
+        });
+
+        it('forces a root value that it sets on the scope roots again, with the twin of its rule behind it', () => {
+            const sheet = addStyle(':root { --bg: Canvas; color: #333 } @media (prefers-color-scheme: dark) { :root { --bg: #000 } }');
+
+            engine.apply({ ...LIGHT, ...FORCED }, forced('dark'));
+            const [root, copy, twin] = styleRules(sheet);
+
+            expect([root, copy, twin].map(selectorOf)).toEqual([':root', scopeIn(':root'), scopeIn(':root')]);
+            expect(Array.from(copy.style)).toEqual(['--bg']);
+            expect(twin.style.getPropertyValue('--bg')).toBe(FORCED_PALETTES.dark.canvas);
+            expect(twin.style.getPropertyValue('--prism-sim-sys-bg')).toBe(FORCED_PALETTES.dark.canvas);
+            expect(twin.style.getPropertyValue('color')).toBe('var(--prism-sim-fg)');
+        });
+
+        it('restores every sheet to its text after on, a palette switch and off', () => {
+            const sheets = [
+                addStyle(':root { --bg: #fff; --tok: Highlight } @media (prefers-color-scheme: dark) { :root { --bg: #000 } } .a { color: red; background-color: #fff }'),
+                addStyle(
+                    '@media (forced-colors: active) { .b { outline-color: Highlight; forced-color-adjust: none } } @keyframes p { from { color: red } } .k { animation-name: p }'
+                )
+            ];
+            const before = sheets.map(textOf);
+
+            engine.apply({ ...LIGHT, ...FORCED }, forced('dark', { exempt: ['.b'] }));
+            expect(sheets.map(textOf)).not.toEqual(before);
+            engine.apply({ ...LIGHT, ...FORCED }, forced('light', { exempt: ['.b'] }));
+            engine.apply(LIGHT, null);
+            engine.clear();
+            expect(sheets.map(textOf)).toEqual(before);
+        });
+
+        it('twins styles that arrive while forced colors are on and undoes sheets that leave', async () => {
+            engine.apply(FORCED, forced());
+            const style = document.createElement('style');
+
+            style.textContent = '.late { color: red }';
+            document.head.appendChild(style);
+            await flushMutations();
+            const sheet = style.sheet as CSSStyleSheet;
+
+            expect(styleRules(sheet).map(selectorOf)).toEqual(['.late', scopeIn('.late')]);
+
+            style.remove();
+            await flushMutations();
+            expect(styleRules(sheet).map(selectorOf)).toEqual(['.late']);
+        });
+
+        it("warns once and keeps going when the browser rejects a twin's selector", () => {
+            const warn = jest.spyOn(console, 'warn').mockImplementation();
+            const sheet = addStyle('.bad::part(x) { color: red } .ok { color: red }');
+            const insertRule = sheet.insertRule.bind(sheet);
+
+            // A browser that does not take the first selector with the scope and the exemption added.
+            jest.spyOn(sheet, 'insertRule').mockImplementation((text: string, index?: number) => {
+                if (text.startsWith('.bad')) throw new DOMException('Failed to parse the rule', 'SyntaxError');
+                return insertRule(text, index);
+            });
+            engine.apply(FORCED, forced('dark'));
+            engine.apply(FORCED, forced('light'));
+
+            expect(styleRules(sheet).map(selectorOf)).toEqual(['.bad::part(x)', '.ok', scopeIn('.ok')]);
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining('.bad'));
+        });
+
+        it.each([
+            ['before', true],
+            ['after', false]
+        ])('twins the widened selector when pseudo states are forced %s apply()', (_, before) => {
+            const sheet = addStyle('.a:hover { color: red }');
+            const pseudo = new PseudoStyleSheets(document);
+            const widened = '.a:is(:hover, .prism-pseudo--hover)';
+
+            if (before) pseudo.rewriteSheet(sheet);
+            engine.apply(FORCED, forced());
+            if (!before) pseudo.rewriteSheet(sheet);
+            expect(styleRules(sheet).map(selectorOf)).toEqual([widened, scopeIn(widened)]);
+
+            engine.clear();
+            expect(styleRules(sheet).map(selectorOf)).toEqual([widened]);
+        });
+
+        it("twins a nested rule's own declarations as its first nested rule", () => {
+            // A style rule with nested rules, which jsdom cannot parse, from rules it can.
+            const parse = (text: string): CSSRule => {
+                const scratch = new CSSStyleSheet();
+
+                scratch.insertRule(text, 0);
+                return scratch.cssRules[0];
+            };
+            const group = (rules: CSSRule[]): { cssRules: CSSRule[]; insertRule(text: string, index?: number): number; deleteRule(index: number): void } => ({
+                cssRules: rules,
+                insertRule(text, index = 0) {
+                    rules.splice(index, 0, parse(text));
+                    return index;
+                },
+                deleteRule(index) {
+                    rules.splice(index, 1);
+                }
+            });
+            const card = Object.assign(group([parse('.icon { color: blue }')]), { selectorText: '.card', style: (parse('.card { color: red }') as CSSStyleRule).style });
+
+            listSheets(Object.assign(group([card as unknown as CSSRule]), { media: { mediaText: '' }, href: null }) as unknown as CSSStyleSheet);
+            engine.apply(FORCED, forced());
+
+            // Before the nested rules, as the declarations of the rule come before them.
+            expect(card.cssRules.map(selectorOf)).toEqual([`&${SCOPE_IN_SUFFIX}`, '.icon', scopeIn('.icon')]);
+            expect((card.cssRules[0] as CSSStyleRule).style.getPropertyValue('color')).toBe('var(--prism-sim-fg)');
+
+            engine.clear();
+            expect(card.cssRules.map(selectorOf)).toEqual(['.icon']);
         });
     });
 

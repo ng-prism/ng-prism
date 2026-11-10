@@ -1,4 +1,14 @@
-import { type Declaration, exemptTwin, forcedKeyframe, forcedTwin, keyframesTwinName, serializeDeclarations, shadowName, type TwinContext } from './forced-values.js';
+import {
+    type Declaration,
+    declarationsOfStyle,
+    exemptTwin,
+    forcedKeyframe,
+    forcedTwin,
+    keyframesTwinName,
+    serializeDeclarations,
+    shadowName,
+    type TwinContext
+} from './forced-values.js';
 
 const ctx: TwinContext = { palette: 'dark', gradientVars: new Set(['--ai']), keyframes: new Set(['pulse']) };
 
@@ -51,7 +61,6 @@ describe('forcedTwin', () => {
                     [
                         d('color', keyword),
                         d('border-top-color', keyword),
-                        d('outline-color', keyword),
                         d('text-decoration-color', keyword),
                         d('caret-color', keyword),
                         d('-webkit-text-fill-color', keyword)
@@ -59,6 +68,13 @@ describe('forcedTwin', () => {
                     ctx
                 )
             ).toEqual([]);
+        });
+
+        it('gives an outline in the color of the element the outline of the focus, which Chromium forces on it as on any other', () => {
+            expect(forcedTwin([d('outline-color', 'currentColor'), d('outline-color', 'currentcolor', true)], ctx)).toEqual([
+                d('outline-color', 'var(--prism-sim-outline, currentcolor)'),
+                d('outline-color', 'var(--prism-sim-outline, currentcolor)', true)
+            ]);
         });
 
         it('gives the outline that the browser expands without a color the outline of the focus, which Chromium forces on any outline', () => {
@@ -364,9 +380,9 @@ describe('forcedKeyframe', () => {
     });
 
     it('takes the color of the element for a border, and leaves currentcolor standing', () => {
-        expect(forcedKeyframe([d('border-top-color', 'red'), d('outline-color', 'currentcolor'), d('color', 'currentColor')], ctx)).toEqual([
+        expect(forcedKeyframe([d('border-top-color', 'red'), d('text-decoration-color', 'currentcolor'), d('color', 'currentColor')], ctx)).toEqual([
             d('border-top-color', 'currentcolor'),
-            d('outline-color', 'currentcolor'),
+            d('text-decoration-color', 'currentcolor'),
             d('color', 'currentColor')
         ]);
     });
@@ -392,5 +408,68 @@ describe('serializeDeclarations', () => {
         expect(serializeDeclarations([d('a', 'b', true), d('c', 'd')])).toBe('a: b !important; c: d');
         expect(serializeDeclarations([d('--x', 'rgb(from #fff var(--y) / alpha)')])).toBe('--x: rgb(from #fff var(--y) / alpha)');
         expect(serializeDeclarations([])).toBe('');
+    });
+});
+
+/**
+ * A style as an engine lists it: `listed` in order, each with its value and priority, and the
+ * shorthands of `whole`, which the style gives a value without listing them. `asked` records every
+ * property whose value was read.
+ */
+function styleOf(listed: readonly [string, string, boolean?][], whole: Record<string, string> = {}): { style: CSSStyleDeclaration; asked: string[] } {
+    const asked: string[] = [];
+    const values = new Map(listed.map(([property, value, important]) => [property, { value, important: important === true }]));
+    const style = Object.assign(
+        listed.map(([property]) => property),
+        {
+            getPropertyValue(property: string): string {
+                asked.push(property);
+                return values.get(property)?.value ?? whole[property] ?? '';
+            },
+            getPropertyPriority: (property: string): string => (values.get(property)?.important ? 'important' : '')
+        }
+    );
+
+    return { style: style as unknown as CSSStyleDeclaration, asked };
+}
+
+describe('declarationsOfStyle', () => {
+    it('reads a color shorthand that the style lists itself, as an engine that does not expand shorthands does', () => {
+        const { style } = styleOf([
+            ['border-color', 'blue', true],
+            ['padding', '1px']
+        ]);
+
+        expect(declarationsOfStyle(style)).toEqual([d('border-color', 'blue', true)]);
+    });
+
+    it('reads every declaration for a keyframe, whose twin keeps what it does not force', () => {
+        const { style } = styleOf([
+            ['background-color', 'red'],
+            ['transform', 'scale(2)'],
+            ['opacity', '0']
+        ]);
+
+        expect(declarationsOfStyle(style, { all: true })).toEqual([d('background-color', 'red'), d('transform', 'scale(2)'), d('opacity', '0')]);
+        expect(declarationsOfStyle(style)).toEqual([d('background-color', 'red')]);
+    });
+
+    it('looks for a shorthand that var() left whole only when a color it sets has no value', () => {
+        // `border-radius: var(--r)` leaves the radii without a value, and no color.
+        const radius = styleOf(
+            [
+                ['border-top-left-radius', ''],
+                ['color', 'red']
+            ],
+            { 'border-radius': 'var(--r)' }
+        );
+
+        expect(declarationsOfStyle(radius.style)).toEqual([d('color', 'red')]);
+        expect(radius.asked).not.toContain('border');
+        expect(radius.asked).not.toContain('background');
+
+        const border = styleOf([['border-top-color', '']], { border: '1px solid var(--c)' });
+
+        expect(declarationsOfStyle(border.style)).toEqual([d('border', '1px solid var(--c)')]);
     });
 });

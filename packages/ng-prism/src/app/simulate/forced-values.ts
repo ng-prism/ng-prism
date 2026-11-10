@@ -1,3 +1,4 @@
+import { declarationsOf, propertyOf } from './css-rules.js';
 import { carriesColor, type ForcedPaletteName, keepsSystemColor, resolveSystemColors, substituteSystemColors, SYSTEM_COLORS } from './forced-palette.js';
 import { splitList } from './scope-selector.js';
 
@@ -79,8 +80,12 @@ const COLOR_REPLACEMENTS: ReadonlyMap<string, string> = new Map([
     ['scrollbar-color', 'auto']
 ]);
 
-/** The properties whose `currentcolor` Chromium leaves standing, since it is the forced color of the element already: the foreground colors and the text fill. */
-const FOLLOWS_COLOR: ReadonlySet<string> = new Set([...FOREGROUND_PROPERTIES, '-webkit-text-fill-color']);
+/**
+ * The properties whose `currentcolor` Chromium leaves standing, since it is the forced color of the
+ * element already: the foreground colors and the text fill. Not the outline, which Chromium takes to
+ * `Highlight` on the element with visible focus whatever color it has, its own included.
+ */
+const FOLLOWS_COLOR: ReadonlySet<string> = new Set([...Array.from(FOREGROUND_PROPERTIES).filter((property) => property !== 'outline-color'), '-webkit-text-fill-color']);
 
 /** Whether Chromium leaves `value` of the foreground property `name` standing: `currentcolor`, and the automatic caret, which has the color of the element. */
 function standsForced(name: string, value: string): boolean {
@@ -147,6 +152,7 @@ const URL_IMAGE = /\burl\(/i;
 const VAR_NAME = String.raw`(--(?:[^\s,()\\]|\\.)+)`;
 const WHOLE_VAR = new RegExp(String.raw`^var\(\s*${VAR_NAME}\s*\)$`, 'i');
 const VARS = new RegExp(String.raw`var\(\s*${VAR_NAME}`, 'gi');
+const VAR = /\bvar\(/i;
 
 /** The name in a value that is nothing but `var(--name)`: `--name`, or `null` for any other value, a `var()` with a fallback too. */
 function wholeVar(value: string): string | null {
@@ -177,7 +183,7 @@ function nameOf(property: string): string {
  *   element, `currentcolor`, as Chromium does; `outline-color` the outline of the focus before it;
  *   `-webkit-text-fill-color` follows the text color; `accent-color` and `scrollbar-color` are
  *   `auto`. A `currentcolor` and the automatic caret are left: they have the forced color of
- *   the element already.
+ *   the element already. Not in an outline, which takes the outline of the focus all the same.
  * - **`background-color`** takes the ground of the context with the alpha of the original,
  *   `rgb(from <original> <ground> / alpha)`, so a transparent surface stays transparent.
  * - **Shadows** become `none`, **a gradient without a `url()`** in `background-image` too, whether
@@ -375,23 +381,31 @@ function animationNames(value: string, keyframes: ReadonlySet<string>): string |
  * A shorthand reads as its longhands (`border: 1px solid red` as `border-top-color: red` and the
  * rest), except where `var()` leaves them without a value: then the shorthand is one declaration
  * ({@link COLOR_SHORTHANDS}, `background`), as the style gives it. A longhand set after such a
- * shorthand in the same block hides it from the style, and its other longhands stay unread.
+ * shorthand in the same block hides it from the style, and its other longhands stay unread. A
+ * color shorthand that the style lists itself, as an engine that does not expand shorthands does,
+ * reads as one declaration too.
+ *
+ * With `all`, every declaration is read, for a keyframe, whose twin keeps what it does not force
+ * ({@link forcedKeyframe}): any other shorthand that `var()` left whole as well.
  */
-export function declarationsOfStyle(style: CSSStyleDeclaration): Declaration[] {
+export function declarationsOfStyle(style: CSSStyleDeclaration, { all = false }: { all?: boolean } = {}): Declaration[] {
     const declarations: Declaration[] = [];
     let pending = false;
+    let leftWhole = false;
 
     for (let i = 0; i < style.length; i++) {
         const property = style[i];
         const custom = property.startsWith('--');
-        const read = custom || READ_PROPERTIES.has(property);
+        const read = all || custom || READ_PROPERTIES.has(property) || PENDING_PROBES.has(property);
 
         if (!read && !carriesColor(property)) continue;
 
         const value = style.getPropertyValue(property).trim();
 
         if (!custom && value === '') {
-            pending = true;
+            // Only a color without a value tells of a color shorthand to read whole: a radius or a margin does not.
+            if (PROBES.has(property)) pending = true;
+            else leftWhole ||= all;
             continue;
         }
         if (!read && !(NAMES_SYSTEM_COLOR.test(value) && resolveSystemColors(property, value, 'light') !== value)) continue;
@@ -399,7 +413,26 @@ export function declarationsOfStyle(style: CSSStyleDeclaration): Declaration[] {
         declarations.push({ property, value, important: style.getPropertyPriority(property) === 'important' });
     }
     if (pending) declarations.push(...pendingShorthands(style));
+    if (leftWhole) declarations.push(...otherShorthandsLeftWhole(style, declarations));
     return declarations;
+}
+
+/** The longhands that {@link PENDING_PROBES} look at. */
+const PROBES: ReadonlySet<string> = new Set(PENDING_PROBES.values());
+
+/**
+ * The shorthands besides those of {@link PENDING_PROBES} that the text of the style holds whole,
+ * because `var()` left their longhands without a value. One that the text writes for longhands it
+ * has read (`margin: 1px`) holds no `var()`, and is left out.
+ */
+function otherShorthandsLeftWhole(style: CSSStyleDeclaration, read: readonly Declaration[]): Declaration[] {
+    const known = new Set(read.map(({ property }) => property));
+
+    return declarationsOf(style.cssText)
+        .map(propertyOf)
+        .filter((property) => !known.has(property) && !PENDING_PROBES.has(property))
+        .map((property) => ({ property, value: style.getPropertyValue(property).trim(), important: style.getPropertyPriority(property) === 'important' }))
+        .filter(({ value }) => VAR.test(value));
 }
 
 /** The shorthands of {@link PENDING_PROBES} that the style holds whole, because `var()` left their longhands without a value. */

@@ -24,6 +24,11 @@ export function isMediaRule(rule: CSSRule): rule is CSSMediaRule {
     return isRuleGroup(rule) && 'media' in rule;
 }
 
+/** `@keyframes`: a name and keyframes, which take no `insertRule`, unlike `@layer`. */
+export function isKeyframesRule(rule: CSSRule): rule is CSSKeyframesRule {
+    return typeof (rule as Partial<CSSKeyframesRule>).name === 'string' && 'cssRules' in rule && !isRuleGroup(rule);
+}
+
 export function isImportRule(rule: CSSRule): rule is CSSImportRule {
     return 'styleSheet' in rule && 'href' in rule;
 }
@@ -90,24 +95,17 @@ export function valueOf(declaration: string): string {
 export interface DeclarationRewrite {
     /** Which declarations stay, by property; all, without it. */
     keep?: (property: string) => boolean;
-    /** Which of them become `!important`, by property; none, without it. */
-    important?: (property: string) => boolean;
     /** The value a declaration takes, from its property and its value without the `!important`; the same, without it. */
     value?: (property: string, value: string) => string;
 }
 
-/**
- * A block's text with only the declarations whose property `keep` accepts,
- * each with the value `value` makes of it and, where `important` accepts the
- * property, `!important`.
- */
+/** A block's text with only the declarations whose property `keep` accepts, each with the value `value` makes of it. */
 export function rewriteDeclarations(cssText: string, options: DeclarationRewrite): string {
-    const { keep, important, value } = options;
+    const { keep, value } = options;
 
     return declarationsOf(cssText)
         .filter((declaration) => !keep || keep(propertyOf(declaration)))
         .map((declaration) => (value ? withValue(declaration, value) : declaration))
-        .map((declaration) => (important?.(propertyOf(declaration)) && !IMPORTANT.test(declaration) ? `${declaration} !important` : declaration))
         .join('; ');
 }
 

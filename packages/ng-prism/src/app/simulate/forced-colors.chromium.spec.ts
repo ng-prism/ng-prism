@@ -34,6 +34,10 @@ it('normalizes the colors Chromium serializes differently', () => {
     expect(normalizeColor('rgba(0, 0, 0, 0)')).toBe('rgba(0, 0, 0, 0)');
     expect(normalizeColor('rgba(204, 0, 0, 0.004)')).toBe('rgba(0, 0, 0, 0)');
     expect(normalizeColor('linear-gradient(rgba(255, 255, 255, 0), rgb(0, 0, 0))')).toBe('linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 1))');
+    // An animation between relative colors, in Oklab.
+    expect(normalizeColor('oklab(0 0 0)')).toBe('rgba(0, 0, 0, 1)');
+    expect(normalizeColor('oklab(0.999994 0.0000455678 0.0000200868)')).toBe('rgba(255, 255, 255, 1)');
+    expect(normalizeColor('oklab(0.627955 0.224863 0.125846 / 0.5)')).toBe('rgba(255, 0, 0, 0.5)');
     expect(normalizeColor('none')).toBe('none');
     expect(normalizeColor('color(display-p3 1 0 0)')).toBe('color(display-p3 1 0 0)');
 });
@@ -155,14 +159,12 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
             ]
         }));
 
-    // The generated content of a mark gets the page's ground as well, Canvas and not Mark. The sheet leaves the ground of
-    // generated content to the author, so the simulation keeps the author's.
-    it.failing('mark-generated-content', () =>
+    // The generated content of a mark gets the page's ground as well, Canvas and not Mark.
+    it('mark-generated-content', () =>
         expectSimulationToMatch({
             html: scope('mark::before { content: "b"; background: #c00 }', '<p><mark>Mark</mark></p>'),
             probes: [{ name: 'mark::before', selector: 'mark', pseudo: '::before', properties: ['color', 'background-color'] }]
-        })
-    );
+        }));
 
     // Any outline of the element with visible focus becomes Highlight, not only a transparent one; not the outline inside
     // it, nor the one of its generated content.
@@ -190,7 +192,7 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
             probes: [{ name: 'inline', selector: '.inline', properties: ['background-color', 'color', 'border-top-color'] }]
         }));
 
-    it.failing('toggle', () =>
+    it('toggle', () =>
         expectSimulationToMatch({
             html: scope(
                 `.track { position: relative; display: inline-block; width: 40px; height: 20px; border-radius: 10px; background: #8a8a8a }
@@ -205,10 +207,9 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
                 { name: 'on', selector: '.track.on', properties: ['background-color'] },
                 { name: 'on::after', selector: '.track.on', pseudo: '::after', properties: ['background-color', 'box-shadow'] }
             ]
-        })
-    );
+        }));
 
-    it.failing('checkbox-mask', () =>
+    it('checkbox-mask', () =>
         expectSimulationToMatch({
             html: scope(
                 `.box { position: relative; display: inline-block; width: 16px; height: 16px }
@@ -220,11 +221,10 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
                 { name: 'box::before', selector: '.box', pseudo: '::before', properties: ['background-color'] },
                 { name: 'box::after', selector: '.box', pseudo: '::after', properties: ['background-color'] }
             ]
-        })
-    );
+        }));
 
-    // Chromium turns the dot into Canvas, as white as the author's dot in the light palette. In the dark one the simulation keeps it white.
-    (scheme === 'light' ? it : it.failing)('radio-dark', () =>
+    // Chromium turns the dot into Canvas, as white as the author's dot in the light palette and black in the dark one.
+    it('radio-dark', () =>
         expectSimulationToMatch({
             html: scope(
                 `.dot { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border: 1px solid #8a8a8a; border-radius: 50% }
@@ -236,10 +236,9 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
                 { name: 'off::after', selector: '.dot.off', pseudo: '::after', properties: ['background-color'] },
                 { name: 'on::after', selector: '.dot.on', pseudo: '::after', properties: ['background-color'] }
             ]
-        })
-    );
+        }));
 
-    it.failing('focus-fallback', () =>
+    it('focus-fallback', () =>
         expectSimulationToMatch({
             html: scope(
                 `.f:focus-visible { box-shadow: 0 0 0 3px #005fe360 }
@@ -255,10 +254,31 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
                 { name: 'g', selector: '.g', properties: ['outline-color', 'box-shadow'] }
             ],
             focus: '.f'
-        })
-    );
+        }));
 
-    it.failing('exempt-with-auto', () =>
+    // An outline in the color of the element is forced too, to Highlight on the element with visible focus.
+    it('focus-outline-currentcolor', () =>
+        expectSimulationToMatch({
+            html: scope('.f:focus-visible { outline: 2px solid currentcolor }', '<button class="f">Button</button>'),
+            probes: [{ name: 'f', selector: '.f', properties: ['outline-color'] }],
+            focus: '.f'
+        }));
+
+    // An element without a color of its own inherits the system color its parent keeps.
+    it('inherited-kept-color', () =>
+        expectSimulationToMatch({
+            html: scope('.k { color: GrayText }', '<div class="k">Kept <span class="child">child</span></div>'),
+            probes: [{ name: 'child', selector: '.k .child', properties: ['color', 'border-top-color'] }]
+        }));
+
+    // A color of its own is forced to the foreground of the context, not to the system color its parent keeps.
+    it('author-color-under-kept', () =>
+        expectSimulationToMatch({
+            html: scope('.k { color: GrayText } .k .c { color: red }', '<div class="k">Kept <span class="c">own</span></div>'),
+            probes: [{ name: 'c', selector: '.c', properties: ['color'] }]
+        }));
+
+    it('exempt-with-auto', () =>
         expectSimulationToMatch({
             html: scope(
                 `.opt { forced-color-adjust: none; background: Highlight; color: HighlightText }
@@ -269,10 +289,9 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
                 { name: 'opt', selector: '.opt', properties: ['color', 'background-color'] },
                 { name: 'slot', selector: '.slot', properties: ['color', 'background-color'] }
             ]
-        })
-    );
+        }));
 
-    it.failing('transparent-surface', () =>
+    it('transparent-surface', () =>
         expectSimulationToMatch({
             html: scope(
                 `.o { background: transparent; border: 1px solid #005fe3; color: #005fe3 }
@@ -283,8 +302,7 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
                 { name: 'button', selector: '.o', properties: ['background-color', 'color', 'border-top-color'] },
                 { name: 'span', selector: '.pill .label', properties: ['background-color'] }
             ]
-        })
-    );
+        }));
 
     it('disabled-author', () =>
         expectSimulationToMatch({
@@ -292,38 +310,35 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
             probes: [{ name: 'button', selector: 'button.d', properties: ['color', 'border-top-color'] }]
         }));
 
-    it.failing('host-background', () =>
+    it('host-background', () =>
         expectSimulationToMatch({
             html: scope('.host { display: block; background: #c00; color: #fff }', 'Label'),
             probes: [{ name: 'root', selector: '[data-prism-sim]', properties: ['background-color'] }]
-        })
-    );
+        }));
 
-    it.failing('gradient-var', () =>
+    it('gradient-var', () =>
         expectSimulationToMatch({
             html: scope(':root { --ai: linear-gradient(90deg, #a0f, #0af) } .b { background: var(--ai) }', '<div class="b">Gradient</div>'),
             probes: [{ name: 'b', selector: '.b', properties: ['background-image', 'background-color'] }]
-        })
-    );
+        }));
 
-    it.failing('token-var', () =>
+    it('token-var', () =>
         expectSimulationToMatch({
             html: scope(
                 '@media (forced-colors: active) { :root { --tok: ButtonText } } .t { background-color: var(--tok); color: var(--tok) }',
                 '<div class="t">Token</div>'
             ),
             probes: [{ name: 't', selector: '.t', properties: ['background-color', 'color'] }]
-        })
-    );
+        }));
 
-    // As with inline styles: the `!important` sheet beats the animation.
+    // The twin of the rule names the twin of the @keyframes, whose colors are forced.
     it('keyframes', () =>
         expectSimulationToMatch({
             html: scope('@keyframes p { from { background-color: #c00 } to { background-color: #0c0 } } .k { animation: p 1s paused }', '<div class="k">Animated</div>'),
             probes: [{ name: 'k', selector: '.k', properties: ['background-color'] }]
         }));
 
-    it.failing('author-layers', () =>
+    it('author-layers', () =>
         expectSimulationToMatch({
             html: scope(
                 '@layer base { button.l { background: transparent } } @layer base { .x { color: Highlight } } @layer theme { .x { color: red } }',
@@ -333,6 +348,5 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
                 { name: 'button', selector: 'button.l', properties: ['background-color'] },
                 { name: 'x', selector: '.x', properties: ['color'] }
             ]
-        })
-    );
+        }));
 });

@@ -6,7 +6,7 @@ import { MEDIA_TRUE } from './media-condition.js';
 import { MediaStyleSheets } from './media-stylesheets.js';
 import { PrismSimulationRuntimeService } from './prism-simulation-runtime.service.js';
 
-const NO_FORCED_RULES: ForcedColorRules = { exempt: [], reenabled: [], gradients: [], gradientVars: [] };
+const NO_FORCED_RULES: ForcedColorRules = { exempt: [], reenabled: [], gradientVars: [] };
 
 /** Lets pending MutationObserver callbacks run. */
 const flushMutations = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -130,12 +130,12 @@ describe('PrismSimulationRuntimeService', () => {
 
         sim.set({ forced: 'active' });
         TestBed.tick();
-        expect(apply).toHaveBeenLastCalledWith({ 'forced-colors': 'active' }, 'light');
+        expect(apply).toHaveBeenLastCalledWith({ 'forced-colors': 'active' }, { palette: 'light', rules: NO_FORCED_RULES });
         expect(textOf(document.adoptedStyleSheets[0])).toBe(forcedColorsCss(NO_FORCED_RULES, 'light'));
 
         sim.set({ scheme: 'dark' });
         TestBed.tick();
-        expect(apply).toHaveBeenLastCalledWith({ 'forced-colors': 'active', 'prefers-color-scheme': 'dark' }, 'dark');
+        expect(apply).toHaveBeenLastCalledWith({ 'forced-colors': 'active', 'prefers-color-scheme': 'dark' }, { palette: 'dark', rules: NO_FORCED_RULES });
         expect(textOf(document.adoptedStyleSheets[0])).toBe(forcedColorsCss(NO_FORCED_RULES, 'dark'));
     });
 

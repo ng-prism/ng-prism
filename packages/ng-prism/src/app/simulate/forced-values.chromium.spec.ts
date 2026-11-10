@@ -91,6 +91,23 @@ describe('declarationsOfStyle in Chromium', () => {
 
         expect(k).toEqual([d('--Tok', 'red'), d('--empty', ''), d('--a', 'var(--b)')]);
     });
+
+    it('reads every declaration of a keyframe for its twin, a shorthand that var() left whole included', async () => {
+        const found = await page.evaluate(() => {
+            const { declarationsOfStyle } = (window as unknown as { __prismSim: PrismSim }).__prismSim;
+            const sheet = new CSSStyleSheet();
+
+            sheet.replaceSync('@keyframes k { from { inset: var(--i); background: #c00; opacity: 0; margin: 1px } }');
+            return declarationsOfStyle(((sheet.cssRules[0] as CSSKeyframesRule).cssRules[0] as CSSKeyframeRule).style, { all: true });
+        });
+
+        expect(found).toContainEqual(d('inset', 'var(--i)'));
+        expect(found).toContainEqual(d('background-color', 'rgb(204, 0, 0)'));
+        expect(found).toContainEqual(d('opacity', '0'));
+        expect(found).toContainEqual(d('margin-top', '1px'));
+        // Written as a shorthand in the text of the style, and read as its longhands already.
+        expect(found.filter(({ property }) => property === 'margin')).toEqual([]);
+    });
 });
 
 /**

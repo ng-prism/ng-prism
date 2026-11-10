@@ -4,6 +4,7 @@ import {
     hasStyle,
     isImportRule,
     isInheritable,
+    isKeyframesRule,
     isMediaRule,
     isRuleGroup,
     isStyleRule,
@@ -13,11 +14,18 @@ import {
     rewriteDeclarations,
     type RuleGroup
 } from './css-rules.js';
-import { isForced } from './forced-colors.js';
+import { exemptionSelector, type ForcedColorRules, sameForcedColorRules } from './forced-colors.js';
 import { type ForcedPaletteName, resolveSystemColors } from './forced-palette.js';
+import { declarationsOfStyle, exemptTwin, forcedKeyframe, forcedTwin, keyframesTwinName, serializeDeclarations, type TwinContext } from './forced-values.js';
 import { mentionsEmulated, substituteMedia } from './media-condition.js';
 import { SCOPE_IN_SUFFIX, SCOPE_OUT_SUFFIX, scopeIn, scopeOut, SIM_SCOPE, targetsRoot, unscopeOut } from './scope-selector.js';
 import { type EmulatedMedia, sameMedia } from './simulation.js';
+
+/** The forced colors the engine simulates: the palette, and what the author's styles say about forced colors. */
+export interface ForcedOptions {
+    readonly palette: ForcedPaletteName;
+    readonly rules: ForcedColorRules;
+}
 
 /**
  * Where a rule sits: in a sheet or a group (`top`), or nested in a style rule
@@ -34,6 +42,15 @@ interface Rewrite {
     readonly excluded: { rule: CSSStyleRule; original: string }[];
     /** Bare declarations taken out of the scope, with the rule that holds them now. */
     readonly moved: { group: RuleGroup; rule: CSSRule; declarations: string }[];
+}
+
+/** What the twins need while forced colors are simulated. */
+interface Forcing {
+    readonly context: TwinContext;
+    /** What is exempt ({@link exemptionSelector}), `null` without an exemption. */
+    readonly exemption: string | null;
+    /** The condition of a twin that forces: not exempt, or nothing without an exemption. */
+    readonly notExempt: string;
 }
 
 /** The scope roots. A nested `& :where(…)` reaches them from a rule on the document root. */
@@ -57,6 +74,10 @@ function reachable(sheet: CSSStyleSheet, roots: ReadonlySet<CSSStyleSheet>): boo
     return false;
 }
 
+function sameForced(a: ForcedOptions | null, b: ForcedOptions | null): boolean {
+    return a === b || (a !== null && b !== null && a.palette === b.palette && sameForcedColorRules(a.rules, b.rules));
+}
+
 /**
  * The document's stylesheets, rewritten so that the simulation scope
  * ({@link SIM_SCOPE}) gets the emulated answer to media features while the rest
@@ -71,13 +92,28 @@ function reachable(sheet: CSSStyleSheet, roots: ReadonlySet<CSSStyleSheet>): boo
  * real condition, and what the condition tests besides the emulated features,
  * such as a width, stays live.
  *
- * Copies and exclusions are undone one by one rather than from a snapshot, so a
- * forced pseudo state that `PseudoStyleSheets` widened in between survives.
+ * While forced colors are simulated, every style rule that sets a property the
+ * browser forces gets a twin right behind it ({@link forcedTwin}): its selector
+ * moved into the scope, the importance of each declaration its own, and the
+ * values the browser forces. A twin and its original are next to each other in
+ * the cascade, with the same weight, so each twin shadows its original exactly
+ * and the twins win and lose against each other as the originals do, in a layer,
+ * nested or `!important`. The copies get twins of their own, and the originals
+ * they take out of the scope get none. A twin keeps off an exempt subtree
+ * ({@link exemptionSelector}), which gets a second twin with the system colors of
+ * the palette where the rule names one. `@keyframes` get a twin under another
+ * name ({@link keyframesTwinName}), which the twins of the rules name instead.
+ *
+ * Copies, twins and exclusions are undone one by one rather than from a
+ * snapshot, so a forced pseudo state that `PseudoStyleSheets` widened in between
+ * survives, and a rule it widens after has its twin widened too.
  *
  * `document.head` is watched while something is emulated, so styles that arrive
  * later, through a lazily rendered component or a hot reload, are rewritten too.
  * A sheet that leaves the document, the styles of a component that is gone or
- * the old version of a hot reload, is undone and forgotten on the next pass.
+ * the old version of a hot reload, is undone and forgotten on the next pass. A
+ * rule that names a `@keyframes` arriving in a later sheet keeps the name in its
+ * twin: the twins of the rules that were there before are not built again.
  */
 export class MediaStyleSheets {
     private readonly ignored = new WeakSet<CSSStyleSheet>();
@@ -89,54 +125,73 @@ export class MediaStyleSheets {
     private readonly sheets = new Map<CSSStyleSheet, Rewrite>();
     /** The inheritable properties that rules on the document root set under an emulated condition. */
     private readonly rootProperties = new Set<string>();
+    /** The names of the `@keyframes` that have a twin, and the names of their twins. */
+    private readonly keyframes = new Set<string>();
+    private readonly keyframesTwins = new Set<string>();
     private emulated: EmulatedMedia | null = null;
-    /** The palette system colors in copies resolve in, `null` while forced colors are off. */
-    private palette: ForcedPaletteName | null = null;
+    /** The forced colors of the current emulation, `null` while forced colors are off. */
+    private forced: ForcedOptions | null = null;
+    private forcing: Forcing | null = null;
     private observer: MutationObserver | null = null;
     private outSuffix: string | null = null;
 
     /**
      * `onNewStyles` is called after a pass that rewrote sheets the engine had
-     * not seen before, on `apply` and when styles arrive while it is active, for
-     * a caller that reads the document's styles as well.
+     * not seen before, with those sheets, on `apply` and when styles arrive
+     * while it is active, for a caller that reads the document's styles as well.
+     * Nothing follows the call in the pass, so it may apply again.
      */
     constructor(
         private readonly doc: Document,
-        private readonly onNewStyles?: () => void
+        private readonly onNewStyles?: (sheets: readonly CSSStyleSheet[]) => void
     ) {}
 
     /**
      * Rewrites every sheet for `emulated`, and keeps doing so for new styles
-     * until `clear()`. With a `palette`, the copies have their system colors
-     * in it, as in the real forced colors mode. Idempotent; a different
-     * `emulated` or `palette` re-applies.
+     * until `clear()`. With `forced`, every rule that sets a forced property gets
+     * its twin, and the copies have their system colors in the palette, as in the
+     * real forced colors mode. Idempotent; a different `emulated`, palette or
+     * rules builds everything anew.
      */
-    apply(emulated: EmulatedMedia, palette: ForcedPaletteName | null = null): void {
+    apply(emulated: EmulatedMedia, forced: ForcedOptions | null = null): void {
         if (Object.values(emulated).every((value) => value === undefined)) {
             this.clear();
             return;
         }
-        if (this.emulated && (!sameMedia(this.emulated, emulated) || this.palette !== palette)) this.restore();
+        if (this.emulated && (!sameMedia(this.emulated, emulated) || !sameForced(this.forced, forced))) this.restore();
         this.emulated = { ...emulated };
-        this.palette = palette;
+        this.forced = forced;
+        this.forcing = forced && this.forcingFor(forced);
         this.sync();
         if (this.observer || typeof MutationObserver === 'undefined' || !this.doc.head) return;
         this.observer = new MutationObserver(() => this.sync());
         this.observer.observe(this.doc.head, { childList: true, subtree: true, characterData: true });
     }
 
-    /** Removes every copy, undoes every `scopeOut`, stops observing. */
+    /** Removes every copy and twin, undoes every `scopeOut`, stops observing. */
     clear(): void {
         this.observer?.disconnect();
         this.observer = null;
         this.emulated = null;
-        this.palette = null;
+        this.forced = null;
+        this.forcing = null;
         this.restore();
     }
 
     /** Marks a sheet the simulation owns (the forced-colors sheet), which is never rewritten. */
     ignore(sheet: CSSStyleSheet): void {
         this.ignored.add(sheet);
+    }
+
+    private forcingFor({ palette, rules }: ForcedOptions): Forcing {
+        const exemption = exemptionSelector(rules);
+
+        return {
+            // The names of the @keyframes twins grow during a pass, before the rules that name them are twinned.
+            context: { palette, gradientVars: new Set(rules.gradientVars), keyframes: this.keyframes },
+            exemption,
+            notExempt: exemption === null ? '' : `:not(${exemption})`
+        };
     }
 
     /** Rewrites the sheets that are new since the last call, and lets go of the ones that left the document. */
@@ -177,13 +232,15 @@ export class MediaStyleSheets {
         // A set keeps the order of insertion, so what the fresh sheets added comes last.
         const added = new Set(Array.from(this.rootProperties).slice(known));
 
+        // Every fresh sheet first, so that a rule finds the twin of a @keyframes in another sheet.
+        for (const [sheet, rewrite] of fresh) this.twinKeyframes(rewrite, sheet);
         // A sheet done before only lacks root copies for what is new, a fresh one for everything.
         for (const [sheet, rewrite] of this.sheets) if (added.size > 0 && !fresh.has(sheet)) this.copyRootValues(rewrite, sheet, emulated, added, 'top');
         for (const [sheet, rewrite] of fresh) {
             this.emulateGroup(rewrite, sheet, emulated, 'top');
             this.copyRootValues(rewrite, sheet, emulated, this.rootProperties, 'top');
         }
-        if (fresh.size > 0) this.onNewStyles?.();
+        if (fresh.size > 0) this.onNewStyles?.(Array.from(fresh.keys()));
     }
 
     /** Adds `sheet` and the sheets it imports to `fresh`, unless they are ignored, done already or unreadable. */
@@ -226,32 +283,142 @@ export class MediaStyleSheets {
         }
     }
 
-    /** Emulates every `@media` in `group` that tests an emulated feature, at any depth. */
+    /**
+     * Emulates every `@media` in `group` that tests an emulated feature, at any
+     * depth, and gives every other rule its twin while forced colors are
+     * simulated. The originals that a copy takes out of the scope get no twin.
+     */
     private emulateGroup(rewrite: Rewrite, group: RuleGroup, emulated: EmulatedMedia, nesting: Nesting): void {
         for (let i = 0; i < group.cssRules.length; i++) {
             const rule = group.cssRules[i];
 
+            // A twin inserted as the first nested rule of the rule around it.
+            if (rewrite.copies.has(rule)) continue;
             if (isMediaRule(rule) && mentionsEmulated(rule.media.mediaText, emulated)) {
                 // Copied before it is excluded, so the copy starts from the selectors as they were.
                 const copy = this.insert(rewrite, group, i + 1, rule.cssText);
 
                 if (!copy || !isRuleGroup(copy)) continue;
-                this.scopeCopy(copy, emulated, nesting, false);
+                this.scopeCopy(copy, emulated, nesting);
                 this.exclude(rewrite, rule, nesting, true);
                 i++;
+                continue;
+            }
+            if (this.forcing && isStyleRule(rule)) {
+                i += this.twinStyleRule(rewrite, group, i, rule, nesting);
+            } else if (this.forcing && nesting !== 'top' && hasStyle(rule)) {
+                // Bare declarations nested in a style rule apply wherever it matches.
+                const twins = this.twinsOf(rule.style, nesting === 'root', (extra) => `${scopedParent(nesting)}${extra}`);
+
+                i += this.insertTwins(rewrite, group, i + 1, twins);
+            }
+            if (isRuleGroup(rule)) this.emulateGroup(rewrite, rule, emulated, isStyleRule(rule) ? nestingIn(rule, nesting) : nesting);
+        }
+    }
+
+    /**
+     * Puts the twins of a style rule right behind it or, for a rule with nested
+     * rules, first among them: its declarations come before what is nested in
+     * it, and so do their twins. Returns how many it put behind the rule in `group`.
+     */
+    private twinStyleRule(rewrite: Rewrite, group: RuleGroup, index: number, rule: CSSStyleRule, nesting: Nesting): number {
+        const inner = nestingIn(rule, nesting);
+
+        if (isRuleGroup(rule) && rule.cssRules.length > 0) {
+            const twins = this.twinsOf(rule.style, inner === 'root', (extra) => `${scopedParent(inner)}${extra}`);
+
+            this.insertTwins(rewrite, rule, 0, twins);
+            return 0;
+        }
+
+        const selector = rule.selectorText;
+        const twins = this.twinsOf(rule.style, inner === 'root', (extra) => scopeIn(selector, nesting === 'root', extra));
+
+        return this.insertTwins(rewrite, group, index + 1, twins);
+    }
+
+    /**
+     * The twins of the declarations of `style`, as rules: the one that forces
+     * them, for what is not exempt, and the one with the system colors of the
+     * palette, for what is, where the declarations name one. `selector` makes the
+     * selector of a twin from the condition that goes behind the scope. Of a rule
+     * on the document root, whose twin goes to the scope roots, only what they
+     * may inherit ({@link isInheritable}). `[]` while forced colors are off and
+     * for a rule that forces nothing.
+     *
+     * Read from the declarations as they are, before the system colors of a copy
+     * resolve in the palette: a resolved one is no system color any more, and
+     * would be forced.
+     */
+    private twinsOf(style: CSSStyleDeclaration, onRoot: boolean, selector: (extra: string) => string): string[] {
+        const forcing = this.forcing;
+
+        if (!forcing) return [];
+
+        const read = declarationsOfStyle(style);
+        const declarations = onRoot ? read.filter(({ property }) => isInheritable(property)) : read;
+
+        if (declarations.length === 0) return [];
+
+        const twins: string[] = [];
+        const twin = forcedTwin(declarations, forcing.context);
+
+        if (twin.length > 0) twins.push(`${selector(forcing.notExempt)} { ${serializeDeclarations(twin)} }`);
+        if (forcing.exemption !== null) {
+            const exempt = exemptTwin(declarations, forcing.context);
+
+            if (exempt.length > 0) twins.push(`${selector(forcing.exemption)} { ${serializeDeclarations(exempt)} }`);
+        }
+        return twins;
+    }
+
+    /**
+     * Inserts `rules` at `index` in `group`, in order, and returns how many the
+     * browser took. With a `rewrite` they are recorded to be undone; without one
+     * they go into a copy, which goes as a whole.
+     */
+    private insertTwins(rewrite: Rewrite | null, group: RuleGroup, index: number, rules: readonly string[]): number {
+        let inserted = 0;
+
+        for (const text of rules) {
+            const taken = rewrite ? this.insert(rewrite, group, index + inserted, text) !== null : this.tryInsert(group, index + inserted, text);
+
+            if (taken) inserted++;
+        }
+        return inserted;
+    }
+
+    /**
+     * Puts the twin of every `@keyframes` in `group` that sets a forced property
+     * right behind it, at any depth, and notes its name for the twins of the
+     * rules that name it ({@link TwinContext.keyframes}).
+     */
+    private twinKeyframes(rewrite: Rewrite, group: RuleGroup): void {
+        const forcing = this.forcing;
+
+        if (!forcing) return;
+        for (let i = 0; i < group.cssRules.length; i++) {
+            const rule = group.cssRules[i];
+
+            if (isKeyframesRule(rule)) {
+                const twin = keyframesTwin(rule, forcing.context);
+
+                if (twin !== null && this.insert(rewrite, group, i + 1, twin)) {
+                    this.keyframes.add(rule.name);
+                    this.keyframesTwins.add(keyframesTwinName(rule.name));
+                    i++;
+                }
             } else if (isRuleGroup(rule)) {
-                this.emulateGroup(rewrite, rule, emulated, isStyleRule(rule) ? nestingIn(rule, nesting) : nesting);
+                this.twinKeyframes(rewrite, rule);
             }
         }
     }
 
     /**
      * Turns a fresh copy into the scope's version of the original: the emulated
-     * answers in its conditions, its rules in the scope. Under `forced-colors`,
-     * every declaration of a property the forced sheet sets ({@link isForced})
-     * becomes `!important`, so that the author's colours for the mode win against
-     * the palette the simulation forces, as they do in the real mode. Everything
-     * else keeps the weight it has, and with it the cascade of the real mode.
+     * answers in its conditions, its rules in the scope, each followed by its
+     * twins while forced colors are simulated. Every declaration keeps the
+     * importance it has, and with it the cascade of the real mode.
      *
      * While there is a palette, the system colors of every copy resolve in it
      * ({@link resolveSystemColors}), as they do in the real mode, where a
@@ -260,60 +427,67 @@ export class MediaStyleSheets {
      * A rule like `@keyframes` or `@font-face` is dropped from the copy: it would
      * apply to the whole page, the shell included, and keeps its real condition.
      */
-    private scopeCopy(group: CSSRule & RuleGroup, emulated: EmulatedMedia, nesting: Nesting, forced: boolean): void {
-        if (isMediaRule(group)) {
-            const forcedColors = emulated['forced-colors'];
-
-            forced ||= forcedColors !== undefined && mentionsEmulated(group.media.mediaText, { 'forced-colors': forcedColors });
-            group.media.mediaText = substituteMedia(group.media.mediaText, emulated);
-        }
+    private scopeCopy(group: CSSRule & RuleGroup, emulated: EmulatedMedia, nesting: Nesting): void {
+        if (isMediaRule(group)) group.media.mediaText = substituteMedia(group.media.mediaText, emulated);
         for (let i = 0; i < group.cssRules.length; i++) {
             const rule = group.cssRules[i];
-            let kept = true;
+            // How many rules stand for this one now, its twins included.
+            let kept = 1;
 
             if (isStyleRule(rule)) {
-                kept = this.scopeCopiedRule(group, i, rule, emulated, nesting, forced);
+                kept = this.scopeCopiedRule(group, i, rule, emulated, nesting);
             } else if (isRuleGroup(rule)) {
-                this.scopeCopy(rule, emulated, nesting, forced);
+                this.scopeCopy(rule, emulated, nesting);
             } else if (nesting !== 'top' && hasStyle(rule)) {
                 // Bare declarations apply wherever the parent matches: in the copy, only in the scope.
-                const declarations = this.copiedDeclarations(rule.style.cssText, nesting === 'root', forced);
+                const twins = this.twinsOf(rule.style, nesting === 'root', (extra) => `${scopedParent(nesting)}${extra}`);
+                const declarations = this.copiedDeclarations(rule.style.cssText, nesting === 'root').text;
 
                 group.deleteRule(i);
-                kept = declarations !== '' && this.tryInsert(group, i, `${scopedParent(nesting)} { ${declarations} }`);
+                kept = 0;
+                if (declarations !== '' && this.tryInsert(group, i, `${scopedParent(nesting)} { ${declarations} }`)) {
+                    kept = 1 + this.insertTwins(null, group, i + 1, twins);
+                }
             } else {
                 const name = prelude(rule.cssText);
 
-                this.warnOnce(name, `Not simulating "${name}": copied for the scope, it would apply to the whole page. It keeps its real condition.`);
+                // The twin of a @keyframes in the original came along with it, and goes with it.
+                if (!(isKeyframesRule(rule) && this.keyframesTwins.has(rule.name))) {
+                    this.warnOnce(name, `Not simulating "${name}": copied for the scope, it would apply to the whole page. It keeps its real condition.`);
+                }
                 group.deleteRule(i);
-                kept = false;
+                kept = 0;
             }
-            if (!kept) i--;
+            i += kept - 1;
         }
     }
 
     /**
-     * Moves a style rule of a copy into the scope. Returns false when the rule
-     * had to go instead: the browser rejected the scoped selector, or nothing
-     * was left to set.
+     * Moves a style rule of a copy into the scope, with its twins behind it.
+     * Returns how many rules stand for it now: none when it had to go, because
+     * the browser rejected the scoped selector or nothing was left to set.
      *
      * A rule with nested rules keeps its selector, so that a nested `.b` still
      * matches in the scope below a `.theme` outside it; the rule's own
-     * declarations move into a nested `&` restricted to the scope. A rule on the
-     * document root keeps only inheritable properties ({@link isInheritable}).
+     * declarations move into a nested `&` restricted to the scope, their twins
+     * behind them. A rule on the document root keeps only inheritable properties
+     * ({@link isInheritable}).
      */
-    private scopeCopiedRule(group: RuleGroup, index: number, rule: CSSStyleRule, emulated: EmulatedMedia, nesting: Nesting, forced: boolean): boolean {
+    private scopeCopiedRule(group: RuleGroup, index: number, rule: CSSStyleRule, emulated: EmulatedMedia, nesting: Nesting): number {
         const inner = nestingIn(rule, nesting);
-        const declarations = this.copiedDeclarations(rule.style.cssText, inner === 'root', forced);
+        const { text: declarations, changed } = this.copiedDeclarations(rule.style.cssText, inner === 'root');
 
         if (isRuleGroup(rule) && rule.cssRules.length > 0) {
-            this.scopeCopy(rule, emulated, inner, forced);
+            const twins = this.twinsOf(rule.style, inner === 'root', (extra) => `${scopedParent(inner)}${extra}`);
+
+            this.scopeCopy(rule, emulated, inner);
             rule.style.cssText = '';
-            if (declarations !== '') this.tryInsert(rule, 0, `${scopedParent(inner)} { ${declarations} }`);
-            return true;
+            if (declarations !== '' && this.tryInsert(rule, 0, `${scopedParent(inner)} { ${declarations} }`)) this.insertTwins(null, rule, 1, twins);
+            return 1;
         }
 
         const original = rule.selectorText;
+        const twins = this.twinsOf(rule.style, inner === 'root', (extra) => scopeIn(original, nesting === 'root', extra));
 
         rule.selectorText = scopeIn(original, nesting === 'root');
         if (rule.selectorText === original) {
@@ -322,25 +496,34 @@ export class MediaStyleSheets {
         }
         if (rule.selectorText === original || declarations === '') {
             group.deleteRule(index);
-            return false;
+            return 0;
         }
-        if (inner === 'root' || forced || this.palette) rule.style.cssText = declarations;
-        return true;
+        // Only where a declaration goes or a value changes: setting the text of every copy would cost as much as the rest of the pass.
+        if (inner === 'root' || changed) rule.style.cssText = declarations;
+        return 1 + this.insertTwins(null, group, index + 1, twins);
     }
 
     /**
-     * The declarations of a copy: on the document root only the inheritable
-     * ones, in a forced-colors rule the forced ones `!important`, and under a
-     * palette with their system colors resolved in it.
+     * The declarations of a copy, on the document root only the inheritable
+     * ones and under a palette with their system colors resolved in it, and
+     * whether a value changed.
      */
-    private copiedDeclarations(cssText: string, onRoot: boolean, forced: boolean): string {
-        const palette = this.palette;
-
-        return rewriteDeclarations(cssText, {
+    private copiedDeclarations(cssText: string, onRoot: boolean): { text: string; changed: boolean } {
+        const palette = this.forced?.palette;
+        let changed = false;
+        const text = rewriteDeclarations(cssText, {
             keep: onRoot ? isInheritable : undefined,
-            important: forced ? isForced : undefined,
-            value: palette ? (property, value) => resolveSystemColors(property, value, palette) : undefined
+            value: palette
+                ? (property, value) => {
+                      const resolved = resolveSystemColors(property, value, palette);
+
+                      changed ||= resolved !== value;
+                      return resolved;
+                  }
+                : undefined
         });
+
+        return { text, changed };
     }
 
     /**
@@ -405,6 +588,9 @@ export class MediaStyleSheets {
      * A rule with nested rules (`:root { @media … }`) gets the copy as its first
      * nested rule instead, so that it comes before the copies nested in it, as
      * its declarations come before the originals.
+     *
+     * Under forced colors, the copy goes between the rule and its twin, which
+     * forces what the copy sets again as it forces the rule.
      */
     private copyRootValues(rewrite: Rewrite, group: RuleGroup, emulated: EmulatedMedia, properties: ReadonlySet<string>, nesting: Nesting): void {
         for (let i = 0; i < group.cssRules.length; i++) {
@@ -457,6 +643,8 @@ export class MediaStyleSheets {
         for (const rewrite of this.sheets.values()) this.undo(rewrite);
         this.sheets.clear();
         this.rootProperties.clear();
+        this.keyframes.clear();
+        this.keyframesTwins.clear();
     }
 
     /**
@@ -549,6 +737,24 @@ export class MediaStyleSheets {
         else this.warned.add(about);
         if (isDevMode()) console.warn(`[ng-prism] ${message}`);
     }
+}
+
+/**
+ * The twin of a `@keyframes` under its own name ({@link keyframesTwinName}), each
+ * keyframe with the forced values in place of the ones the browser forces and the
+ * rest as it is ({@link forcedKeyframe}); `null` if no keyframe sets a forced property.
+ */
+function keyframesTwin(rule: CSSKeyframesRule, context: TwinContext): string | null {
+    let forces = false;
+    const frames = Array.from(rule.cssRules, (frame) => {
+        const { keyText, style } = frame as CSSKeyframeRule;
+        const declarations = declarationsOfStyle(style, { all: true });
+
+        forces ||= forcedTwin(declarations, context).length > 0;
+        return `${keyText} { ${serializeDeclarations(forcedKeyframe(declarations, context))} }`;
+    });
+
+    return forces ? `@keyframes ${keyframesTwinName(rule.name)} { ${frames.join(' ')} }` : null;
 }
 
 function unanswerable(media: string, where: string): string {

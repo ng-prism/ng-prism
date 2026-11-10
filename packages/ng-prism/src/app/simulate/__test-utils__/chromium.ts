@@ -79,18 +79,24 @@ export async function pageWithSimulation(browser: Browser): Promise<Page> {
  * Chromium serializes a color by how it was written, not by what it is: a
  * relative color (`rgb(from …)`) comes out as `color(srgb 0 0 0 / 0.501961)`,
  * the same color written plain as `rgba(0, 0, 0, 0.5)`, and the real mode's
- * own alphas have three decimals (`0.267`).
+ * own alphas have three decimals (`0.267`). An animation between two relative
+ * colors interpolates in Oklab and comes out as `oklab(…)`, where the real
+ * mode's legacy colors come out as `rgb()`.
  */
 export function normalizeColor(value: string): string {
-    return value.replace(/\b(rgba?|color)\(([^()]*)\)/gi, (color, name: string, args: string) => {
+    return value.replace(/\b(rgba?|color|oklab)\(([^()]*)\)/gi, (color, name: string, args: string) => {
         const parts = args.trim().split(/[\s,/]+/);
-        const srgb = name.toLowerCase() === 'color';
+        const space = name.toLowerCase();
+        const srgb = space === 'color';
 
         if (srgb && parts.shift() !== 'srgb') return color;
         if (parts.length < 3 || parts.length > 4) return color;
 
         const [r, g, b, a = '1'] = parts;
-        const channels = [r, g, b].map((channel) => Math.round(numberOf(channel, srgb ? 255 : 1, 255)));
+        const channels =
+            space === 'oklab'
+                ? oklabToSrgb(numberOf(r, 1, 1), numberOf(g, 1, 0.4), numberOf(b, 1, 0.4)).map((channel) => Math.round(channel * 255))
+                : [r, g, b].map((channel) => Math.round(numberOf(channel, srgb ? 255 : 1, 255)));
         const alpha = numberOf(a, 1, 1);
 
         if ([...channels, alpha].some(Number.isNaN)) return color;
@@ -104,6 +110,24 @@ export function normalizeColor(value: string): string {
 /** A number, or a percentage of `full`; `NaN` for anything else (`none`). */
 function numberOf(token: string, scale: number, full: number): number {
     return token.endsWith('%') ? (Number(token.slice(0, -1)) / 100) * full : Number(token) * scale;
+}
+
+/** An Oklab color as sRGB channels from 0 to 1, clipped to the gamut (CSS Color 4, "Converting Oklab colors to sRGB"). */
+function oklabToSrgb(lightness: number, a: number, b: number): number[] {
+    const l = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+    const m = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+    const s = (lightness - 0.0894841775 * a - 1.291485548 * b) ** 3;
+    const linear = [
+        4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+        -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+        -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s
+    ];
+
+    return linear.map((channel) => {
+        const gamma = channel <= 0.0031308 ? 12.92 * channel : 1.055 * channel ** (1 / 2.4) - 0.055;
+
+        return Math.min(1, Math.max(0, gamma));
+    });
 }
 
 async function render(browser: Browser, fixture: Fixture, prepare: (page: Page) => Promise<void>): Promise<Computed> {
