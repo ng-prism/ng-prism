@@ -116,7 +116,7 @@ describe('declarationsOfStyle in Chromium', () => {
  * is shown to say in Chromium what it is meant to, and not only to parse.
  */
 describe('the twin of a rule in Chromium', () => {
-    const context: TwinContext = { palette: 'dark', gradientVars: new Set(['--ai']), keyframes: new Set(['pulse']) };
+    const context: TwinContext = { palette: 'dark', gradientVars: new Set(['--ai', '--ring']), layerVars: new Set(['--ring']), keyframes: new Set(['pulse']) };
     // A foreground and a ground that no palette has, so that nothing agrees by chance.
     const CONTEXT = '--prism-sim-fg: rgb(1, 2, 3); --prism-sim-bg-rgb: 4 5 6';
 
@@ -239,5 +239,17 @@ describe('the twin of a rule in Chromium', () => {
         const computed = await computedWithTwin('.t { --ai: linear-gradient(red, blue); background: var(--ai) }', ['background-image', 'background-color']);
 
         expect(computed).toEqual({ 'background-image': 'none', 'background-color': 'rgba(0, 0, 0, 0)' });
+    });
+
+    it('keeps the alpha of the last layer of a background list in a custom property and removes its gradients layer by layer', async () => {
+        const list = await computedWithTwin('.t { --ring: linear-gradient(red, blue), rgb(200 0 0 / 0.4); background: var(--ring) }', [
+            'background-image',
+            'background-color'
+        ]);
+        const single = await computedWithTwin('.t { --ring: rgb(200 0 0 / 0.6); background: var(--ring) }', ['background-image', 'background-color']);
+
+        expect(list).toEqual({ 'background-image': 'none, none', 'background-color': 'rgba(4, 5, 6, 0.4)' });
+        // A declaration that is no list leaves the reader to the custom property itself.
+        expect(single).toEqual({ 'background-image': 'none', 'background-color': 'rgba(4, 5, 6, 0.6)' });
     });
 });

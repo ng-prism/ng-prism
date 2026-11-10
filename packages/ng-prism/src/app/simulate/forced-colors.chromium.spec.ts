@@ -97,6 +97,38 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
             ]
         }));
 
+    // Chromium leaves the paint servers of an SVG to the author as it leaves fill and stroke, as attributes and in a
+    // stylesheet: the stops of a gradient and the colors of a filter, even under forced-color-adjust: auto. A system
+    // color in one resolves against the palette.
+    it('svg-gradient-stops', () =>
+        expectSimulationToMatch({
+            html: scope(
+                `.stop-css { stop-color: #c00 } .stop-system { stop-color: Highlight } .stop-auto { stop-color: #0c0; forced-color-adjust: auto }
+                .flood-css { flood-color: #c00 } .light-css { lighting-color: #c00 }`,
+                `<svg width="40" height="20">
+                    <linearGradient id="g">
+                        <stop class="stop-attr" stop-color="#c00" /><stop class="stop-css" offset="0.4" /><stop class="stop-system" offset="0.7" /><stop class="stop-auto" offset="1" />
+                    </linearGradient>
+                    <filter id="f">
+                        <feFlood class="flood-attr" flood-color="#c00" /><feFlood class="flood-css" />
+                        <feDiffuseLighting class="light-attr" lighting-color="#c00"><feDistantLight /></feDiffuseLighting>
+                        <feDiffuseLighting class="light-css"><feDistantLight /></feDiffuseLighting>
+                    </filter>
+                    <rect width="40" height="20" fill="url(#g)" />
+                </svg>`
+            ),
+            probes: [
+                { name: 'stop-attr', selector: '.stop-attr', properties: ['stop-color'] },
+                { name: 'stop-css', selector: '.stop-css', properties: ['stop-color'] },
+                { name: 'stop-system', selector: '.stop-system', properties: ['stop-color'] },
+                { name: 'stop-auto', selector: '.stop-auto', properties: ['stop-color'] },
+                { name: 'flood-attr', selector: '.flood-attr', properties: ['flood-color'] },
+                { name: 'flood-css', selector: '.flood-css', properties: ['flood-color'] },
+                { name: 'light-attr', selector: '.light-attr', properties: ['lighting-color'] },
+                { name: 'light-css', selector: '.light-css', properties: ['lighting-color'] }
+            ]
+        }));
+
     it('link', () =>
         expectSimulationToMatch({
             html: scope('a { color: red; border-bottom: 1px solid red }', '<a href="#target">Link <span>inside</span></a>'),
@@ -337,6 +369,25 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
         expectSimulationToMatch({
             html: scope(':root { --ai: linear-gradient(90deg, #a0f, #0af) } .b { background: var(--ai) }', '<div class="b">Gradient</div>'),
             probes: [{ name: 'b', selector: '.b', properties: ['background-image', 'background-color'] }]
+        }));
+
+    // A background list in a custom property loses its gradients layer by layer, and the color of its last layer
+    // becomes Canvas with its alpha: on each element the one of the declaration that wins there. Read as a
+    // background-color, the list is invalid, in the real mode too.
+    it('background-list-var', () =>
+        expectSimulationToMatch({
+            html: scope(
+                `.r { position: relative; display: inline-block; width: 40px; height: 10px; --ring: linear-gradient(90deg, #a0f, #0af), #8529d5 }
+                .r.translucent { --ring: linear-gradient(90deg, #a0f, #0af), rgb(133 41 213 / 0.4) }
+                .r::before { content: ''; position: absolute; inset: 0; background: var(--ring) }
+                .r.as-color::before { background: none; background-color: var(--ring) }`,
+                '<span class="r opaque"></span><span class="r translucent"></span><span class="r as-color"></span>'
+            ),
+            probes: [
+                { name: 'opaque::before', selector: '.r.opaque', pseudo: '::before', properties: ['background-color', 'background-image'] },
+                { name: 'translucent::before', selector: '.r.translucent', pseudo: '::before', properties: ['background-color', 'background-image'] },
+                { name: 'as-color::before', selector: '.r.as-color', pseudo: '::before', properties: ['background-color', 'background-image'] }
+            ]
         }));
 
     it('token-var', () =>

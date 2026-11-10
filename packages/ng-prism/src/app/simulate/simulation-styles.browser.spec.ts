@@ -7,7 +7,7 @@ import { SimulationStyles } from './simulation-styles.js';
 const flushMutations = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
 const FORCED = { 'forced-colors': 'active' } as const;
-const NO_RULES: ForcedColorRules = { exempt: [], reenabled: [], gradientVars: [] };
+const NO_RULES: ForcedColorRules = { exempt: [], reenabled: [], gradientVars: [], layerVars: [] };
 
 /** The rules of `NO_RULES` with what `found` says instead. */
 const rulesOf = (found: Partial<ForcedColorRules>): ForcedColorRules => ({ ...NO_RULES, ...found });

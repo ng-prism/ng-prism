@@ -1,4 +1,12 @@
-import { collectForcedColorRules, collectForcedColorRulesIn, exemptionSelector, FORCED_LAYER, type ForcedColorRules, forcedColorsCss } from './forced-colors.js';
+import {
+    collectForcedColorRules,
+    collectForcedColorRulesIn,
+    exemptionSelector,
+    FORCED_LAYER,
+    type ForcedColorRules,
+    forcedColorsCss,
+    mergeForcedColorRules
+} from './forced-colors.js';
 import { FORCED_PALETTES, SYSTEM_COLORS } from './forced-palette.js';
 import { MediaStyleSheets } from './media-stylesheets.js';
 
@@ -33,7 +41,7 @@ function mediaGroup(...rules: object[]): object {
     return { cssRules: rules, media: { mediaText: '(forced-colors: active)' }, insertRule: jest.fn(), deleteRule: jest.fn() };
 }
 
-const NONE: ForcedColorRules = { exempt: [], reenabled: [], gradientVars: [] };
+const NONE: ForcedColorRules = { exempt: [], reenabled: [], gradientVars: [], layerVars: [] };
 
 /** The rules of `NONE` with what `found` says instead. */
 const rulesOf = (found: Partial<ForcedColorRules>): ForcedColorRules => ({ ...NONE, ...found });
@@ -89,6 +97,13 @@ describe('collectForcedColorRules', () => {
     it('keeps a custom property that has both in one value out of the gradients, and its case', () => {
         addStyle(':root { --Both: linear-gradient(red, blue), url(a.png); --Case: conic-gradient(red, blue) }');
         expect(collectForcedColorRules(document).gradientVars).toEqual(['--Case']);
+    });
+
+    it('collects custom properties that some declaration gives a background list', () => {
+        addStyle(
+            ':root { --ring: linear-gradient(red, blue), #8529d5; --font: Inter, sans-serif; --shadow: 0 1px red, 0 2px blue; --ai: linear-gradient(red, blue) } .x { --ring: #fff } @media (min-width: 1px) { .y { --Photo: url(a.png), red } }'
+        );
+        expect(collectForcedColorRules(document).layerVars).toEqual(['--ring', '--Photo']);
     });
 
     it('leaves a pseudo-element out of the exemptions', () => {
@@ -194,6 +209,25 @@ describe('collectForcedColorRules', () => {
             listSheets({ cssRules: [{ style: { cssText: 'forced-color-adjust: none' } }] });
             expect(collectForcedColorRules(document)).toEqual(NONE);
         });
+    });
+});
+
+describe('mergeForcedColorRules', () => {
+    it('adds what the new styles bring to every list, once and in the order it was found', () => {
+        const rules = rulesOf({ exempt: ['.a'], gradientVars: ['--ai'], layerVars: ['--ring'] });
+
+        expect(mergeForcedColorRules(rules, rulesOf({ exempt: ['.b', '.a'], reenabled: ['.c'], gradientVars: ['--ring'], layerVars: ['--photo', '--ring'] }))).toEqual({
+            exempt: ['.a', '.b'],
+            reenabled: ['.c'],
+            gradientVars: ['--ai', '--ring'],
+            layerVars: ['--ring', '--photo']
+        });
+    });
+
+    it('is the rules themselves where the new styles add nothing', () => {
+        const rules = rulesOf({ exempt: ['.a'], layerVars: ['--ring'] });
+
+        expect(mergeForcedColorRules(rules, rulesOf({ layerVars: ['--ring'] }))).toBe(rules);
     });
 });
 
@@ -485,12 +519,11 @@ describe('forcedColorsCss', () => {
         expect(forcedColorsCss(NONE, 'light')).toContain('--prism-sim-bg-rgb: 255 255 255;');
     });
 
-    it('has no fill or stroke rules, no ground for every element and no rules for gradients any more', () => {
+    it('has no rules for the paint of an SVG, no ground for every element and no rules for gradients any more', () => {
         const css = forcedColorsCss(rulesOf({ exempt: ['.dot'] }), 'dark');
         const properties = parse(css).flatMap(({ values }) => Object.keys(values));
 
-        expect(properties).not.toContain('fill');
-        expect(properties).not.toContain('stroke');
+        for (const paint of ['fill', 'stroke', 'stop-color', 'flood-color', 'lighting-color']) expect(properties).not.toContain(paint);
         expect(css).not.toMatch(/\[(?:fill|stroke)/);
         // A ground only where a user agent paints one, and an image only for an inline gradient.
         for (const { selector, values } of parse(css)) {
@@ -608,10 +641,7 @@ describe('forcedColorsCss', () => {
                 'text-decoration-color': 'currentcolor',
                 'text-emphasis-color': 'currentcolor',
                 'column-rule-color': 'currentcolor',
-                'row-rule-color': 'currentcolor',
-                'stop-color': 'currentcolor',
-                'flood-color': 'currentcolor',
-                'lighting-color': 'currentcolor'
+                'row-rule-color': 'currentcolor'
             });
             expect(computedOn(css, at('#link'))).toMatchObject({
                 color: DARK.linktext,
@@ -811,8 +841,8 @@ describe('forcedColorsCss', () => {
             expect(forcedOn(css, at('#named'))).not.toHaveProperty('stroke');
         });
 
-        it('forces the stops and floods of an SVG', () => {
-            expect(computedOn(css, at('#plain'))).toMatchObject({ 'stop-color': DARK.canvastext, 'flood-color': DARK.canvastext, 'lighting-color': DARK.canvastext });
+        it('leaves the stops of a gradient and the colors of a filter to the author as well, as Chromium does', () => {
+            for (const paint of ['stop-color', 'flood-color', 'lighting-color']) expect(forcedOn(css, at('#plain'))).not.toHaveProperty(paint);
         });
     });
 });

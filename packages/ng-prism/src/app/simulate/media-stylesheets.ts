@@ -244,7 +244,7 @@ export class MediaStyleSheets {
 
         return {
             // The names of the @keyframes twins grow during a pass, before the rules that name them are twinned.
-            context: { palette, gradientVars: new Set(rules.gradientVars), keyframes: this.keyframes },
+            context: { palette, gradientVars: new Set(rules.gradientVars), layerVars: new Set(rules.layerVars), keyframes: this.keyframes },
             exemption,
             notExempt: exemption === null ? '' : `:not(${exemption})`
         };

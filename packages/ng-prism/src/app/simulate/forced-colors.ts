@@ -1,6 +1,7 @@
 import { attributeEnd, escapeEnd, stringEnd } from '../pseudo/pseudo-selector.js';
 import { declarationsOf, hasStyle, isImportRule, isRuleGroup, isStyleRule, propertyOf, valueOf } from './css-rules.js';
 import { FORCED_PALETTES, type ForcedPaletteName, resolveSystemColors, rgbChannels, type SystemColor } from './forced-palette.js';
+import { backgroundLayers } from './forced-values.js';
 import { SCOPE_IN_SUFFIX, SCOPE_OUT_SUFFIX, SIM_SCOPE, splitList, splitPseudoElement } from './scope-selector.js';
 
 /** What the author's styles say about forced colors, to be taken into account by the approximation. */
@@ -11,6 +12,8 @@ export interface ForcedColorRules {
     reenabled: string[];
     /** Custom properties that some declaration gives a gradient and none a `url()`: a background image that reads one is dropped like a gradient written out. */
     gradientVars: string[];
+    /** Custom properties that some declaration gives a background list, `linear-gradient(…), #8529d5` ({@link backgroundLayers}): a `background` that reads one takes the color of its last layer and drops its gradients layer by layer. */
+    layerVars: string[];
 }
 
 interface Found {
@@ -20,16 +23,18 @@ interface Found {
     gradientVars: Set<string>;
     /** The custom properties that a declaration gives a `url()`. */
     urlVars: Set<string>;
+    /** The custom properties that a declaration gives a background list. */
+    layerVars: Set<string>;
 }
 
 const GRADIENT = /-gradient\(/i;
 const URL_IMAGE = /url\(/i;
 
 /**
- * The exemptions and the custom properties of gradients in the document's
- * styles: its stylesheets, the adopted ones and what they import, to any depth
- * of grouping and nesting. A sheet whose rules cannot be read (cross-origin) is
- * skipped; the media engine has already said so.
+ * The exemptions and the custom properties of gradients and background lists in
+ * the document's styles: its stylesheets, the adopted ones and what they import,
+ * to any depth of grouping and nesting. A sheet whose rules cannot be read
+ * (cross-origin) is skipped; the media engine has already said so.
  *
  * Conditions are not evaluated: an exemption inside `@media (min-width: …)` counts
  * wherever the page is, and one inside `@media (forced-colors: active)`, where
@@ -46,7 +51,7 @@ export function collectForcedColorRules(doc: Document, skip: Iterable<CSSStyleSh
 
 /** {@link collectForcedColorRules} for `sheets` and what they import, and no other sheet: for the styles that arrive while forced colors are on. */
 export function collectForcedColorRulesIn(sheets: Iterable<CSSStyleSheet>, skip: Iterable<CSSStyleSheet> = []): ForcedColorRules {
-    const found: Found = { exempt: new Set(), reenabled: new Set(), gradientVars: new Set(), urlVars: new Set() };
+    const found: Found = { exempt: new Set(), reenabled: new Set(), gradientVars: new Set(), urlVars: new Set(), layerVars: new Set() };
     // A sheet to skip counts as read already.
     const seen = new Set<object>(skip);
 
@@ -56,7 +61,8 @@ export function collectForcedColorRulesIn(sheets: Iterable<CSSStyleSheet>, skip:
         exempt: Array.from(found.exempt),
         reenabled: Array.from(found.reenabled),
         // One declaration with a `url()` is enough to keep the image, wherever the property is given a gradient.
-        gradientVars: Array.from(found.gradientVars).filter((name) => !found.urlVars.has(name))
+        gradientVars: Array.from(found.gradientVars).filter((name) => !found.urlVars.has(name)),
+        layerVars: Array.from(found.layerVars)
     };
 }
 
@@ -64,7 +70,7 @@ export function collectForcedColorRulesIn(sheets: Iterable<CSSStyleSheet>, skip:
 export function sameForcedColorRules(a: ForcedColorRules, b: ForcedColorRules): boolean {
     const same = (x: readonly string[], y: readonly string[]): boolean => x.length === y.length && x.every((item, i) => item === y[i]);
 
-    return same(a.exempt, b.exempt) && same(a.reenabled, b.reenabled) && same(a.gradientVars, b.gradientVars);
+    return same(a.exempt, b.exempt) && same(a.reenabled, b.reenabled) && same(a.gradientVars, b.gradientVars) && same(a.layerVars, b.layerVars);
 }
 
 /** `rules` with what `more` adds, each list in the order it was found, once; `rules` itself if `more` adds nothing. */
@@ -72,7 +78,8 @@ export function mergeForcedColorRules(rules: ForcedColorRules, more: ForcedColor
     const merged: ForcedColorRules = {
         exempt: Array.from(new Set([...rules.exempt, ...more.exempt])),
         reenabled: Array.from(new Set([...rules.reenabled, ...more.reenabled])),
-        gradientVars: Array.from(new Set([...rules.gradientVars, ...more.gradientVars]))
+        gradientVars: Array.from(new Set([...rules.gradientVars, ...more.gradientVars])),
+        layerVars: Array.from(new Set([...rules.layerVars, ...more.layerVars]))
     };
 
     return sameForcedColorRules(merged, rules) ? rules : merged;
@@ -125,6 +132,7 @@ function record(selectorList: string, cssText: string, found: Found): void {
 
             if (GRADIENT.test(value)) found.gradientVars.add(property);
             if (URL_IMAGE.test(value)) found.urlVars.add(property);
+            if (backgroundLayers(value) !== null) found.layerVars.add(property);
         }
     }
 
@@ -271,10 +279,7 @@ const COLORS: readonly string[] = [
     'text-decoration-color: currentcolor',
     'text-emphasis-color: currentcolor',
     'column-rule-color: currentcolor',
-    'row-rule-color: currentcolor',
-    'stop-color: currentcolor',
-    'flood-color: currentcolor',
-    'lighting-color: currentcolor'
+    'row-rule-color: currentcolor'
 ];
 
 // The context of the elements a user agent colors on its own, as Chromium shows them in the mode:
@@ -383,7 +388,8 @@ const INLINE_NET: readonly (readonly [string, string])[] = [
  * browser's normal palette under the scope root's `color-scheme`, not against
  * the forced one.
  *
- * `fill` and `stroke` stay the author's, as in the browser, which forces neither.
+ * The paint of an SVG stays the author's, as in the browser, which forces none of it: `fill`,
+ * `stroke`, the `stop-color` of a gradient and the `flood-color` and `lighting-color` of a filter.
  */
 export function forcedColorsCss(rules: ForcedColorRules, palette: ForcedPaletteName, layered = true): string {
     const exemption = exemptionSelector(rules);

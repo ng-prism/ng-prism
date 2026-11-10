@@ -290,7 +290,7 @@ describe('MediaStyleSheets', () => {
 
     describe('forced colors', () => {
         const FORCED = { 'forced-colors': 'active' } as const;
-        const NO_RULES: ForcedColorRules = { exempt: [], reenabled: [], gradientVars: [] };
+        const NO_RULES: ForcedColorRules = { exempt: [], reenabled: [], gradientVars: [], layerVars: [] };
         const forced = (palette: ForcedPaletteName = 'dark', rules: Partial<ForcedColorRules> = {}): ForcedOptions => ({ palette, rules: { ...NO_RULES, ...rules } });
         const styleRules = (group: { cssRules: CSSRuleList }): CSSStyleRule[] => Array.from(group.cssRules) as CSSStyleRule[];
         /** A sheet's text, rule by rule. */

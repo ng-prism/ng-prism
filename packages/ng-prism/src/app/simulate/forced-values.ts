@@ -24,14 +24,20 @@ export interface TwinContext {
     readonly palette: ForcedPaletteName;
     /** Custom properties (`--name`) whose value is a gradient somewhere in the document and a `url()` nowhere. */
     readonly gradientVars: ReadonlySet<string>;
+    /** Custom properties (`--name`) whose value is a background list somewhere in the document ({@link backgroundLayers}). */
+    readonly layerVars: ReadonlySet<string>;
     /** Names of the @keyframes that got a twin. */
     readonly keyframes: ReadonlySet<string>;
 }
 
 /**
  * The properties whose color Chromium forces: the text color, to the foreground of the context,
- * and the colors of borders, outlines, text decorations and emphasis, column rules, the caret and
- * of SVG filters and gradient stops, to the forced color of the element itself.
+ * and the colors of borders, outlines, text decorations and emphasis, column rules and the caret,
+ * to the forced color of the element itself.
+ *
+ * Not among them is the paint of an SVG, `fill`, `stroke`, `stop-color`, `flood-color` and
+ * `lighting-color`: Chromium forces none of it, as an attribute or in a stylesheet, inside an
+ * `<svg>` or not, and not under `forced-color-adjust: auto` either.
  *
  * `getComputedStyle` in Chromium's mode still reports what the author wrote for
  * `text-decoration-color` and for `-webkit-text-fill-color` (which a twin forces as well, though
@@ -52,10 +58,7 @@ export const FOREGROUND_PROPERTIES: ReadonlySet<string> = new Set([
     'text-decoration-color',
     'text-emphasis-color',
     'column-rule-color',
-    'caret-color',
-    'stop-color',
-    'flood-color',
-    'lighting-color'
+    'caret-color'
 ]);
 
 const FOREGROUND = 'var(--prism-sim-fg)';
@@ -164,6 +167,27 @@ export function shadowName(customProperty: string): string {
     return `--prism-sim-sys-${customProperty.slice(2)}`;
 }
 
+/** The custom property that carries the last layer of the background list that is this custom property's winning value: `--ring` to `--prism-sim-layer-color-ring`. */
+export function layerColorName(customProperty: string): string {
+    return `--prism-sim-layer-color-${customProperty.slice(2)}`;
+}
+
+/** The custom property that carries the images that the mode leaves of the background list that is this custom property's winning value: `--ring` to `--prism-sim-layer-images-ring`. */
+export function layerImagesName(customProperty: string): string {
+    return `--prism-sim-layer-images-${customProperty.slice(2)}`;
+}
+
+/**
+ * The layers of a background list, `linear-gradient(…), #8529d5`: two or more, each but the last
+ * with an image, and the last where the color of the list is, if it has one. `null` for any other
+ * value: a single layer, or a list of fonts or shadows.
+ */
+export function backgroundLayers(value: string): string[] | null {
+    const layers = splitList(value).map((layer) => layer.trim());
+
+    return layers.length > 1 && layers.slice(0, -1).every((layer) => GRADIENT.test(layer) || URL_IMAGE.test(layer)) ? layers : null;
+}
+
 /** The name of the copy of a @keyframes that has the forced colors: `pulse` to `pulse-prism-sim`. */
 export function keyframesTwinName(name: string): string {
     return `${name}-prism-sim`;
@@ -194,14 +218,18 @@ function nameOf(property: string): string {
  *   holds a system color that stays: `var(--prism-sim-sys-x, <forced value>)`, the shadow of the
  *   custom property that the twin of its own declaration sets.
  * - **A custom property** gets a twin that sets its shadow, and the value of a system color in
- *   the palette (a whole value, and not a deprecated name that may be a word).
+ *   the palette (a whole value, and not a deprecated name that may be a word). One of
+ *   {@link TwinContext.layerVars} also sets the shadows of a background list: its last layer and
+ *   what the mode leaves of its images.
  * - **`animation-name`** names the twins of the @keyframes that have one.
  * - **Any other property** gets its system colors in the palette where it can carry a color
- *   ({@link resolveSystemColors}), and is left alone otherwise: `fill` and `stroke` are not forced.
+ *   ({@link resolveSystemColors}), and is left alone otherwise: the paint of an SVG, `fill`,
+ *   `stroke`, `stop-color`, `flood-color` and `lighting-color`, is not forced.
  * - **A shorthand that `var()` left without longhands** ({@link declarationsOfStyle}) gets the
- *   forced values of its color, and of its image for `background`. A `background` that holds
- *   more than one `var()`, or a `var()` among other values, keeps its color: the twin cannot tell
- *   which of its parts is the color.
+ *   forced values of its color, and of its image for `background`. A `background` that is a
+ *   custom property of a background list takes the color of the list's last layer, and a `none`
+ *   for each of its layers. A `background` that holds more than one `var()`, or a `var()` among
+ *   other values, keeps its color: the twin cannot tell which of its parts is the color.
  *
  * A CSS-wide keyword (`inherit`, `unset` …) is left: it takes a value that is forced already.
  * The priority of a declaration goes to every declaration of its twin.
@@ -307,29 +335,50 @@ function groundOf(original: string): string {
     return `rgb(from ${original} ${GROUND_CHANNELS} / alpha)`;
 }
 
-/** A custom property's twin: its value as a system color of the palette, if it is one, and its shadow. */
+/**
+ * A custom property's twin: its value as a system color of the palette, if it is one, and its
+ * shadow. One that holds a background list somewhere ({@link TwinContext.layerVars}) gets the
+ * shadows of a list as well, from each of its declarations, a list or not, so that the shadows
+ * that apply are the ones of the declaration that wins.
+ */
 function customPropertyTwin(property: string, value: string, important: boolean, context: TwinContext): Declaration[] {
     const resolved = resolveSystemColors(property, value, context.palette);
     const twin: Declaration[] = [];
+    const add = (target: string, to: string): void => {
+        twin.push({ property: target, value: to, important });
+    };
 
-    if (resolved !== value) twin.push({ property, value: resolved, important });
-    twin.push({ property: shadowName(property), value: shadowValue(value, context.palette), important });
+    if (resolved !== value) add(property, resolved);
+    add(shadowName(property), shadowValue(value, context.palette));
+    if (context.layerVars.has(property)) {
+        const layers = backgroundLayers(value);
+
+        add(layerColorName(property), layers ? substituteSystemColors(layers[layers.length - 1], context.palette) : passedOn(value, layerColorName));
+        // A list with a URL keeps its images, and there is nothing to read for it.
+        if (context.gradientVars.has(property)) add(layerImagesName(property), layers ? layers.map(() => 'none').join(', ') : passedOn(value, layerImagesName));
+    }
     return twin;
 }
 
 /**
  * What a custom property's shadow holds for a declaration of its value: the system color it is,
- * if Chromium leaves it standing, the shadow of the custom property it passes on, or nothing
- * (`initial`, an invalid value, so that the reader falls back to the forced value). A deprecated
- * name is no color here, it may be a word. A custom property that inherits its value inherits the
- * shadow with it.
+ * if Chromium leaves it standing, or else {@link passedOn}. A deprecated name is no color here, it
+ * may be a word.
  */
 function shadowValue(value: string, palette: ForcedPaletteName): string {
-    if (keepsSystemColor(value, { deprecated: false })) return substituteSystemColors(value, palette);
+    return keepsSystemColor(value, { deprecated: false }) ? substituteSystemColors(value, palette) : passedOn(value, shadowName);
+}
 
+/**
+ * What a shadow (`shadow` names it) holds for a declaration that has no value for it: the shadow of
+ * the custom property it passes on, or nothing (`initial`, an invalid value, so that the reader
+ * falls back to the forced value). A custom property that inherits its value inherits the shadow
+ * with it.
+ */
+function passedOn(value: string, shadow: (customProperty: string) => string): string {
     const custom = wholeVar(value);
 
-    if (custom !== null) return `var(${shadowName(custom)})`;
+    if (custom !== null) return `var(${shadow(custom)})`;
 
     const keyword = value.toLowerCase();
 
@@ -346,12 +395,19 @@ function hasGradient(value: string, { gradientVars }: TwinContext): boolean {
 /**
  * What a `background` that `var()` left without longhands sets: the color, if the value is
  * nothing but one `var()` (the color is then all it can be), and no image, if it holds a gradient.
+ *
+ * A custom property that holds a background list ({@link TwinContext.layerVars}) has its color in
+ * its last layer, which `rgb(from <list> …)` cannot read, and loses its gradients one by one, as
+ * many `none` as it has layers: the reader takes both from the shadows of the declaration that
+ * wins for it, and falls back to the custom property itself where that is no list.
  */
 function backgroundShorthandTwin(value: string, context: TwinContext): [string, string][] {
     const twin: [string, string][] = [];
+    const custom = wholeVar(value);
+    const list = custom !== null && context.layerVars.has(custom);
 
-    if (wholeVar(value) !== null) twin.push(['background-color', forcedColor(value, groundOf(value), context.palette)]);
-    if (hasGradient(value, context)) twin.push(['background-image', 'none']);
+    if (custom !== null) twin.push(['background-color', forcedColor(value, groundOf(list ? `var(${layerColorName(custom)}, ${value})` : value), context.palette)]);
+    if (hasGradient(value, context)) twin.push(['background-image', list ? `var(${layerImagesName(custom)}, none)` : 'none']);
     return twin;
 }
 

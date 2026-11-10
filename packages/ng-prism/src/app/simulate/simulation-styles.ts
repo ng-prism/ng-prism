@@ -54,8 +54,8 @@ export class SimulationStyles {
     /**
      * Emulates `emulated` in the scope and, with a `palette`, forces colors in
      * it: the twins of the author's rules and the forced colors sheet, both in
-     * the palette. The exemptions and the custom properties of gradients are
-     * collected anew, unless nothing changed. Idempotent.
+     * the palette. The exemptions and the custom properties of gradients and
+     * background lists are collected anew, unless nothing changed. Idempotent.
      */
     apply(emulated: EmulatedMedia, palette: ForcedPaletteName | null): void {
         const same = sameMedia(this.emulated, emulated) && this.palette === palette;
@@ -86,9 +86,9 @@ export class SimulationStyles {
 
     /**
      * Styles that arrive while forced colors are on can bring exemptions or
-     * custom properties of gradients of their own. Then the twins of every rule
-     * are built anew, with what the new styles add: what styles that left had
-     * brought stays until forced colors are applied again.
+     * custom properties of gradients or background lists of their own. Then the
+     * twins of every rule are built anew, with what the new styles add: what
+     * styles that left had brought stays until forced colors are applied again.
      */
     private onNewStyles(sheets: readonly CSSStyleSheet[]): void {
         const forced = this.forced;
