@@ -51,6 +51,19 @@ describe('scopeIn', () => {
         expect(scopeIn(':root, .a')).toBe(`:root ${S}, .a${IN}`);
     });
 
+    it('puts an extra condition right behind the scope suffix, in front of a pseudo-element', () => {
+        expect(scopeIn('.a::before', false, ':not(.x)')).toBe(`.a${IN}:not(.x)::before`);
+        expect(scopeIn('.a .b:hover', false, ':not(.x)')).toBe(`.a .b:hover${IN}:not(.x)`);
+        expect(scopeIn('.a, .b::after', false, ':not(.x)')).toBe(`.a${IN}:not(.x), .b${IN}:not(.x)::after`);
+        expect(scopeIn('.a', false, '')).toBe(scopeIn('.a'));
+    });
+
+    it('puts the extra condition on the scope root that a rule on the document root is sent to', () => {
+        expect(scopeIn(':root', false, ':not(.x)')).toBe(`:root ${S}:not(.x)`);
+        expect(scopeIn(':root::before', false, ':not(.x)')).toBe(`:root ${S}:not(.x)::before`);
+        expect(scopeIn('&.dark', true, ':not(.x)')).toBe(`&.dark ${S}:not(.x)`);
+    });
+
     it('puts the scope in front of the pseudo-element of a rule on the root', () => {
         expect(scopeIn(':root::before')).toBe(`:root ${S}::before`);
         expect(scopeIn('html::selection')).toBe(`html ${S}::selection`);

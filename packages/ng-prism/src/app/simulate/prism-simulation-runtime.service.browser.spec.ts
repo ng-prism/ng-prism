@@ -6,7 +6,7 @@ import { MEDIA_TRUE } from './media-condition.js';
 import { MediaStyleSheets } from './media-stylesheets.js';
 import { PrismSimulationRuntimeService } from './prism-simulation-runtime.service.js';
 
-const NO_FORCED_RULES: ForcedColorRules = { exempt: [], gradients: [] };
+const NO_FORCED_RULES: ForcedColorRules = { exempt: [], reenabled: [], gradients: [], gradientVars: [] };
 
 /** Lets pending MutationObserver callbacks run. */
 const flushMutations = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));

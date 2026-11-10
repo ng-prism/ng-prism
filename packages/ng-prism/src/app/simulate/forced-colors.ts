@@ -7,20 +7,32 @@ import { SCOPE_IN_SUFFIX, SIM_SCOPE, splitList, splitPseudoElement } from './sco
 export interface ForcedColorRules {
     /** Selectors of rules that declare `forced-color-adjust: none` or `preserve-parent-color`: they and everything below them keep the author's colors. */
     exempt: string[];
+    /** Selectors of rules that declare `forced-color-adjust: auto`: an element below an exemption that matches one has its colors forced again, and so has everything below it. */
+    reenabled: string[];
     /** Selectors of rules that paint a gradient and no URL image: the browser drops such a background image in forced colors mode. */
     gradients: string[];
+    /** Custom properties that some declaration gives a gradient and none a `url()`: a background image that reads one is dropped like a gradient written out. */
+    gradientVars: string[];
 }
 
 interface Found {
     exempt: Set<string>;
+    reenabled: Set<string>;
     gradients: Set<string>;
+    /** The custom properties that a declaration gives a gradient. */
+    gradientVars: Set<string>;
+    /** The custom properties that a declaration gives a `url()`. */
+    urlVars: Set<string>;
 }
 
+const GRADIENT = /-gradient\(/i;
+const URL_IMAGE = /url\(/i;
+
 /**
- * The exemptions and gradients in the document's styles: its stylesheets, the
- * adopted ones and what they import, to any depth of grouping and nesting. A
- * sheet whose rules cannot be read (cross-origin) is skipped; the media engine
- * has already said so.
+ * The exemptions, gradients and custom properties of gradients in the
+ * document's styles: its stylesheets, the adopted ones and what they import, to
+ * any depth of grouping and nesting. A sheet whose rules cannot be read
+ * (cross-origin) is skipped; the media engine has already said so.
  *
  * Conditions are not evaluated: an exemption inside `@media (min-width: …)` counts
  * wherever the page is, and one inside `@media (forced-colors: active)`, where
@@ -30,13 +42,19 @@ interface Found {
  * colors sheet: nothing in it is an author's exemption or gradient.
  */
 export function collectForcedColorRules(doc: Document, skip: Iterable<CSSStyleSheet> = []): ForcedColorRules {
-    const found: Found = { exempt: new Set(), gradients: new Set() };
+    const found: Found = { exempt: new Set(), reenabled: new Set(), gradients: new Set(), gradientVars: new Set(), urlVars: new Set() };
     // A sheet to skip counts as read already.
     const seen = new Set<object>(skip);
 
     for (const sheet of [...Array.from(doc.styleSheets), ...(doc.adoptedStyleSheets ?? [])]) collectSheet(sheet, found, seen);
 
-    return { exempt: Array.from(found.exempt), gradients: Array.from(found.gradients) };
+    return {
+        exempt: Array.from(found.exempt),
+        reenabled: Array.from(found.reenabled),
+        gradients: Array.from(found.gradients),
+        // One declaration with a `url()` is enough to keep the image, wherever the property is given a gradient.
+        gradientVars: Array.from(found.gradientVars).filter((name) => !found.urlVars.has(name))
+    };
 }
 
 function collectSheet(sheet: CSSStyleSheet, found: Found, seen: Set<object>): void {
@@ -70,7 +88,10 @@ function collectRules(rules: CSSRuleList, parent: string | null, found: Found, s
     }
 }
 
-/** Notes the selectors of one block under what its declarations say; of a property set twice, the last wins. */
+/**
+ * Notes the selectors of one block under what its declarations say; of a property set twice, the last wins.
+ * A custom property is noted by name, from every block it is declared in: which declaration wins is for the cascade.
+ */
 function record(selectorList: string, cssText: string, found: Found): void {
     let adjust = '';
     let background = '';
@@ -80,19 +101,29 @@ function record(selectorList: string, cssText: string, found: Found): void {
 
         if (property === 'forced-color-adjust') adjust = valueOf(declaration).toLowerCase();
         else if (property === 'background' || property === 'background-image') background = valueOf(declaration);
+        else if (property.startsWith('--')) {
+            const value = valueOf(declaration);
+
+            if (GRADIENT.test(value)) found.gradientVars.add(property);
+            if (URL_IMAGE.test(value)) found.urlVars.add(property);
+        }
     }
 
     const exempt = adjust === 'none' || adjust === 'preserve-parent-color';
+    const reenabled = adjust === 'auto';
     // A `url()` among the images keeps the whole value, as in the browser.
-    const gradient = /-gradient\(/i.test(background) && !/url\(/i.test(background);
+    const gradient = GRADIENT.test(background) && !URL_IMAGE.test(background);
 
-    if (!exempt && !gradient) return;
+    if (!exempt && !reenabled && !gradient) return;
     for (const part of splitList(selectorList)) {
         const selector = part.trim();
 
         if (selector === '') continue;
-        // A pseudo-element has no subtree to exempt.
-        if (exempt && splitPseudoElement(selector).pseudoElement === '') found.exempt.add(selector);
+        // A pseudo-element has no subtree to exempt or to take an exemption back for.
+        if (splitPseudoElement(selector).pseudoElement === '') {
+            if (exempt) found.exempt.add(selector);
+            if (reenabled) found.reenabled.add(selector);
+        }
         if (gradient) found.gradients.add(selector);
     }
 }
@@ -135,6 +166,32 @@ function replaceAmpersand(selector: string, replacement: string): string | null 
     }
 
     return replaced ? out : null;
+}
+
+/** The elements below an exemption that an `auto` takes it back for, as `:is(<exempt>) :is(<reenabled>)`; `null` if there is no exemption or no `auto`. */
+function reenabledSelector({ exempt, reenabled }: ForcedColorRules): string | null {
+    return exempt.length === 0 || reenabled.length === 0 ? null : `:is(${exempt.join(', ')}) :is(${reenabled.join(', ')})`;
+}
+
+/**
+ * What is exempt from the forced colors, as a selector that weighs nothing: an exemption and what is
+ * inside it, minus what a `forced-color-adjust: auto` below it takes back, and what is inside that.
+ * `null` without an exemption, where an `auto` has nothing to take back.
+ *
+ * One level only: an `auto` is taken back to forcing, and a `none` below that is not exempt again.
+ * Nor does an `auto` that matches the very element of an exemption count; the cascade between the two
+ * is the author's, which a selector cannot read.
+ *
+ * A list in `:where()` or `:is()` ignores a selector that the browser rejects, so it does not take
+ * the others with it.
+ */
+export function exemptionSelector(rules: ForcedColorRules): string | null {
+    if (rules.exempt.length === 0) return null;
+
+    const exempt = `:where(${[...rules.exempt, ...rules.exempt.map((selector) => `${selector} *`)].join(', ')})`;
+    const taken = reenabledSelector(rules);
+
+    return taken === null ? exempt : `:where(${exempt}:not(:where(${taken}, ${taken} *)))`;
 }
 
 /** The scope roots alone. */
@@ -317,7 +374,10 @@ const INLINE_BORDERS = ':where([style*="border" i])';
  * names a color, a background or a border.
  *
  * What an exemption names, `forced-color-adjust: none` and `preserve-parent-color`,
- * is left out together with everything below it.
+ * is left out together with everything below it ({@link exemptionSelector}), except
+ * for what a `forced-color-adjust: auto` takes back: that is forced again and
+ * gets the context of the page, `CanvasText` on `Canvas`, and not the one the
+ * exemption has inherited, a link's `LinkText` for one.
  *
  * Grounds are `Canvas` only where nothing can be hidden behind them by mistake: not on
  * `::before` and `::after`, not on the layout elements of the CDK overlay.
@@ -335,7 +395,9 @@ const INLINE_BORDERS = ':where([style*="border" i])';
  * which the browser forces as well.
  */
 export function forcedColorsCss(rules: ForcedColorRules, palette: ForcedPaletteName): string {
-    const exempt = rules.exempt.length === 0 ? '' : `:not(:where(${[...rules.exempt, ...rules.exempt.map((selector) => `${selector} *`)].join(', ')}))`;
+    const exemption = exemptionSelector(rules);
+    const exempt = exemption === null ? '' : `:not(${exemption})`;
+    const reenabled = reenabledSelector(rules);
     const inside = `${INSIDE}${exempt}`;
     const roots = `${ROOTS_AND_INSIDE}${exempt}`;
 
@@ -346,6 +408,8 @@ export function forcedColorsCss(rules: ForcedColorRules, palette: ForcedPaletteN
 
     const css = [
         block([`${ROOTS}${exempt}`], ['--prism-sim-fg: CanvasText', ground('canvas')]),
+        // Before the elements a user agent colors, which a link or a mark below sets again.
+        ...(reenabled === null ? [] : [block([`${INSIDE}:where(${reenabled})`], ['--prism-sim-fg: CanvasText', ground('canvas')])]),
         block(withPseudoElements(roots), INHERITED),
         block(withPseudoElements(painted), COLORS),
         block([painted], GROUND),

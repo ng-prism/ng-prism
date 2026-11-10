@@ -55,17 +55,22 @@ const ROOT_COMPOUND = /^(?::root|html|body)(?![\w\\-])/i;
  * document root. `&` stands for the root there, so `&.dark` in `:root { … }`
  * counts as a selector on the root.
  *
+ * `extra` is a condition on the subject that goes right behind the scope, in
+ * front of a trailing pseudo-element, whether the scope is the suffix or, for a
+ * rule on the document root, the scope roots themselves. A condition that weighs
+ * nothing, such as `:not(:where(…))`, leaves the specificity as it is.
+ *
  * Only text is inserted, nothing is trimmed or reshaped, so the result keeps
  * the list's own whitespace.
  */
-export function scopeIn(selectorList: string, parentIsRoot = false): string {
+export function scopeIn(selectorList: string, parentIsRoot = false, extra = ''): string {
     return splitList(selectorList)
         .map((part) => {
             const point = insertionPoint(part, parentIsRoot);
 
             if (point === null) return part;
 
-            return part.slice(0, point.at) + (point.root ? ` ${SCOPE}` : SCOPE_IN_SUFFIX) + part.slice(point.at);
+            return part.slice(0, point.at) + (point.root ? ` ${SCOPE}` : SCOPE_IN_SUFFIX) + extra + part.slice(point.at);
         })
         .join(',');
 }

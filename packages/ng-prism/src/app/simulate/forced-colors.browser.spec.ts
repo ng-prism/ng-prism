@@ -1,4 +1,4 @@
-import { collectForcedColorRules, FORCED_PROPERTIES, type ForcedColorRules, forcedColorsCss, isForced } from './forced-colors.js';
+import { collectForcedColorRules, exemptionSelector, FORCED_PROPERTIES, type ForcedColorRules, forcedColorsCss, isForced } from './forced-colors.js';
 import { FORCED_PALETTES, SYSTEM_COLORS } from './forced-palette.js';
 
 const LIGHT = FORCED_PALETTES.light;
@@ -32,7 +32,10 @@ function mediaGroup(...rules: object[]): object {
     return { cssRules: rules, media: { mediaText: '(forced-colors: active)' }, insertRule: jest.fn(), deleteRule: jest.fn() };
 }
 
-const NONE: ForcedColorRules = { exempt: [], gradients: [] };
+const NONE: ForcedColorRules = { exempt: [], reenabled: [], gradients: [], gradientVars: [] };
+
+/** The rules of `NONE` with what `found` says instead. */
+const rulesOf = (found: Partial<ForcedColorRules>): ForcedColorRules => ({ ...NONE, ...found });
 
 const OVERLAY_STRUCTURE = ':not(:where(.cdk-overlay-popover, .cdk-global-overlay-wrapper, .cdk-overlay-connected-position-bounding-box, .cdk-overlay-backdrop))';
 
@@ -47,11 +50,11 @@ describe('collectForcedColorRules', () => {
         addStyle(
             '.dot { forced-color-adjust: none } .p { forced-color-adjust: preserve-parent-color } .g { background: linear-gradient(red, blue) } .u { background-image: url(x.png) }'
         );
-        expect(collectForcedColorRules(document)).toEqual({ exempt: ['.dot', '.p'], gradients: ['.g'] });
+        expect(collectForcedColorRules(document)).toEqual(rulesOf({ exempt: ['.dot', '.p'], gradients: ['.g'] }));
     });
 
-    it('is empty for a document without either', () => {
-        addStyle('.a { color: red; background: #fff } .b { forced-color-adjust: auto; background-image: none }');
+    it('is empty for a document without any of them', () => {
+        addStyle('.a { color: red; background: #fff } .b { forced-color-adjust: normal; background-image: none }');
         expect(collectForcedColorRules(document)).toEqual(NONE);
     });
 
@@ -64,7 +67,7 @@ describe('collectForcedColorRules', () => {
         addStyle(
             '@media (forced-colors: active) { .q { forced-color-adjust: none } } @supports (display: grid) { @media (min-width: 1px) { .r { background: radial-gradient(red, blue) } } }'
         );
-        expect(collectForcedColorRules(document)).toEqual({ exempt: ['.q'], gradients: ['.r'] });
+        expect(collectForcedColorRules(document)).toEqual(rulesOf({ exempt: ['.q'], gradients: ['.r'] }));
     });
 
     it('lets a gradient fall away only where the browser would: no url() beside it', () => {
@@ -82,13 +85,32 @@ describe('collectForcedColorRules', () => {
     });
 
     it('follows the last word of a block on the exemption and on the image', () => {
-        addStyle('.a { forced-color-adjust: none; forced-color-adjust: auto } .b { background: linear-gradient(red, blue); background-image: url(x.png) }');
-        expect(collectForcedColorRules(document)).toEqual(NONE);
+        addStyle(
+            '.a { forced-color-adjust: none; forced-color-adjust: auto } .c { forced-color-adjust: auto; forced-color-adjust: none } .b { background: linear-gradient(red, blue); background-image: url(x.png) }'
+        );
+        expect(collectForcedColorRules(document)).toEqual(rulesOf({ exempt: ['.c'], reenabled: ['.a'] }));
+    });
+
+    it('collects the rules that declare auto, which take an exemption back below it', () => {
+        addStyle('.opt { forced-color-adjust: none } .opt .slot { forced-color-adjust: auto } .x:hover::before { forced-color-adjust: auto }');
+        expect(collectForcedColorRules(document)).toMatchObject({ exempt: ['.opt'], reenabled: ['.opt .slot'] });
+    });
+
+    it('collects custom properties that hold a gradient somewhere and a url() nowhere', () => {
+        addStyle(
+            ':root { --ai: linear-gradient(red, blue); --img: url(a.png); --mix: linear-gradient(red, blue); --plain: red } .x { --mix: url(b.png) } @media (min-width: 1px) { .y { --media: radial-gradient(red, blue) } }'
+        );
+        expect(collectForcedColorRules(document).gradientVars).toEqual(['--ai', '--media']);
+    });
+
+    it('keeps a custom property that has both in one value out of the gradients, and its case', () => {
+        addStyle(':root { --Both: linear-gradient(red, blue), url(a.png); --Case: conic-gradient(red, blue) }');
+        expect(collectForcedColorRules(document).gradientVars).toEqual(['--Case']);
     });
 
     it('keeps the pseudo-element of a gradient and leaves a pseudo-element out of the exemptions', () => {
         addStyle('.b::before, .c:hover::after { background: linear-gradient(red, blue) } .x::before { forced-color-adjust: none } .y { forced-color-adjust: none }');
-        expect(collectForcedColorRules(document)).toEqual({ exempt: ['.y'], gradients: ['.b::before', '.c:hover::after'] });
+        expect(collectForcedColorRules(document)).toEqual(rulesOf({ exempt: ['.y'], gradients: ['.b::before', '.c:hover::after'] }));
     });
 
     it('reads the sheets that are adopted, and the ones an @import brings in', () => {
@@ -100,14 +122,14 @@ describe('collectForcedColorRules', () => {
         listSheets({ cssRules: [importRule] }, own);
         Object.defineProperty(document, 'adoptedStyleSheets', { configurable: true, value: [adopted] });
 
-        expect(collectForcedColorRules(document)).toEqual({ exempt: ['.own', '.adopted'], gradients: ['.imported'] });
+        expect(collectForcedColorRules(document)).toEqual(rulesOf({ exempt: ['.own', '.adopted'], gradients: ['.imported'] }));
     });
 
     it('leaves out the sheets it is told to skip', () => {
         const own = addStyle('.own { forced-color-adjust: none }');
 
         addStyle('.author { forced-color-adjust: none }');
-        expect(collectForcedColorRules(document, [own])).toEqual({ exempt: ['.author'], gradients: [] });
+        expect(collectForcedColorRules(document, [own])).toEqual(rulesOf({ exempt: ['.author'] }));
     });
 
     it('does not stop at a sheet it cannot read, a cross-origin one', () => {
@@ -119,7 +141,7 @@ describe('collectForcedColorRules', () => {
         const own = addStyle('.own { forced-color-adjust: none }');
 
         listSheets(foreign, own);
-        expect(collectForcedColorRules(document)).toEqual({ exempt: ['.own'], gradients: [] });
+        expect(collectForcedColorRules(document)).toEqual(rulesOf({ exempt: ['.own'] }));
     });
 
     it('reads a sheet only once, whether it is listed twice or imported in a cycle', () => {
@@ -128,7 +150,7 @@ describe('collectForcedColorRules', () => {
 
         cycle.cssRules.push({ href: 'cycle.css', styleSheet: cycle, media: { mediaText: '' } });
         listSheets(sheet, sheet, cycle);
-        expect(collectForcedColorRules(document)).toEqual({ exempt: ['.a'], gradients: [] });
+        expect(collectForcedColorRules(document)).toEqual(rulesOf({ exempt: ['.a'] }));
     });
 
     describe('in nested CSS', () => {
@@ -147,10 +169,12 @@ describe('collectForcedColorRules', () => {
             };
 
             listSheets(sheet);
-            expect(collectForcedColorRules(document)).toEqual({
-                exempt: [':is(.card, .tile) .icon', ':is(.card, .tile).on > .mark', '.dark :is(.card, .tile)', ':is(:is(.card, .tile):hover) .deep'],
-                gradients: [':is(.card, .tile)::before']
-            });
+            expect(collectForcedColorRules(document)).toEqual(
+                rulesOf({
+                    exempt: [':is(.card, .tile) .icon', ':is(.card, .tile).on > .mark', '.dark :is(.card, .tile)', ':is(:is(.card, .tile):hover) .deep'],
+                    gradients: [':is(.card, .tile)::before']
+                })
+            );
         });
 
         it('leaves & inside a string or an attribute value as it is', () => {
@@ -160,12 +184,71 @@ describe('collectForcedColorRules', () => {
 
         it('takes the declarations that a nested @media holds for the rule around it', () => {
             listSheets({ cssRules: [nested('.btn', '', mediaGroup(declarations('forced-color-adjust: none')))] });
-            expect(collectForcedColorRules(document)).toEqual({ exempt: ['.btn'], gradients: [] });
+            expect(collectForcedColorRules(document)).toEqual(rulesOf({ exempt: ['.btn'] }));
         });
 
         it('has no selector for declarations outside a rule, such as @font-face', () => {
             listSheets({ cssRules: [{ style: { cssText: 'forced-color-adjust: none' } }] });
             expect(collectForcedColorRules(document)).toEqual(NONE);
+        });
+    });
+});
+
+describe('exemptionSelector', () => {
+    it('names what is exempt as a selector that weighs nothing, with one level of auto below it', () => {
+        expect(exemptionSelector({ exempt: ['.opt'], reenabled: ['.slot'], gradients: [], gradientVars: [] })).toBe(
+            ':where(:where(.opt, .opt *):not(:where(:is(.opt) :is(.slot), :is(.opt) :is(.slot) *)))'
+        );
+        expect(exemptionSelector({ exempt: ['.opt'], reenabled: [], gradients: [], gradientVars: [] })).toBe(':where(.opt, .opt *)');
+        expect(exemptionSelector({ exempt: ['.a', '.b > .c'], reenabled: ['.d', '.e'], gradients: [], gradientVars: [] })).toBe(
+            ':where(:where(.a, .b > .c, .a *, .b > .c *):not(:where(:is(.a, .b > .c) :is(.d, .e), :is(.a, .b > .c) :is(.d, .e) *)))'
+        );
+    });
+
+    it('is null without an exemption, whatever an auto says', () => {
+        expect(exemptionSelector(NONE)).toBeNull();
+        expect(exemptionSelector(rulesOf({ reenabled: ['.slot'] }))).toBeNull();
+    });
+
+    describe('applied to a document', () => {
+        let root: HTMLElement;
+        const at = (selector: string): Element => {
+            const element = root.querySelector(selector);
+
+            if (!element) throw new Error(`no ${selector}`);
+            return element;
+        };
+
+        beforeEach(() => {
+            root = document.createElement('div');
+            root.innerHTML = `
+                <div class="opt" id="opt"><b id="b">b</b><i class="slot" id="slot"><span id="in-slot"><u id="deep-in-slot">u</u></span></i></div>
+                <i class="slot" id="outside-slot"><span id="outside-in-slot">s</span></i>
+                <div id="plain"><b id="outside-b">b</b></div>`;
+            document.body.appendChild(root);
+        });
+
+        afterEach(() => root.remove());
+
+        it('matches the exemption and what is inside it, and not what an auto takes back with all that is below it', () => {
+            const selector = exemptionSelector(rulesOf({ exempt: ['.opt'], reenabled: ['.opt .slot'] }));
+
+            if (selector === null) throw new Error('no selector');
+            for (const id of ['#opt', '#b']) expect([id, at(id).matches(selector)]).toEqual([id, true]);
+            for (const id of ['#slot', '#in-slot', '#deep-in-slot', '#outside-slot', '#outside-in-slot', '#plain', '#outside-b']) {
+                expect([id, at(id).matches(selector)]).toEqual([id, false]);
+            }
+        });
+
+        it('has the auto count only below an exemption, whatever the selector of the auto says', () => {
+            const selector = exemptionSelector(rulesOf({ exempt: ['.opt'], reenabled: ['.slot'] }));
+
+            if (selector === null) throw new Error('no selector');
+            expect(at('#slot').matches(selector)).toBe(false);
+            expect(at('#in-slot').matches(selector)).toBe(false);
+            expect(at('#b').matches(selector)).toBe(true);
+            // Not an exemption, with or without the auto.
+            expect(at('#outside-slot').matches(selector)).toBe(false);
         });
     });
 });
@@ -185,6 +268,27 @@ function parse(css: string): { selector: string; values: Record<string, string> 
         rules.push({ selector: match[1].trim(), values });
     }
     return rules;
+}
+
+/** `selector` without its `:where()` groups, nested ones inside them included, which weigh nothing. */
+function withoutWhere(selector: string): string {
+    let out = '';
+    let i = 0;
+
+    while (i < selector.length) {
+        if (!selector.startsWith(':where(', i)) {
+            out += selector[i++];
+            continue;
+        }
+        for (let depth = 0; i < selector.length; i++) {
+            if (selector[i] === '(') depth++;
+            else if (selector[i] === ')' && --depth === 0) {
+                i++;
+                break;
+            }
+        }
+    }
+    return out;
 }
 
 type Pseudo = '' | '::before' | '::after' | '::placeholder';
@@ -265,7 +369,7 @@ function computedOn(css: string, element: Element, pseudo: Pseudo = ''): Record<
 
 describe('forcedColorsCss', () => {
     it('forces the colors of the palette inside the scope only, minus exempt subtrees', () => {
-        const css = forcedColorsCss({ exempt: ['.dot'], gradients: ['.g'] }, 'light');
+        const css = forcedColorsCss(rulesOf({ exempt: ['.dot'], gradients: ['.g'] }), 'light');
 
         expect(css).toContain(`--prism-sim-fg: ${LIGHT.canvastext} !important`);
         expect(css).toContain('color: var(--prism-sim-fg) !important');
@@ -304,7 +408,7 @@ describe('forcedColorsCss', () => {
     });
 
     it('has no fill or stroke rules any more', () => {
-        const css = forcedColorsCss({ exempt: ['.dot'], gradients: ['.g'] }, 'dark');
+        const css = forcedColorsCss(rulesOf({ exempt: ['.dot'], gradients: ['.g'] }), 'dark');
         const properties = parse(css).flatMap(({ values }) => Object.keys(values));
 
         expect(properties).not.toContain('fill');
@@ -325,21 +429,38 @@ describe('forcedColorsCss', () => {
     });
 
     it('exempts every selector together with what is inside it', () => {
-        expect(forcedColorsCss({ exempt: ['.a', '.b > .c'], gradients: [] }, 'dark')).toContain(':not(:where(.a, .b > .c, .a *, .b > .c *))');
+        expect(forcedColorsCss(rulesOf({ exempt: ['.a', '.b > .c'] }), 'dark')).toContain(':not(:where(.a, .b > .c, .a *, .b > .c *))');
+    });
+
+    it('takes the exemption from exemptionSelector, so that what an `auto` takes back is forced again', () => {
+        const rules = rulesOf({ exempt: ['.opt'], reenabled: ['.slot'] });
+        const css = forcedColorsCss(rules, 'dark');
+
+        expect(css).toContain(`:not(${exemptionSelector(rules)})`);
+        // An `auto` without an exemption above it changes nothing.
+        expect(forcedColorsCss(rulesOf({ reenabled: ['.slot'] }), 'dark')).toBe(forcedColorsCss(NONE, 'dark'));
+    });
+
+    it('sets the context again below an exemption, where `auto` takes it back', () => {
+        const css = forcedColorsCss(rulesOf({ exempt: ['.opt', '.card'], reenabled: ['.slot'] }), 'dark');
+        // Every rule has the exemption in its selector; this one is the only that selects what an `auto` takes back.
+        const again = parse(css).filter(({ selector }) => selector === ':where([data-prism-sim], .cdk-overlay-container) *:where(:is(.opt, .card) :is(.slot))');
+
+        expect(again).toHaveLength(1);
+        expect(again[0].values).toEqual({ '--prism-sim-fg': '#ffffff !important', '--prism-sim-bg-rgb': '0 0 0 !important' });
+        expect(forcedColorsCss(rulesOf({ exempt: ['.opt'] }), 'dark')).not.toContain(':is(.opt) :is(');
     });
 
     it('weighs nothing and wins over the author, which is as important', () => {
-        for (const { selector, values } of parse(forcedColorsCss({ exempt: ['.dot'], gradients: ['.g', '.b::before'] }, 'dark'))) {
+        for (const { selector, values } of parse(forcedColorsCss(rulesOf({ exempt: ['.dot'], reenabled: ['.dot .slot'], gradients: ['.g', '.b::before'] }), 'dark'))) {
             // Every class, attribute and type name in a selector sits in a `:where()`.
-            expect(selector.replace(/:where\((?:[^()]|\([^()]*\))*\)/g, '').replace(/\*/g, '')).toMatch(
-                /^(?:(?::not\(\)|:before|:after|::before|::after|::placeholder|,|\s)*)$/
-            );
+            expect(withoutWhere(selector).replace(/\*/g, '')).toMatch(/^(?:(?::not\(\)|:before|:after|::before|::after|::placeholder|,|\s)*)$/);
             for (const value of Object.values(values)) expect(value).toMatch(/ !important$/);
         }
     });
 
     it('lists every property it sets as forced, and nothing else; the custom properties of the context are none', () => {
-        const set = new Set(parse(forcedColorsCss({ exempt: ['.dot'], gradients: ['.g'] }, 'dark')).flatMap(({ values }) => Object.keys(values)));
+        const set = new Set(parse(forcedColorsCss(rulesOf({ exempt: ['.dot'], gradients: ['.g'] }), 'dark')).flatMap(({ values }) => Object.keys(values)));
         const context = ['--prism-sim-fg', '--prism-sim-bg-rgb', '--prism-sim-outline'];
 
         expect(
@@ -356,7 +477,7 @@ describe('forcedColorsCss', () => {
 
     describe('applied to a document', () => {
         let root: HTMLElement;
-        const css = forcedColorsCss({ exempt: ['.dot'], gradients: ['.g', '.g::before'] }, 'dark');
+        const css = forcedColorsCss(rulesOf({ exempt: ['.dot'], gradients: ['.g', '.g::before'] }), 'dark');
         const at = (selector: string): Element => {
             const element = root.querySelector(selector);
 
@@ -629,6 +750,40 @@ describe('forcedColorsCss', () => {
             expect(computedOn(css, at('#svg'))).toMatchObject({ 'background-color': DARK.canvas });
             expect(computedOn(css, at('#plain'))).toMatchObject({ 'stop-color': DARK.canvastext, 'flood-color': DARK.canvastext, 'lighting-color': DARK.canvastext });
         });
+    });
+});
+
+describe('forcedColorsCss with an auto below an exemption', () => {
+    let root: HTMLElement;
+    const css = forcedColorsCss(rulesOf({ exempt: ['.opt'], reenabled: ['.opt .slot'] }), 'dark');
+    const at = (selector: string): Element => {
+        const element = root.querySelector(selector);
+
+        if (!element) throw new Error(`no ${selector}`);
+        return element;
+    };
+
+    beforeEach(() => {
+        root = document.createElement('div');
+        root.innerHTML = `
+            <div data-prism-sim id="stage">
+                <a href="#x" id="link"><div class="opt" id="opt"><b id="b">b</b><span class="slot" id="slot"><span id="in-slot">in</span></span><i class="other" id="other">o</i></div></a>
+            </div>`;
+        document.body.appendChild(root);
+    });
+
+    afterEach(() => root.remove());
+
+    it('leaves the exemption and what is inside it to the author', () => {
+        for (const selector of ['#opt', '#b', '#other']) expect([selector, forcedOn(css, at(selector))]).toEqual([selector, {}]);
+    });
+
+    it('forces the element that takes the exemption back, and what is inside it, in the context of the page and not of the link around the exemption', () => {
+        expect(computedOn(css, at('#slot'))).toMatchObject({ color: DARK.canvastext, 'background-color': DARK.canvas, 'border-color': DARK.canvastext });
+        expect(computedOn(css, at('#in-slot'))).toMatchObject({ color: DARK.canvastext, 'background-color': DARK.canvas });
+        expect(customOn(css, at('#in-slot'), '--prism-sim-bg-rgb')).toBe('0 0 0');
+        // Without the context set again, it would inherit what the exemption inherits from the link.
+        expect(customOn(css, at('#opt'), '--prism-sim-fg')).toBe(DARK.linktext);
     });
 });
 

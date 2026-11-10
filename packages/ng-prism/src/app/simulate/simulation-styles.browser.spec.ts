@@ -55,7 +55,7 @@ describe('SimulationStyles', () => {
         const [sheet] = document.adoptedStyleSheets;
 
         expect(document.adoptedStyleSheets).toHaveLength(1);
-        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: ['.dot'], gradients: [] }, 'dark'));
+        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: ['.dot'], reenabled: [], gradients: [], gradientVars: [] }, 'dark'));
         expect(ignore).toHaveBeenCalledWith(sheet);
         // The engine has rewritten the sheets before the forced one arrives, and never gets to see it unignored.
         expect(apply.mock.invocationCallOrder[0]).toBeLessThan(adopt.mock.invocationCallOrder[0]);
@@ -107,7 +107,7 @@ describe('SimulationStyles', () => {
         expect(adopt).toHaveBeenCalledTimes(1);
         // The media engine builds its copies anew and calls back, which writes the sheet; nothing writes it twice.
         expect(replaceSync).toHaveBeenCalledTimes(1);
-        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: ['.dot'], gradients: [] }, 'light'));
+        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: ['.dot'], reenabled: [], gradients: [], gradientVars: [] }, 'light'));
 
         styles.clear();
     });
@@ -120,7 +120,7 @@ describe('SimulationStyles', () => {
         const [sheet] = document.adoptedStyleSheets;
 
         styles.apply({ 'forced-colors': 'active' }, 'light');
-        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: [], gradients: [] }, 'light'));
+        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: [], reenabled: [], gradients: [], gradientVars: [] }, 'light'));
         styles.clear();
     });
 
@@ -186,13 +186,13 @@ describe('SimulationStyles', () => {
         styles.apply({ 'forced-colors': 'active' }, 'dark');
         const [sheet] = document.adoptedStyleSheets;
 
-        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: [], gradients: [] }, 'dark'));
+        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: [], reenabled: [], gradients: [], gradientVars: [] }, 'dark'));
 
         addStyle('.dot { forced-color-adjust: none }');
         await flushMutations();
         // Rewritten in place: the same sheet, still the only one adopted.
         expect(document.adoptedStyleSheets).toEqual([sheet]);
-        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: ['.dot'], gradients: [] }, 'dark'));
+        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: ['.dot'], reenabled: [], gradients: [], gradientVars: [] }, 'dark'));
 
         styles.clear();
     });
