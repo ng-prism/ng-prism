@@ -84,18 +84,32 @@ export const DEPRECATED_SYSTEM_COLORS: ReadonlySet<string> = new Set<SystemColor
 ]);
 
 /**
+ * The system colors Chromium leaves at the platform's value in forced colors
+ * mode, in both palettes: `SelectedItem` is `#b3d7ff` on macOS and `#1967d2` on
+ * Linux, so no table can hold them. {@link readPlatformColors} asks the browser.
+ */
+export type PlatformColor = 'selecteditem' | 'selecteditemtext';
+
+const PLATFORM_COLORS: readonly PlatformColor[] = ['selecteditem', 'selecteditemtext'];
+
+function isPlatformColor(color: SystemColor): color is PlatformColor {
+    return (PLATFORM_COLORS as readonly string[]).includes(color);
+}
+
+/**
  * What each system color resolves to in Chromium's forced colors mode, as
  * `computed` reports it for an element with `forced-color-adjust: none`, which
  * is where a system color stands as the author wrote it. Opaque values are
  * `#rrggbb`, translucent ones `rgba(r, g, b, a)`; {@link rgbChannels} reads
  * the first.
  *
- * Chromium does not remap every one of them: `SelectedItem`, `SelectedItemText`,
- * `Mark`, `MarkText`, `AccentColor` and `AccentColorText` keep their normal
- * value in both palettes. A spec measures the table in Chromium, so it cannot
- * drift (forced-palette.chromium.spec.ts).
+ * Chromium does not remap every one of them: `Mark`, `MarkText`, `AccentColor`
+ * and `AccentColorText` keep their normal value in both palettes, and the
+ * {@link PlatformColor}s, which are not in the table, the platform's. A spec
+ * measures the table in Chromium, so it cannot drift
+ * (forced-palette.chromium.spec.ts).
  */
-export const FORCED_PALETTES: Readonly<Record<ForcedPaletteName, Readonly<Record<SystemColor, string>>>> = {
+export const FORCED_PALETTES: Readonly<Record<ForcedPaletteName, Readonly<Record<Exclude<SystemColor, PlatformColor>, string>>>> = {
     light: {
         canvas: '#ffffff',
         canvastext: '#000000',
@@ -109,8 +123,6 @@ export const FORCED_PALETTES: Readonly<Record<ForcedPaletteName, Readonly<Record
         fieldtext: '#000000',
         highlight: 'rgba(5, 0, 73, 0.8)',
         highlighttext: '#ffffff',
-        selecteditem: '#b3d7ff',
-        selecteditemtext: '#000000',
         mark: '#ffff00',
         marktext: '#000000',
         graytext: '#600000',
@@ -152,8 +164,6 @@ export const FORCED_PALETTES: Readonly<Record<ForcedPaletteName, Readonly<Record
         fieldtext: '#ffffff',
         highlight: 'rgba(0, 230, 255, 0.8)',
         highlighttext: '#000000',
-        selecteditem: '#b3d7ff',
-        selecteditemtext: '#000000',
         mark: '#ffff00',
         marktext: '#000000',
         graytext: '#3ff23f',
@@ -183,6 +193,44 @@ export const FORCED_PALETTES: Readonly<Record<ForcedPaletteName, Readonly<Record
         windowtext: '#ffffff'
     }
 };
+
+/** What the browser resolves each {@link PlatformColor} to, once {@link readPlatformColors} has asked it. */
+const platformValues = new Map<PlatformColor, string>();
+
+/**
+ * Asks the browser of `doc`, once, what the {@link PlatformColor}s resolve to
+ * in a light color scheme: the value Chromium leaves them at in both palettes of
+ * a page that sets no `color-scheme`. Not in the scope root's, which is `dark`
+ * under the dark palette and gives another blue. A browser that does not
+ * resolve them leaves {@link forcedColor} with the keywords.
+ */
+export function readPlatformColors(doc: Document): void {
+    const view = doc.defaultView;
+
+    if (platformValues.size > 0 || !view || !doc.documentElement) return;
+
+    const probe = doc.createElement('span');
+
+    probe.style.setProperty('color-scheme', 'light', 'important');
+    probe.style.setProperty('display', 'none', 'important');
+    doc.documentElement.append(probe);
+    try {
+        for (const color of PLATFORM_COLORS) {
+            probe.style.setProperty('color', color, 'important');
+
+            const value = view.getComputedStyle(probe).color;
+
+            if (value.startsWith('rgb')) platformValues.set(color, value);
+        }
+    } finally {
+        probe.remove();
+    }
+}
+
+/** `color` in `palette`: its value in {@link FORCED_PALETTES}, or the browser's for a {@link PlatformColor} ({@link readPlatformColors}). */
+export function forcedColor(palette: ForcedPaletteName, color: SystemColor): string {
+    return isPlatformColor(color) ? (platformValues.get(color) ?? color) : FORCED_PALETTES[palette][color];
+}
 
 /** The system colors Chromium forces like any other color the author sets: to `CanvasText` as a text or border color, to `Canvas` as a background. */
 const FORCED_SYSTEM_COLORS: ReadonlySet<string> = new Set<SystemColor>(['accentcolor', 'accentcolortext']);
@@ -257,7 +305,7 @@ export function carriesColor(property: string): boolean {
 
 /**
  * Every system color keyword in `value` as a whole token, outside strings and
- * `url()`, replaced by its value in `palette`. A hyphen, a digit and an
+ * `url()`, replaced by its value in `palette` ({@link forcedColor}). A hyphen, a digit and an
  * underscore belong to a name (`--canvas-bg`, `canvas-x`), as do escapes: a
  * name with one is left alone.
  *
@@ -265,7 +313,6 @@ export function carriesColor(property: string): boolean {
  * {@link resolveSystemColors} applies it where a system color can be.
  */
 export function substituteSystemColors(value: string, palette: ForcedPaletteName): string {
-    const colors = FORCED_PALETTES[palette];
     let out = '';
     let i = 0;
 
@@ -285,7 +332,7 @@ export function substituteSystemColors(value: string, palette: ForcedPaletteName
                 if (value[identifierEnd] === '(' && keyword === 'url') {
                     end = urlEnd(value, identifierEnd);
                 } else if (SYSTEM_COLOR_SET.has(keyword) && !name.includes('\\')) {
-                    out += colors[keyword as SystemColor];
+                    out += forcedColor(palette, keyword as SystemColor);
                     i = identifierEnd;
                     continue;
                 } else {

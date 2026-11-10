@@ -12,10 +12,10 @@ import {
 } from './forced-palette.js';
 
 describe('FORCED_PALETTES', () => {
-    it.each(['light', 'dark'] as const)('has a literal value for every system color, %s', (name) => {
+    it.each(['light', 'dark'] as const)('has a literal value for every system color but the selection colors, which are the platform’s, %s', (name) => {
         const palette = FORCED_PALETTES[name];
 
-        expect(Object.keys(palette).sort()).toEqual([...SYSTEM_COLORS].sort());
+        expect(Object.keys(palette).sort()).toEqual(SYSTEM_COLORS.filter((color) => color !== 'selecteditem' && color !== 'selecteditemtext').sort());
         for (const value of Object.values(palette)) expect(value).toMatch(/^(#[0-9a-f]{6}|rgba\(\d+, \d+, \d+, 0?\.\d+\))$/);
     });
 
@@ -34,8 +34,6 @@ describe('FORCED_PALETTES', () => {
             expect(FORCED_PALETTES[name]).toMatchObject({
                 accentcolor: '#0075ff',
                 accentcolortext: '#ffffff',
-                selecteditem: '#b3d7ff',
-                selecteditemtext: '#000000',
                 mark: '#ffff00',
                 marktext: '#000000'
             });
@@ -109,6 +107,11 @@ describe('substituteSystemColors', () => {
 
     it('treats a function that merely ends in url as any other', () => {
         expect(substituteSystemColors('my-url(Canvas) xurl(Canvas)', 'dark')).toBe('my-url(#000000) xurl(#000000)');
+    });
+
+    it('gives the selection colors as keywords until the browser has been asked for them', () => {
+        expect(substituteSystemColors('1px solid SelectedItem', 'dark')).toBe('1px solid selecteditem');
+        expect(substituteSystemColors('SelectedItemText', 'light')).toBe('selecteditemtext');
     });
 
     it('leaves a value without a system color as it is', () => {

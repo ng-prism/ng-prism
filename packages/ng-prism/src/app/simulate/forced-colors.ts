@@ -1,6 +1,6 @@
 import { attributeEnd, escapeEnd, rewritePseudoSelector, stringEnd } from '../pseudo/pseudo-selector.js';
 import { declarationsOf, hasStyle, isImportRule, isRuleGroup, isStyleRule, propertyOf, valueOf } from './css-rules.js';
-import { FORCED_PALETTES, type ForcedPaletteName, resolveSystemColors, rgbChannels, type SystemColor } from './forced-palette.js';
+import { FORCED_PALETTES, type ForcedPaletteName, resolveSystemColors, rgbChannels } from './forced-palette.js';
 import { backgroundLayers } from './forced-values.js';
 import { SCOPE_IN_SUFFIX, SCOPE_OUT_SUFFIX, SIM_SCOPE, splitList, splitPseudoElement } from './scope-selector.js';
 
@@ -465,7 +465,7 @@ export function forcedColorsCss(rules: ForcedColorRules, palette: ForcedPaletteN
     const inside = `${INSIDE}${exempt}`;
     const block = (selectors: readonly string[], declarations: readonly string[], important = false): string => forcedRule(selectors, declarations, palette, important);
     // The channels of a system color, which `rgb()` and the relative color syntax take as they are.
-    const ground = (color: SystemColor): string => `--prism-sim-bg-rgb: ${rgbChannels(FORCED_PALETTES[palette][color])}`;
+    const ground = (color: 'canvas' | 'mark'): string => `--prism-sim-bg-rgb: ${rgbChannels(FORCED_PALETTES[palette][color])}`;
 
     const context = [
         block([`${ROOTS}${exempt}`], ['--prism-sim-fg: CanvasText', ground('canvas'), ...INHERITED]),

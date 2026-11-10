@@ -1,6 +1,6 @@
 import { isDevMode } from '@angular/core';
 import { collectForcedColorRules, collectForcedColorRulesIn, FORCED_LAYER, type ForcedColorRules, forcedColorsCss, mergeForcedColorRules } from './forced-colors.js';
-import type { ForcedPaletteName } from './forced-palette.js';
+import { type ForcedPaletteName, readPlatformColors } from './forced-palette.js';
 import { type ForcedOptions, MediaStyleSheets } from './media-stylesheets.js';
 import { type EmulatedMedia, sameMedia } from './simulation.js';
 
@@ -62,6 +62,7 @@ export class SimulationStyles {
 
         this.emulated = { ...emulated };
         this.palette = palette;
+        if (palette !== null) readPlatformColors(this.doc);
         if (palette === null) this.forced = null;
         else if (!same || this.forced === null) this.forced = { palette, rules: collectForcedColorRules(this.doc, this.ownSheets()) };
         this.applyMedia();

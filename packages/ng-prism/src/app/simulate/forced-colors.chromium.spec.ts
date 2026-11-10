@@ -98,6 +98,13 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
             probes: [{ name: 'sel', selector: '.sel', properties: ['color', 'background-color'] }]
         }));
 
+    // The platform's selection colors, under the scope root's dark color scheme in the dark palette.
+    it('platform-system-colors', () =>
+        expectSimulationToMatch({
+            html: scope('.opt { background: SelectedItem; color: SelectedItemText; border: 1px solid SelectedItem }', '<span class="opt">Option</span>'),
+            probes: [{ name: 'opt', selector: '.opt', properties: ['color', 'background-color', 'border-top-color'] }]
+        }));
+
     it('hover-and-forced', () =>
         expectSimulationToMatch({
             html: scope('@media (hover: hover) and (forced-colors: active) { .h:hover { border: 2px solid Highlight } }', '<div class="h">Hover</div>'),
