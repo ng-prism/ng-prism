@@ -368,7 +368,7 @@ describe('forcedColorsCss', () => {
                     <select id="select-disabled" disabled></select> <textarea id="area-disabled" disabled></textarea>
                     <select><optgroup id="group-disabled" label="g" disabled><option id="in-group">o</option></optgroup></select>
                     <input id="plain-disabled" disabled /> <input type="checkbox" id="checkbox-disabled" disabled /> <input type="file" id="file-disabled" disabled />
-                    <mark id="mark">m <span id="in-mark">in <b id="deep-in-mark">deep</b></span></mark>
+                    <mark id="mark">m <span id="in-mark">in <b id="deep-in-mark">deep</b></span> <mark id="nested-mark">n</mark></mark>
                     <div id="focus-host" tabindex="0"><span id="in-focus">in</span></div>
                     <div id="inline" style="background: red; color: blue">i</div> <div id="inline-border" style="border: 1px solid red">b</div>
                     <mark id="inline-mark" style="Background: orange">m <span id="inline-in-mark" style="background-color: red">in</span></mark>
@@ -535,6 +535,12 @@ describe('forcedColorsCss', () => {
             for (const selector of ['#in-mark', '#deep-in-mark']) {
                 expect(computedOn(css, at(selector))).toMatchObject({ color: DARK.marktext, 'background-color': DARK.canvas, '--prism-sim-bg-rgb': '0 0 0' });
             }
+            // A mark inside a mark is one again; the generated content of either gets the ground of the page.
+            expect(computedOn(css, at('#nested-mark'))).toMatchObject({ color: DARK.marktext, 'background-color': DARK.mark, '--prism-sim-bg-rgb': '255 255 0' });
+            for (const selector of ['#mark', '#nested-mark']) {
+                for (const pseudo of ['::before', '::after'] as const)
+                    expect([selector, pseudo, customOn(css, at(selector), '--prism-sim-bg-rgb', pseudo)]).toEqual([selector, pseudo, '0 0 0']);
+            }
         });
 
         it('takes the placeholder of a field to GrayText', () => {
@@ -551,6 +557,9 @@ describe('forcedColorsCss', () => {
             expect(computedOn(css, at('#focus-host'))['outline-color']).toBe(DARK.highlight);
             expect(computedOn(css, at('#in-focus'))['outline-color']).toBe(DARK.canvastext);
             expect(computedOn(css, at('#field'))['outline-color']).toBe(DARK.canvastext);
+            // Nor of its generated content, which inherits from it.
+            for (const pseudo of ['::before', '::after'] as const)
+                expect([pseudo, computedOn(css, at('#focus-host'), pseudo)['outline-color']]).toEqual([pseudo, DARK.canvastext]);
         });
 
         it('forces an inline color, background and border, whatever the rule weighs', () => {

@@ -154,8 +154,10 @@ const ROOTS_AND_INSIDE = `*${SCOPE_IN_SUFFIX}`;
  *
  * - `--prism-sim-fg`, the text color, for the text and every foreground color,
  * - `--prism-sim-bg-rgb`, the ground as channels (`r g b`), for a background. Unlike the text
- *   color it stops at the element that sets it: what is inside a `<mark>` gets `Canvas`, not `Mark`,
- * - `--prism-sim-outline`, the outline of the element with visible focus, and of no other.
+ *   color it stops at the element that sets it: what is inside a `<mark>`, and its generated
+ *   content, gets `Canvas`, not `Mark`,
+ * - `--prism-sim-outline`, the outline of the element with visible focus, and of no other, not
+ *   even its generated content.
  */
 
 // The properties of CSS Color Adjust 1, "Properties Affected by Forced Colors Mode", and the
@@ -345,11 +347,12 @@ export function forcedColorsCss(rules: ForcedColorRules, palette: ForcedPaletteN
         block([`${inside}${BUTTONS}`], BUTTON),
         block([`${inside}${LINKS}`], LINK),
         block([`${inside}${DISABLED_CONTROLS}`], DISABLED),
+        // Before the marks, so that a mark inside a mark is one again.
+        block([`${inside}${INSIDE_MARKS}`, ...generatedContent(`${inside}${MARKS}`)], [ground('canvas')]),
         block([`${inside}${MARKS}`], [...MARK, ground('mark')]),
-        block([`${inside}${INSIDE_MARKS}`], [ground('canvas')]),
         block([`${inside}${PLACEHOLDERS}`], PLACEHOLDER),
         block([`${inside}${FOCUS}`], FOCUSED),
-        block([`${inside}${INSIDE_FOCUS}`], INSIDE_FOCUSED)
+        block([`${inside}${INSIDE_FOCUS}`, ...generatedContent(`${inside}${FOCUS}`)], INSIDE_FOCUSED)
     ];
 
     // One rule each: a selector that the browser rejects takes the whole list of a rule with it.
@@ -371,7 +374,12 @@ export function forcedColorsCss(rules: ForcedColorRules, palette: ForcedPaletteN
 
 /** A selector and the generated content in front of and behind it, which `*` does not match. */
 function withPseudoElements(selector: string): string[] {
-    return [selector, `${selector}::before`, `${selector}::after`];
+    return [selector, ...generatedContent(selector)];
+}
+
+/** The generated content in front of and behind what `selector` matches, which inherits from it. */
+function generatedContent(selector: string): string[] {
+    return [`${selector}::before`, `${selector}::after`];
 }
 
 /** A rule of the sheet: every declaration `!important`, its system colors in `palette`. */

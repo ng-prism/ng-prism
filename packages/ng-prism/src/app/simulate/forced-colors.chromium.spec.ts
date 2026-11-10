@@ -145,19 +145,40 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
         }));
 
     // The text color of a mark reaches its content, the ground does not: an inline background there is the page's.
+    // A mark inside a mark is one again.
     it('mark-content', () =>
         expectSimulationToMatch({
-            html: scope('', '<p><mark>Mark <span style="background: #c00">inside</span></mark></p>'),
-            probes: [{ name: 'span', selector: 'mark span', properties: ['color', 'background-color'] }]
+            html: scope('', '<p><mark>Mark <span style="background: #c00">inside</span> <mark class="nested" style="background: #c00">nested</mark></mark></p>'),
+            probes: [
+                { name: 'span', selector: 'mark span', properties: ['color', 'background-color'] },
+                { name: 'nested', selector: 'mark.nested', properties: ['color', 'background-color'] }
+            ]
         }));
 
-    // Any outline of the element with visible focus becomes Highlight, not only a transparent one; not the outline inside it.
+    // The generated content of a mark gets the page's ground as well, Canvas and not Mark. The sheet leaves the ground of
+    // generated content to the author, so the simulation keeps the author's.
+    it.failing('mark-generated-content', () =>
+        expectSimulationToMatch({
+            html: scope('mark::before { content: "b"; background: #c00 }', '<p><mark>Mark</mark></p>'),
+            probes: [{ name: 'mark::before', selector: 'mark', pseudo: '::before', properties: ['color', 'background-color'] }]
+        })
+    );
+
+    // Any outline of the element with visible focus becomes Highlight, not only a transparent one; not the outline inside
+    // it, nor the one of its generated content.
     it('focus-visible-outline', () =>
         expectSimulationToMatch({
-            html: scope('.x:focus-visible, .x:focus-visible .k { outline: 2px solid red }', '<button class="x">Button <span class="k">inside</span></button>'),
+            html: scope(
+                `.x:focus-visible, .x:focus-visible .k { outline: 2px solid red }
+                .x:focus-visible::before { content: "b"; outline: 2px solid transparent }
+                .x:focus-visible::after { content: "a"; outline: 2px solid red }`,
+                '<button class="x">Button <span class="k">inside</span></button>'
+            ),
             probes: [
                 { name: 'x', selector: '.x', properties: ['outline-color'] },
-                { name: 'k', selector: '.k', properties: ['outline-color'] }
+                { name: 'k', selector: '.k', properties: ['outline-color'] },
+                { name: 'x::before', selector: '.x', pseudo: '::before', properties: ['outline-color'] },
+                { name: 'x::after', selector: '.x', pseudo: '::after', properties: ['outline-color'] }
             ],
             focus: '.x'
         }));
