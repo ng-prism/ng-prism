@@ -28,6 +28,12 @@ it('normalizes the colors Chromium serializes differently', () => {
     expect(normalizeColor('color(srgb 1 1 1 / 0.266667)')).toBe('rgba(255, 255, 255, 0.27)');
     expect(normalizeColor('rgb(0, 0, 0)')).toBe('rgba(0, 0, 0, 1)');
     expect(normalizeColor('rgba(0, 0, 0, 0.267) 0px 1px 2px 0px')).toBe('rgba(0, 0, 0, 0.27) 0px 1px 2px 0px');
+    expect(normalizeColor('rgba(255, 255, 255, 0)')).toBe('rgba(0, 0, 0, 0)');
+    expect(normalizeColor('color(srgb 1 1 1 / 0)')).toBe('rgba(0, 0, 0, 0)');
+    // `transparent`, as Chromium computes it in every property, gradients and shadows included.
+    expect(normalizeColor('rgba(0, 0, 0, 0)')).toBe('rgba(0, 0, 0, 0)');
+    expect(normalizeColor('rgba(204, 0, 0, 0.004)')).toBe('rgba(0, 0, 0, 0)');
+    expect(normalizeColor('linear-gradient(rgba(255, 255, 255, 0), rgb(0, 0, 0))')).toBe('linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 1))');
     expect(normalizeColor('none')).toBe('none');
     expect(normalizeColor('color(display-p3 1 0 0)')).toBe('color(display-p3 1 0 0)');
 });
@@ -166,7 +172,8 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
         })
     );
 
-    it.failing('radio-dark', () =>
+    // Chromium turns the dot into Canvas, as white as the author's dot in the light palette. In the dark one the simulation keeps it white.
+    (scheme === 'light' ? it : it.failing)('radio-dark', () =>
         expectSimulationToMatch({
             html: scope(
                 `.dot { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border: 1px solid #8a8a8a; border-radius: 50% }

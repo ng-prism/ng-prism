@@ -59,8 +59,12 @@ export function renderSimulated(browser: Browser, fixture: Fixture, scheme: Sche
 
 /**
  * Every `rgb()`, `rgba()` and `color(srgb …)` in `value` as `rgba(r, g, b, a)`:
- * channels as integers 0–255, alpha rounded to two decimals. Anything else
- * unchanged, so a shadow or a gradient keeps the rest of its value.
+ * channels as integers 0–255, alpha rounded to two decimals. A color whose
+ * alpha rounds to 0 shows nothing, whatever its channels, and becomes
+ * `rgba(0, 0, 0, 0)`: Chromium's real mode turns an author's transparent
+ * surface into Canvas with alpha 0, `rgba(255, 255, 255, 0)` in the light
+ * palette, which looks the same as `transparent`. Anything else unchanged, so
+ * a shadow or a gradient keeps the rest of its value.
  *
  * Chromium serializes a color by how it was written, not by what it is: a
  * relative color (`rgb(from …)`) comes out as `color(srgb 0 0 0 / 0.501961)`,
@@ -81,7 +85,9 @@ export function normalizeColor(value: string): string {
 
         if ([...channels, alpha].some(Number.isNaN)) return color;
 
-        return `rgba(${channels.join(', ')}, ${Math.round(alpha * 100) / 100})`;
+        const rounded = Math.round(alpha * 100) / 100;
+
+        return rounded === 0 ? 'rgba(0, 0, 0, 0)' : `rgba(${channels.join(', ')}, ${rounded})`;
     });
 }
 
