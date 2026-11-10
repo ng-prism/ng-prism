@@ -58,6 +58,15 @@ export function renderSimulated(browser: Browser, fixture: Fixture, scheme: Sche
     });
 }
 
+/** A blank page with the simulation's bundle on `window.__prismSim`, for a spec that calls a function of it on what Chromium makes of a stylesheet. */
+export async function pageWithSimulation(browser: Browser): Promise<Page> {
+    const page = await browser.newPage();
+
+    await page.setContent('<!doctype html><body></body>');
+    await page.addScriptTag({ content: await simulationBundle() });
+    return page;
+}
+
 /**
  * Every `rgb()`, `rgba()` and `color(srgb …)` in `value` as `rgba(r, g, b, a)`:
  * channels as integers 0–255, alpha rounded to two decimals. A color whose

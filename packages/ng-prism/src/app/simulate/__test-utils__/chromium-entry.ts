@@ -1,3 +1,4 @@
+import { declarationsOfStyle } from '../forced-values.js';
 import { applyScopeRoot } from '../scope-root.js';
 import { SimulationStyles } from '../simulation-styles.js';
 
@@ -5,6 +6,7 @@ import { SimulationStyles } from '../simulation-styles.js';
 export interface PrismSim {
     SimulationStyles: typeof SimulationStyles;
     applyScopeRoot: typeof applyScopeRoot;
+    declarationsOfStyle: typeof declarationsOfStyle;
 }
 
-Object.assign(window, { __prismSim: { SimulationStyles, applyScopeRoot } satisfies PrismSim });
+Object.assign(window, { __prismSim: { SimulationStyles, applyScopeRoot, declarationsOfStyle } satisfies PrismSim });
