@@ -1,4 +1,4 @@
-import { attributeEnd, escapeEnd, stringEnd } from '../pseudo/pseudo-selector.js';
+import { attributeEnd, escapeEnd, rewritePseudoSelector, stringEnd } from '../pseudo/pseudo-selector.js';
 import { declarationsOf, hasStyle, isImportRule, isRuleGroup, isStyleRule, propertyOf, valueOf } from './css-rules.js';
 import { FORCED_PALETTES, type ForcedPaletteName, resolveSystemColors, rgbChannels, type SystemColor } from './forced-palette.js';
 import { backgroundLayers } from './forced-values.js';
@@ -321,9 +321,19 @@ const INSIDE_FOCUSED: readonly string[] = ['--prism-sim-outline: initial'];
  */
 const OVERLAY_STRUCTURE = ':not(:where(.cdk-overlay-popover, .cdk-global-overlay-wrapper, .cdk-overlay-connected-position-bounding-box, .cdk-overlay-backdrop))';
 
+/**
+ * `tail` with every pseudo-class the canvas can force widened to its stand-in class, as the pseudo
+ * engine widens the author's selectors ({@link rewritePseudoSelector}), so that a forced state
+ * matches here as the real one does. Written so, and not left to the engine: it widens a sheet once,
+ * and this one is written anew for every palette and every change of the rules.
+ */
+function forceable(tail: string): string {
+    return rewritePseudoSelector(tail) ?? tail;
+}
+
 // The tail of a selector for the elements a user agent colors on its own. Nothing but `:where()`
 // weighs more than the universal selector, so each of them weighs nothing.
-const LINKS = ':where(a:any-link)';
+const LINKS = forceable(':where(a:any-link)');
 const BUTTONS = ':where(button, input[type=button i], input[type=submit i], input[type=reset i])';
 const FIELDS = ':where(input, select, textarea)';
 const SURFACES = ':where(dialog, [popover])';
@@ -334,8 +344,8 @@ const PLACEHOLDERS = ':where(input, textarea)::placeholder';
 
 // Chromium takes any outline of the focused element to `Highlight`, a transparent one or not, but
 // only under `:focus-visible`: a button focused by a click keeps the text color.
-const FOCUS = ':where(:focus-visible)';
-const INSIDE_FOCUS = ':where(:focus-visible *)';
+const FOCUS = forceable(':where(:focus-visible)');
+const INSIDE_FOCUS = forceable(':where(:focus-visible *)');
 
 /**
  * The types of an input that Chromium grays out when it is disabled, as measured. Not among them:
@@ -345,7 +355,9 @@ const INSIDE_FOCUS = ':where(:focus-visible *)';
 const GRAYED_TYPES = ['text', 'search', 'tel', 'url', 'email', 'password', 'number', 'date', 'month', 'week', 'time', 'datetime-local', 'button', 'submit', 'reset'];
 
 /** The controls Chromium grays out when they are disabled: buttons, selects, text areas, option groups (a single option stays) and the inputs of {@link GRAYED_TYPES}. */
-const DISABLED_CONTROLS = `:where(button:disabled, select:disabled, textarea:disabled, optgroup:disabled, input:is(${GRAYED_TYPES.map((type) => `[type=${type} i]`).join(', ')}):disabled)`;
+const DISABLED_CONTROLS = forceable(
+    `:where(button:disabled, select:disabled, textarea:disabled, optgroup:disabled, input:is(${GRAYED_TYPES.map((type) => `[type=${type} i]`).join(', ')}):disabled)`
+);
 
 /**
  * The net for inline styles, which no rule of the author's styles carries and so no twin: for an
@@ -430,8 +442,10 @@ export function forcedColorsCss(rules: ForcedColorRules, palette: ForcedPaletteN
         block([`${inside}${INSIDE_MARKS}`, ...generatedContent(`${inside}${MARKS}`)], [ground('canvas')]),
         block([`${inside}${MARKS}`], [...MARK, ground('mark')]),
         block([`${inside}${PLACEHOLDERS}`], PLACEHOLDER),
-        block([`${inside}${FOCUS}`], FOCUSED),
-        block([`${inside}${INSIDE_FOCUS}`, ...generatedContent(`${inside}${FOCUS}`)], INSIDE_FOCUSED)
+        // Before the element with visible focus, as for the marks: a state the canvas forces on every element of a
+        // component puts one inside another, and each of them has it.
+        block([`${inside}${INSIDE_FOCUS}`, ...generatedContent(`${inside}${FOCUS}`)], INSIDE_FOCUSED),
+        block([`${inside}${FOCUS}`], FOCUSED)
     ].join('\n\n');
     // Not on the roots, which the simulation gives an inline `color-scheme`.
     const net = INLINE_NET.map(([attribute, declaration]) => block([`${inside}${OVERLAY_STRUCTURE}${attribute}`], [declaration], true)).join('\n\n');

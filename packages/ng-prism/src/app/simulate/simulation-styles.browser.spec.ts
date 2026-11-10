@@ -1,4 +1,7 @@
+import { pseudoStateClass } from '../pseudo/pseudo-selector.js';
+import { PseudoStyleSheets } from '../pseudo/pseudo-stylesheets.js';
 import { collectForcedColorRules, exemptionSelector, type ForcedColorRules, forcedColorsCss } from './forced-colors.js';
+import { FORCED_PALETTES } from './forced-palette.js';
 import { MediaStyleSheets } from './media-stylesheets.js';
 import { scopeIn } from './scope-selector.js';
 import { SimulationStyles } from './simulation-styles.js';
@@ -302,4 +305,47 @@ describe('SimulationStyles', () => {
         expect(sheet.cssRules).toHaveLength(2);
         expect((sheet.cssRules[1] as CSSStyleRule).selectorText).toBe(scopeIn('.a', false, `:not(${exemptionSelector(rulesOf({ exempt: ['.dot'] }))})`));
     });
+
+    // The pseudo engine widens a sheet once, and the forced colors sheet is written anew for every palette: it has to
+    // match the stand-in class of a forced Focus visible state on its own.
+    it.each(['before', 'after'])('gives the element of a Focus visible state forced %s forced colors the Highlight outline, in every palette', (order) => {
+        const { textOf } = stubAdoptedSheets();
+        const pseudo = new PseudoStyleSheets(document);
+        const styles = create();
+
+        document.body.innerHTML = '<div data-prism-sim><button class="f">b <span class="k">in</span></button></div>';
+        const button = document.querySelector('.f') as Element;
+        const inside = document.querySelector('.k') as Element;
+
+        button.classList.add(pseudoStateClass('focus-visible'));
+        if (order === 'before') pseudo.acquire();
+        styles.apply(FORCED, 'dark');
+        if (order === 'after') pseudo.acquire();
+
+        const [sheet] = document.adoptedStyleSheets;
+
+        expect(outlineOf(textOf(sheet), button)).toBe(FORCED_PALETTES.dark.highlight);
+        expect(outlineOf(textOf(sheet), inside)).toBeUndefined();
+
+        styles.apply(FORCED, 'light');
+        expect(outlineOf(textOf(sheet), button)).toBe(FORCED_PALETTES.light.highlight);
+        expect(outlineOf(textOf(sheet), inside)).toBeUndefined();
+        pseudo.release();
+    });
 });
+
+/**
+ * The outline of the focus that the forced colors sheet `css` gives `element`: the value of
+ * `--prism-sim-outline` of the last of its rules whose selector matches it, `undefined` for none
+ * and for `initial`. One selector per line, as the sheet writes a list.
+ */
+function outlineOf(css: string | undefined, element: Element): string | undefined {
+    let outline: string | undefined;
+
+    for (const [, selector, block] of (css ?? '').matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+        const value = /--prism-sim-outline:\s*([^;]+);/.exec(block)?.[1].trim();
+
+        if (value !== undefined && selector.split(',\n').some((part) => !part.includes('::') && element.matches(part.trim()))) outline = value;
+    }
+    return outline === 'initial' ? undefined : outline;
+}

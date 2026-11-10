@@ -25,6 +25,18 @@ export interface Fixture {
     hover?: string;
 }
 
+/** How {@link renderSimulated} gets to the state it reads, as the canvas would. */
+export interface SimulatedOptions {
+    /**
+     * Forces the fixture's `focus` and `hover` as the canvas forces the states Focus visible and
+     * Hover: with the stand-in classes of the pseudo engine (`PseudoStyleSheets`), and not with Tab
+     * and the pointer. `before` forced colors are turned on, or `after`.
+     */
+    standIn?: 'before' | 'after';
+    /** The palette forced colors are turned on in first, before they switch to the one of the render. */
+    from?: Scheme;
+}
+
 /** Per probe, the computed value of each of its properties, colors normalized with {@link normalizeColor}. */
 export type Computed = Record<string, Record<string, string>>;
 
@@ -37,7 +49,7 @@ export function launchChromium(): Promise<Browser> {
 
 /** `fixture` in Chromium's own forced colors mode, in the `scheme` palette. */
 export function renderReal(browser: Browser, fixture: Fixture, scheme: Scheme): Promise<Computed> {
-    return render(browser, fixture, async (page) => {
+    return render(browser, fixture, true, async (page) => {
         await page.emulateMedia({ forcedColors: 'active', colorScheme: scheme });
         await page.setContent(`<!doctype html>${fixture.html}`);
     });
@@ -47,14 +59,20 @@ export function renderReal(browser: Browser, fixture: Fixture, scheme: Scheme): 
  * `fixture` with ng-prism's simulation of forced colors, as the canvas applies
  * it: outside the real mode, the scope root in `scheme`, the media engine
  * emulating `forced-colors: active` and the forced colors sheet adopted, both
- * in the palette of `scheme`.
+ * in the palette of `scheme`; `options` say how it gets there.
  */
-export function renderSimulated(browser: Browser, fixture: Fixture, scheme: Scheme): Promise<Computed> {
-    return render(browser, fixture, async (page) => {
+export function renderSimulated(browser: Browser, fixture: Fixture, scheme: Scheme, options: SimulatedOptions = {}): Promise<Computed> {
+    return render(browser, fixture, !options.standIn, async (page) => {
         await page.emulateMedia({ forcedColors: 'none', colorScheme: scheme });
         await page.setContent(`<!doctype html>${fixture.html}`);
         await page.addScriptTag({ content: await simulationBundle() });
-        await page.evaluate(simulate, scheme);
+        await page.evaluate(simulate, {
+            scheme,
+            from: options.from ?? null,
+            standIn: options.standIn ?? null,
+            focus: fixture.focus ?? null,
+            hover: fixture.hover ?? null
+        });
     });
 }
 
@@ -130,13 +148,14 @@ function oklabToSrgb(lightness: number, a: number, b: number): number[] {
     });
 }
 
-async function render(browser: Browser, fixture: Fixture, prepare: (page: Page) => Promise<void>): Promise<Computed> {
+/** Renders `fixture` on a fresh page that `prepare` sets up, and reads its probes; `drive`: reaching `focus` with Tab and `hover` with the pointer first. */
+async function render(browser: Browser, fixture: Fixture, drive: boolean, prepare: (page: Page) => Promise<void>): Promise<Computed> {
     const page = await browser.newPage();
 
     try {
         await prepare(page);
-        if (fixture.focus) await tabTo(page, fixture.focus);
-        if (fixture.hover) await page.hover(fixture.hover);
+        if (drive && fixture.focus) await tabTo(page, fixture.focus);
+        if (drive && fixture.hover) await page.hover(fixture.hover);
 
         const computed = await page.evaluate(readProbes, fixture.probes);
 
@@ -184,15 +203,41 @@ function readProbes(probes: readonly Probe[]): Computed {
     return computed;
 }
 
-/** Makes the fixture's root a scope root in `scheme` and turns the forced colors simulation on, in the palette of `scheme`. */
-function simulate(scheme: Scheme): void {
-    const { SimulationStyles, applyScopeRoot } = (window as unknown as { __prismSim: PrismSim }).__prismSim;
+/** What {@link simulate} is told, a plain object that crosses into the page. */
+interface SimulateArgs {
+    scheme: Scheme;
+    from: Scheme | null;
+    standIn: 'before' | 'after' | null;
+    focus: string | null;
+    hover: string | null;
+}
+
+/**
+ * Makes the fixture's root a scope root and turns the forced colors simulation on, in the palette
+ * of `from` first if there is one and then in the one of `scheme`. With `standIn`, forces `focus`
+ * and `hover` with the stand-in classes, as the canvas does, before or after.
+ */
+function simulate({ scheme, from, standIn, focus, hover }: SimulateArgs): void {
+    const { SimulationStyles, applyScopeRoot, PseudoStyleSheets, pseudoStateClass } = (window as unknown as { __prismSim: PrismSim }).__prismSim;
     const root = document.querySelector<HTMLElement>('[data-prism-sim]');
 
     if (!root) throw new Error('The fixture has no [data-prism-sim] scope root.');
 
-    applyScopeRoot(root, { colorScheme: scheme, filter: null, themeClass: null, themeAttributes: {} });
-    new SimulationStyles(document).apply({ 'forced-colors': 'active' }, scheme);
+    const styles = new SimulationStyles(document);
+    const turnOn = (palette: Scheme): void => {
+        applyScopeRoot(root, { colorScheme: palette, filter: null, themeClass: null, themeAttributes: {} });
+        styles.apply({ 'forced-colors': 'active' }, palette);
+    };
+    const forceStates = (): void => {
+        if (focus) document.querySelectorAll(focus).forEach((el) => el.classList.add(pseudoStateClass('focus-visible')));
+        if (hover) document.querySelectorAll(hover).forEach((el) => el.classList.add(pseudoStateClass('hover')));
+        new PseudoStyleSheets(document).acquire();
+    };
+
+    if (standIn === 'before') forceStates();
+    turnOn(from ?? scheme);
+    if (standIn === 'after') forceStates();
+    if (from) turnOn(scheme);
 }
 
 let bundle: Promise<string> | undefined;

@@ -1,5 +1,5 @@
 import type { Browser } from 'playwright';
-import { type Fixture, launchChromium, normalizeColor, renderReal, renderSimulated, type Scheme } from './__test-utils__/chromium.js';
+import { type Fixture, launchChromium, normalizeColor, renderReal, renderSimulated, type Scheme, type SimulatedOptions } from './__test-utils__/chromium.js';
 
 /** `CanvasText` of Chromium's forced palettes. */
 const CANVAS_TEXT: Record<Scheme, string> = { light: 'rgba(0, 0, 0, 1)', dark: 'rgba(255, 255, 255, 1)' };
@@ -248,6 +248,40 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
             ],
             focus: '.x'
         }));
+
+    // The canvas forces Focus visible with the stand-in class of the pseudo engine, not with Tab. The forced colors
+    // sheet matches the class as it matches :focus-visible, whether the state is forced before forced colors are on or
+    // after, and after a switch of the palette, which writes the sheet anew; the author's rules match it through the
+    // pseudo engine.
+    describe('focus-visible-stand-in', () => {
+        const fixture: Fixture = {
+            html: scope(
+                `.f { outline: 2px solid red }
+                .f:focus-visible { box-shadow: 0 0 0 3px #005fe360 }
+                .f:focus-visible .k { outline: 2px solid red }
+                .f:focus-visible::after { content: "a"; outline: 2px solid red }`,
+                '<button class="f">Button <span class="k">inside</span></button>'
+            ),
+            probes: [
+                { name: 'f', selector: '.f', properties: ['outline-color', 'box-shadow'] },
+                { name: 'k', selector: '.k', properties: ['outline-color'] },
+                { name: 'f::after', selector: '.f', pseudo: '::after', properties: ['outline-color'] }
+            ],
+            focus: '.f'
+        };
+        const other: Scheme = scheme === 'light' ? 'dark' : 'light';
+
+        it('with Tab', () => expectSimulationToMatch(fixture));
+
+        it.each<[NonNullable<SimulatedOptions['standIn']>, string, Scheme | undefined]>([
+            ['before', 'on in this palette', undefined],
+            ['after', 'on in this palette', undefined],
+            ['before', 'switched to this palette', other],
+            ['after', 'switched to this palette', other]
+        ])('forced %s forced colors, %s', async (standIn, _how, from) => {
+            expect(await renderSimulated(browser, fixture, scheme, { standIn, from })).toEqual(await renderReal(browser, fixture, scheme));
+        });
+    });
 
     // The net of the forced colors sheet for inline styles, `!important`, beats them.
     it('inline-style', () =>

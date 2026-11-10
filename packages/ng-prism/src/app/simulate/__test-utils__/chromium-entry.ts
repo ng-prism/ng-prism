@@ -1,3 +1,5 @@
+import { pseudoStateClass } from '../../pseudo/pseudo-selector.js';
+import { PseudoStyleSheets } from '../../pseudo/pseudo-stylesheets.js';
 import { declarationsOfStyle } from '../forced-values.js';
 import { applyScopeRoot } from '../scope-root.js';
 import { SimulationStyles } from '../simulation-styles.js';
@@ -7,6 +9,8 @@ export interface PrismSim {
     SimulationStyles: typeof SimulationStyles;
     applyScopeRoot: typeof applyScopeRoot;
     declarationsOfStyle: typeof declarationsOfStyle;
+    PseudoStyleSheets: typeof PseudoStyleSheets;
+    pseudoStateClass: typeof pseudoStateClass;
 }
 
-Object.assign(window, { __prismSim: { SimulationStyles, applyScopeRoot, declarationsOfStyle } satisfies PrismSim });
+Object.assign(window, { __prismSim: { SimulationStyles, applyScopeRoot, declarationsOfStyle, PseudoStyleSheets, pseudoStateClass } satisfies PrismSim });
