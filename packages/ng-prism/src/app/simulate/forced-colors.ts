@@ -1,6 +1,6 @@
 import { attributeEnd, escapeEnd, stringEnd } from '../pseudo/pseudo-selector.js';
 import { declarationsOf, hasStyle, isImportRule, isRuleGroup, isStyleRule, propertyOf, valueOf } from './css-rules.js';
-import { type ForcedPaletteName, resolveSystemColors } from './forced-palette.js';
+import { FORCED_PALETTES, type ForcedPaletteName, resolveSystemColors, rgbChannels, type SystemColor } from './forced-palette.js';
 import { SCOPE_IN_SUFFIX, SIM_SCOPE, splitList, splitPseudoElement } from './scope-selector.js';
 
 /** What the author's styles say about forced colors, to be taken into account by the approximation. */
@@ -137,11 +137,26 @@ function replaceAmpersand(selector: string, replacement: string): string | null 
     return replaced ? out : null;
 }
 
+/** The scope roots alone. */
+const ROOTS = `:where(${SIM_SCOPE})`;
+
 /** Strictly inside the scope. The roots stand in for the page and are never painted: the overlay container covers the viewport, the shell included. */
-const INSIDE = `:where(${SIM_SCOPE}) *`;
+const INSIDE = `${ROOTS} *`;
 
 /** The roots and everything inside, for what inherits. */
 const ROOTS_AND_INSIDE = `*${SCOPE_IN_SUFFIX}`;
+
+/*
+ * The context. Chromium does not force one value for everyone: an element is forced to the color
+ * the user agent gives it in the mode, `LinkText` for a link, `GrayText` for a disabled button, and
+ * what is inside inherits it. The sheet keeps that context in custom properties, which inherit as
+ * well, and the forced colors read it:
+ *
+ * - `--prism-sim-fg`, the text color, for the text and every foreground color,
+ * - `--prism-sim-bg-rgb`, the ground as channels (`r g b`), for a background. Unlike the text
+ *   color it stops at the element that sets it: what is inside a `<mark>` gets `Canvas`, not `Mark`,
+ * - `--prism-sim-outline`, the outline of the element with visible focus, and of no other.
+ */
 
 // The properties of CSS Color Adjust 1, "Properties Affected by Forced Colors Mode", and the
 // ones it lists beside them: what the browser forces for a page in the mode.
@@ -154,9 +169,9 @@ const ROOTS_AND_INSIDE = `*${SCOPE_IN_SUFFIX}`;
  * keeps a link on `LinkText`.
  */
 const INHERITED: readonly string[] = [
-    'color: CanvasText',
+    'color: var(--prism-sim-fg)',
     '-webkit-text-fill-color: currentColor',
-    'caret-color: CanvasText',
+    'caret-color: var(--prism-sim-fg)',
     'text-shadow: none',
     'accent-color: auto',
     'scrollbar-color: auto'
@@ -164,15 +179,15 @@ const INHERITED: readonly string[] = [
 
 /** Colors that nothing can hide behind: they are set on the generated content too. */
 const COLORS: readonly string[] = [
-    'border-color: CanvasText',
-    'outline-color: CanvasText',
-    'text-decoration-color: CanvasText',
-    'text-emphasis-color: CanvasText',
-    'column-rule-color: CanvasText',
-    'row-rule-color: CanvasText',
-    'stop-color: CanvasText',
-    'flood-color: CanvasText',
-    'lighting-color: CanvasText'
+    'border-color: var(--prism-sim-fg)',
+    'outline-color: var(--prism-sim-outline, var(--prism-sim-fg))',
+    'text-decoration-color: var(--prism-sim-fg)',
+    'text-emphasis-color: var(--prism-sim-fg)',
+    'column-rule-color: var(--prism-sim-fg)',
+    'row-rule-color: var(--prism-sim-fg)',
+    'stop-color: var(--prism-sim-fg)',
+    'flood-color: var(--prism-sim-fg)',
+    'lighting-color: var(--prism-sim-fg)'
 ];
 
 /**
@@ -184,20 +199,39 @@ const COLORS: readonly string[] = [
  */
 const GROUND: readonly string[] = ['background-color: Canvas', 'box-shadow: none'];
 
-// What the SVG markup, the fields, the buttons and the links get, and a gradient that falls away.
-const FILL: readonly string[] = ['fill: CanvasText'];
-const STROKE: readonly string[] = ['stroke: CanvasText'];
-const FIELD: readonly string[] = ['color: FieldText', 'background-color: Field', 'border-color: ButtonBorder'];
-const BUTTON: readonly string[] = ['color: ButtonText', 'background-color: ButtonFace', 'border-color: ButtonBorder'];
-const LINK: readonly string[] = ['color: LinkText', 'text-decoration-color: LinkText'];
+// The context of the elements a user agent colors on its own, as Chromium shows them in the mode:
+// fields, buttons, links, disabled controls, marks and placeholders, and the outline of the
+// element with visible focus. Their borders and outlines follow the text color.
+const FIELD: readonly string[] = ['--prism-sim-fg: FieldText', 'background-color: Field'];
+const BUTTON: readonly string[] = ['--prism-sim-fg: ButtonText', 'background-color: ButtonFace'];
+const LINK: readonly string[] = ['--prism-sim-fg: LinkText'];
+const DISABLED: readonly string[] = ['--prism-sim-fg: GrayText'];
+const MARK: readonly string[] = ['--prism-sim-fg: MarkText', 'background-color: Mark'];
+const PLACEHOLDER: readonly string[] = ['--prism-sim-fg: GrayText', 'color: var(--prism-sim-fg)'];
+const FOCUSED: readonly string[] = ['--prism-sim-outline: Highlight'];
+const INSIDE_FOCUSED: readonly string[] = ['--prism-sim-outline: initial'];
+
 const NO_GRADIENT: readonly string[] = ['background-image: none'];
+
+// The net for inline styles, which no rule of the author's styles carries: one property each, so
+// that an element with an inline `color` does not get a ground it does not have in the browser.
+// An inline background loses its alpha, which a selector cannot read.
+const INLINE_COLOR: readonly string[] = ['color: var(--prism-sim-fg)'];
+const INLINE_BACKGROUND: readonly string[] = ['background-color: rgb(var(--prism-sim-bg-rgb))'];
+const INLINE_BORDER: readonly string[] = ['border-color: var(--prism-sim-fg)'];
 
 /**
  * Every property the sheet forces. A copy of the author's own `@media (forced-colors: active)`
  * rules has to win on these, and only on these: the media engine makes them `!important` there
- * ({@link isForced}), and everything else keeps the cascade it has in the real mode.
+ * ({@link isForced}), and everything else keeps the cascade it has in the real mode. The custom
+ * properties of the context are none of them: no author sets them.
  */
-export const FORCED_PROPERTIES: ReadonlySet<string> = new Set([INHERITED, COLORS, GROUND, FILL, STROKE, FIELD, BUTTON, LINK, NO_GRADIENT].flat().map(propertyOf));
+export const FORCED_PROPERTIES: ReadonlySet<string> = new Set(
+    [INHERITED, COLORS, GROUND, FIELD, BUTTON, MARK, PLACEHOLDER, NO_GRADIENT, INLINE_COLOR, INLINE_BACKGROUND, INLINE_BORDER]
+        .flat()
+        .map(propertyOf)
+        .filter((property) => !property.startsWith('--'))
+);
 
 // The side or the axis in the name of a longhand: `border-left-color` is a `border-color`, `border-block-start` a `border`.
 const SIDE = /-(?:top|right|bottom|left|block|inline)(?:-(?:start|end))?(?=-|$)/g;
@@ -228,23 +262,51 @@ const OVERLAY_STRUCTURE = ':not(:where(.cdk-overlay-popover, .cdk-global-overlay
 const LINKS = ':where(a:any-link)';
 const BUTTONS = ':where(button, input[type=button i], input[type=submit i], input[type=reset i])';
 const FIELDS = ':where(input, select, textarea)';
+const MARKS = ':where(mark)';
+const INSIDE_MARKS = ':where(mark *)';
+const PLACEHOLDERS = ':where(input, textarea)::placeholder';
 
-/** An attribute of an SVG element that names a color. `none`, `currentColor` and a paint server are not colors, and stay as they are. */
-const colored = (attribute: string): string =>
-    `:where(svg, svg *):where([${attribute}]:not([${attribute}=none i], [${attribute}=currentColor i], [${attribute}^=url i], [${attribute}=""]))`;
+// Chromium takes any outline of the focused element to `Highlight`, a transparent one or not, but
+// only under `:focus-visible`: a button focused by a click keeps the text color.
+const FOCUS = ':where(:focus-visible)';
+const INSIDE_FOCUS = ':where(:focus-visible *)';
+
+/**
+ * The types of an input that Chromium grays out when it is disabled, as measured. Not among them:
+ * an input without a `type` (although `type=text` is), a checkbox, a radio button, a range, a file
+ * and a color input.
+ */
+const GRAYED_TYPES = ['text', 'search', 'tel', 'url', 'email', 'password', 'number', 'date', 'month', 'week', 'time', 'datetime-local', 'button', 'submit', 'reset'];
+
+/** The controls Chromium grays out when they are disabled: buttons, selects, text areas, option groups (a single option stays) and the inputs of {@link GRAYED_TYPES}. */
+const DISABLED_CONTROLS = `:where(button:disabled, select:disabled, textarea:disabled, optgroup:disabled, input:is(${GRAYED_TYPES.map((type) => `[type=${type} i]`).join(', ')}):disabled)`;
+
+// An element whose `style` attribute names one of the properties. A rule can only reach an inline
+// declaration with `!important`, and the attribute is all a selector can see of it.
+const INLINE_COLORS = ':where([style*="color" i])';
+const INLINE_BACKGROUNDS = ':where([style*="background" i])';
+const INLINE_BORDERS = ':where([style*="border" i])';
 
 /**
  * The stylesheet that approximates forced colors mode in the simulation scope
  * ({@link SIM_SCOPE}): system colors for what the author painted, no shadows,
  * no gradients.
  *
+ * The colors come from a context, as in the browser: the scope roots set it to
+ * `CanvasText` on `Canvas`, a link to `LinkText`, a disabled button to
+ * `GrayText`, a `<mark>` to `MarkText` on `Mark`, and the element with visible
+ * focus has a `Highlight` outline. The text color of a context reaches what is
+ * inside; text, borders and every other foreground read it.
+ *
  * Every rule weighs nothing (`:where()`) and every declaration is `!important`.
  * So the author's normal declarations lose, as the browser overrides them, and
  * the copies of the author's own `@media (forced-colors: active)` rules (their
  * {@link FORCED_PROPERTIES} made `!important` by the media engine, and with the
  * weight of the original) win, as in the mode. Equal weights are decided by
- * order, which is why the more special rules for links, buttons and fields come
- * after the general ones.
+ * order, which is why the more special rules for fields, buttons, links,
+ * disabled controls and marks come after the general ones. Inline styles get a
+ * net of their own: the colors of the context for an element whose `style`
+ * names a color, a background or a border.
  *
  * What an exemption names, `forced-color-adjust: none` and `preserve-parent-color`,
  * is left out together with everything below it.
@@ -257,12 +319,12 @@ const colored = (attribute: string): string =>
  * browser's normal palette under the scope root's `color-scheme`, not against
  * the forced one.
  *
+ * `fill` and `stroke` stay the author's, as in the browser, which forces neither.
+ *
  * What it cannot do: an author's `!important` outside `@media (forced-colors)`
  * weighs more and wins, where the browser forces the color anyway. So does a
  * color in the author's own forced-colors rules that is not a system color,
- * which the browser forces as well. Colors an SVG takes from a stylesheet
- * rather than from an attribute stay, because `fill: none` must not become a
- * fill.
+ * which the browser forces as well.
  */
 export function forcedColorsCss(rules: ForcedColorRules, palette: ForcedPaletteName): string {
     const exempt = rules.exempt.length === 0 ? '' : `:not(:where(${[...rules.exempt, ...rules.exempt.map((selector) => `${selector} *`)].join(', ')}))`;
@@ -271,16 +333,23 @@ export function forcedColorsCss(rules: ForcedColorRules, palette: ForcedPaletteN
 
     const painted = `${inside}${OVERLAY_STRUCTURE}`;
     const block = (selectors: readonly string[], declarations: readonly string[]): string => forcedRule(selectors, declarations, palette);
+    // The channels of a system color, which `rgb()` and the relative color syntax take as they are.
+    const ground = (color: SystemColor): string => `--prism-sim-bg-rgb: ${rgbChannels(FORCED_PALETTES[palette][color])}`;
 
     const css = [
+        block([`${ROOTS}${exempt}`], ['--prism-sim-fg: CanvasText', ground('canvas')]),
         block(withPseudoElements(roots), INHERITED),
         block(withPseudoElements(painted), COLORS),
         block([painted], GROUND),
-        block([`${inside}${colored('fill')}`], FILL),
-        block([`${inside}${colored('stroke')}`], STROKE),
         block([`${inside}${FIELDS}`], FIELD),
         block([`${inside}${BUTTONS}`], BUTTON),
-        block([`${inside}${LINKS}`], LINK)
+        block([`${inside}${LINKS}`], LINK),
+        block([`${inside}${DISABLED_CONTROLS}`], DISABLED),
+        block([`${inside}${MARKS}`], [...MARK, ground('mark')]),
+        block([`${inside}${INSIDE_MARKS}`], [ground('canvas')]),
+        block([`${inside}${PLACEHOLDERS}`], PLACEHOLDER),
+        block([`${inside}${FOCUS}`], FOCUSED),
+        block([`${inside}${INSIDE_FOCUS}`], INSIDE_FOCUSED)
     ];
 
     // One rule each: a selector that the browser rejects takes the whole list of a rule with it.
@@ -289,6 +358,13 @@ export function forcedColorsCss(rules: ForcedColorRules, palette: ForcedPaletteN
 
         css.push(block([`${roots}:where(${element === '' ? '*' : element})${pseudoElement}`], NO_GRADIENT));
     }
+
+    // Not on the roots, which the simulation gives an inline `color-scheme`.
+    css.push(
+        block([`${inside}${INLINE_COLORS}`], INLINE_COLOR),
+        block([`${inside}${INLINE_BACKGROUNDS}`], INLINE_BACKGROUND),
+        block([`${inside}${INLINE_BORDERS}`], INLINE_BORDER)
+    );
 
     return css.join('\n\n');
 }

@@ -81,7 +81,7 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
             hover: '.h'
         }));
 
-    it.failing('svg-colors', () =>
+    it('svg-colors', () =>
         expectSimulationToMatch({
             html: scope(
                 'rect.css { fill: red; stroke: blue }',
@@ -91,20 +91,18 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
                 { name: 'attribute', selector: 'rect.attr', properties: ['fill', 'stroke'] },
                 { name: 'css', selector: 'rect.css', properties: ['fill', 'stroke'] }
             ]
-        })
-    );
+        }));
 
-    it.failing('link', () =>
+    it('link', () =>
         expectSimulationToMatch({
             html: scope('a { color: red; border-bottom: 1px solid red }', '<a href="#target">Link <span>inside</span></a>'),
             probes: [
                 { name: 'a', selector: 'a', properties: ['color', 'border-bottom-color'] },
                 { name: 'span', selector: 'a span', properties: ['color', 'border-bottom-color'] }
             ]
-        })
-    );
+        }));
 
-    it.failing('disabled-native', () =>
+    it('disabled-native', () =>
         expectSimulationToMatch({
             html: scope('', '<button disabled>Button</button><input type="search" disabled /><input type="text" disabled />'),
             probes: [
@@ -112,24 +110,59 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
                 { name: 'search', selector: 'input[type=search]', properties: ['color', 'border-top-color'] },
                 { name: 'text', selector: 'input[type=text]', properties: ['color', 'border-top-color'] }
             ]
-        })
-    );
+        }));
 
-    it.failing('placeholder', () =>
+    // Which controls Chromium grays out: not an input without a type, nor a checkbox; an option group and what is in it.
+    it('disabled-controls', () =>
+        expectSimulationToMatch({
+            html: scope(
+                '',
+                `<input class="plain" disabled /><input type="email" disabled /><input type="checkbox" disabled /><textarea disabled></textarea>
+                <select disabled><option>o</option></select><select><optgroup label="g" disabled><option class="in-group">o</option></optgroup></select>
+                <button disabled>Button <span class="in-button">inside</span></button>`
+            ),
+            probes: [
+                { name: 'plain', selector: 'input.plain', properties: ['color', 'border-top-color'] },
+                { name: 'email', selector: 'input[type=email]', properties: ['color', 'border-top-color'] },
+                { name: 'checkbox', selector: 'input[type=checkbox]', properties: ['color'] },
+                { name: 'textarea', selector: 'textarea', properties: ['color', 'border-top-color'] },
+                { name: 'select', selector: 'select[disabled]', properties: ['color', 'border-top-color'] },
+                { name: 'in-group', selector: '.in-group', properties: ['color'] },
+                { name: 'in-button', selector: '.in-button', properties: ['color'] }
+            ]
+        }));
+
+    it('placeholder', () =>
         expectSimulationToMatch({
             html: scope('', '<input placeholder="x" />'),
             probes: [{ name: 'placeholder', selector: 'input', pseudo: '::placeholder', properties: ['color'] }]
-        })
-    );
+        }));
 
-    it.failing('mark', () =>
+    it('mark', () =>
         expectSimulationToMatch({
             html: scope('', '<p><mark>x</mark></p>'),
             probes: [{ name: 'mark', selector: 'mark', properties: ['color', 'background-color'] }]
-        })
-    );
+        }));
 
-    // The `!important` forced colors sheet beats inline styles.
+    // The text color of a mark reaches its content, the ground does not: an inline background there is the page's.
+    it('mark-content', () =>
+        expectSimulationToMatch({
+            html: scope('', '<p><mark>Mark <span style="background: #c00">inside</span></mark></p>'),
+            probes: [{ name: 'span', selector: 'mark span', properties: ['color', 'background-color'] }]
+        }));
+
+    // Any outline of the element with visible focus becomes Highlight, not only a transparent one; not the outline inside it.
+    it('focus-visible-outline', () =>
+        expectSimulationToMatch({
+            html: scope('.x:focus-visible, .x:focus-visible .k { outline: 2px solid red }', '<button class="x">Button <span class="k">inside</span></button>'),
+            probes: [
+                { name: 'x', selector: '.x', properties: ['outline-color'] },
+                { name: 'k', selector: '.k', properties: ['outline-color'] }
+            ],
+            focus: '.x'
+        }));
+
+    // The net of the forced colors sheet for inline styles, `!important`, beats them.
     it('inline-style', () =>
         expectSimulationToMatch({
             html: scope('', '<div class="inline" style="background: red; color: blue; border: 1px solid green">Inline</div>'),
@@ -232,12 +265,11 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
         })
     );
 
-    it.failing('disabled-author', () =>
+    it('disabled-author', () =>
         expectSimulationToMatch({
             html: scope('button.d:disabled { color: #aaa; border-color: #aaa }', '<button class="d" disabled>Disabled</button>'),
             probes: [{ name: 'button', selector: 'button.d', properties: ['color', 'border-top-color'] }]
-        })
-    );
+        }));
 
     it.failing('host-background', () =>
         expectSimulationToMatch({

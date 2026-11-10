@@ -187,19 +187,21 @@ function parse(css: string): { selector: string; values: Record<string, string> 
     return rules;
 }
 
+type Pseudo = '' | '::before' | '::after' | '::placeholder';
+
 /**
- * What the sheet forces on `element`, or on its `::before` or `::after` for `pseudo`: the
+ * What the sheet forces on `element`, or on its pseudo-element for `pseudo`: the
  * declarations of every rule that matches it, a later rule over an earlier one. All of them are
  * `!important` at the same weight, which is how the sheet is written, so the order is all there
  * is to the cascade among them.
  */
-function forcedOn(css: string, element: Element, pseudo: '' | '::before' | '::after' = ''): Record<string, string> {
+function forcedOn(css: string, element: Element, pseudo: Pseudo = ''): Record<string, string> {
     const forced: Record<string, string> = {};
 
     for (const { selector, values } of parse(css)) {
         // One selector per line, as the sheet writes a list.
         const matches = selector.split(',\n').some((part) => {
-            const own = /::(?:before|after)$/.exec(part)?.[0] ?? '';
+            const own = /::(?:before|after|placeholder)$/.exec(part)?.[0] ?? '';
 
             return own === pseudo && element.matches(own === '' ? part : part.slice(0, -own.length));
         });
@@ -210,26 +212,96 @@ function forcedOn(css: string, element: Element, pseudo: '' | '::before' | '::af
     return forced;
 }
 
+/**
+ * The custom property `name` as the sheet sets it on `element`, or on its pseudo-element: its own
+ * or, since custom properties inherit, the nearest ancestor's. `undefined` for none and for
+ * `initial`, which leaves a `var()` to its fallback.
+ */
+function customOn(css: string, element: Element, name: string, pseudo: Pseudo = ''): string | undefined {
+    const chain: [Element, Pseudo][] = pseudo === '' ? [] : [[element, pseudo]];
+
+    for (let at: Element | null = element; at; at = at.parentElement) chain.push([at, '']);
+    for (const [at, own] of chain) {
+        const value = forcedOn(css, at, own)[name];
+
+        if (value !== undefined) return value === 'initial' ? undefined : value;
+    }
+    return undefined;
+}
+
+/** `value` with each `var(--name, fallback)` replaced by `lookup(name)`, or else by its fallback. */
+function substituteVars(value: string, lookup: (name: string) => string | undefined): string {
+    const start = value.indexOf('var(');
+
+    if (start < 0) return value;
+
+    let end = start + 'var'.length;
+
+    for (let depth = 0; end < value.length; end++) {
+        if (value[end] === '(') depth++;
+        else if (value[end] === ')' && --depth === 0) break;
+    }
+
+    const [name, ...fallback] = value.slice(start + 'var('.length, end).split(',');
+    const substituted = lookup(name.trim()) ?? substituteVars(fallback.join(',').trim(), lookup);
+
+    return value.slice(0, start) + substituted + substituteVars(value.slice(end + 1), lookup);
+}
+
+/** {@link forcedOn} with the `var()`s of the context resolved: what the element computes from the sheet. */
+function computedOn(css: string, element: Element, pseudo: Pseudo = ''): Record<string, string> {
+    const forced = forcedOn(css, element, pseudo);
+
+    return Object.fromEntries(Object.entries(forced).map(([property, value]) => [property, substituteVars(value, (name) => customOn(css, element, name, pseudo))]));
+}
+
 describe('forcedColorsCss', () => {
     it('forces the colors of the palette inside the scope only, minus exempt subtrees', () => {
         const css = forcedColorsCss({ exempt: ['.dot'], gradients: ['.g'] }, 'light');
 
-        expect(css).toContain(`color: ${LIGHT.canvastext} !important`);
+        expect(css).toContain(`--prism-sim-fg: ${LIGHT.canvastext} !important`);
+        expect(css).toContain('color: var(--prism-sim-fg) !important');
         expect(css).toContain(`background-color: ${LIGHT.canvas} !important`);
         expect(css).toContain('box-shadow: none !important');
-        expect(css).toContain(`color: ${LIGHT.linktext} !important`);
+        expect(css).toContain(`--prism-sim-fg: ${LIGHT.linktext} !important`);
         expect(css).toContain(':not(:where(.dot, .dot *))');
         expect(css).toMatch(/:where\(\.g\)[^{]*\{[^}]*background-image: none !important/);
     });
 
     it('writes the values of the palette instead of system color keywords, which would resolve against the normal one', () => {
         const css = forcedColorsCss(NONE, 'dark');
+        const values = parse(css).flatMap(({ values }) => Object.values(values));
 
-        // A whole name only: `background-color` holds no `Background`.
-        for (const keyword of SYSTEM_COLORS) expect([keyword, new RegExp(`(?<![\\w-])${keyword}(?![\\w-])`, 'i').test(css)]).toEqual([keyword, false]);
-        expect(css).toContain('color: #ffffff !important');
+        // A whole name only: `background-color` holds no `Background`. Selectors name elements such as `mark`.
+        for (const keyword of SYSTEM_COLORS) {
+            expect([keyword, values.some((value) => new RegExp(`(?<![\\w-])${keyword}(?![\\w-])`, 'i').test(value))]).toEqual([keyword, false]);
+        }
+        expect(css).toContain('--prism-sim-fg: #ffffff !important');
         expect(css).toContain('background-color: #000000 !important');
-        expect(css).toContain(`color: ${DARK.linktext} !important`);
+        expect(css).toContain(`--prism-sim-fg: ${DARK.linktext} !important`);
+    });
+
+    it('sets the context on the scope roots in the palette', () => {
+        const css = forcedColorsCss(NONE, 'dark');
+        const root = document.createElement('div');
+
+        root.setAttribute('data-prism-sim', '');
+        expect(parse(css).find(({ selector }) => selector === ':where([data-prism-sim], .cdk-overlay-container)')?.values).toEqual({
+            '--prism-sim-fg': '#ffffff !important',
+            '--prism-sim-bg-rgb': '0 0 0 !important'
+        });
+        // The color of a root, as of everything in the scope, is the context's.
+        expect(forcedOn(css, root)).toMatchObject({ '--prism-sim-fg': '#ffffff', '--prism-sim-bg-rgb': '0 0 0', color: 'var(--prism-sim-fg)' });
+        expect(forcedColorsCss(NONE, 'light')).toContain('--prism-sim-bg-rgb: 255 255 255 !important');
+    });
+
+    it('has no fill or stroke rules any more', () => {
+        const css = forcedColorsCss({ exempt: ['.dot'], gradients: ['.g'] }, 'dark');
+        const properties = parse(css).flatMap(({ values }) => Object.keys(values));
+
+        expect(properties).not.toContain('fill');
+        expect(properties).not.toContain('stroke');
+        expect(css).not.toMatch(/\[(?:fill|stroke)/);
     });
 
     it('keeps the layout elements of the CDK overlay out of its grounds, with a selector that weighs nothing', () => {
@@ -251,15 +323,27 @@ describe('forcedColorsCss', () => {
     it('weighs nothing and wins over the author, which is as important', () => {
         for (const { selector, values } of parse(forcedColorsCss({ exempt: ['.dot'], gradients: ['.g', '.b::before'] }, 'dark'))) {
             // Every class, attribute and type name in a selector sits in a `:where()`.
-            expect(selector.replace(/:where\((?:[^()]|\([^()]*\))*\)/g, '').replace(/\*/g, '')).toMatch(/^(?:(?::not\(\)|:before|:after|::before|::after|,|\s)*)$/);
+            expect(selector.replace(/:where\((?:[^()]|\([^()]*\))*\)/g, '').replace(/\*/g, '')).toMatch(
+                /^(?:(?::not\(\)|:before|:after|::before|::after|::placeholder|,|\s)*)$/
+            );
             for (const value of Object.values(values)) expect(value).toMatch(/ !important$/);
         }
     });
 
-    it('lists every property it sets as forced, and nothing else', () => {
+    it('lists every property it sets as forced, and nothing else; the custom properties of the context are none', () => {
         const set = new Set(parse(forcedColorsCss({ exempt: ['.dot'], gradients: ['.g'] }, 'dark')).flatMap(({ values }) => Object.keys(values)));
+        const context = ['--prism-sim-fg', '--prism-sim-bg-rgb', '--prism-sim-outline'];
 
-        expect(Array.from(FORCED_PROPERTIES).sort()).toEqual(Array.from(set).sort());
+        expect(
+            Array.from(set)
+                .filter((property) => property.startsWith('--'))
+                .sort()
+        ).toEqual([...context].sort());
+        expect(Array.from(FORCED_PROPERTIES).sort()).toEqual(
+            Array.from(set)
+                .filter((property) => !context.includes(property))
+                .sort()
+        );
     });
 
     describe('applied to a document', () => {
@@ -276,12 +360,21 @@ describe('forcedColorsCss', () => {
             root = document.createElement('div');
             root.innerHTML = `
                 <div data-prism-sim id="stage">
-                    <p id="text">text <a href="#x" id="link">link</a> <a id="anchor">no link</a></p>
-                    <input id="field" /> <textarea id="area"></textarea> <select id="select"></select>
+                    <p id="text">text <a href="#x" id="link">link <span id="in-link">in</span></a> <a id="anchor">no link</a></p>
+                    <input id="field" placeholder="p" /> <textarea id="area" placeholder="p"></textarea> <select id="select"></select>
                     <button id="button">b</button> <input type="submit" id="submit" />
+                    <button id="disabled" disabled>d <span id="in-disabled">in</span></button>
+                    <input type="search" id="search-disabled" disabled /> <input type="TEXT" id="text-disabled" disabled /> <input type="reset" id="reset-disabled" disabled />
+                    <select id="select-disabled" disabled></select> <textarea id="area-disabled" disabled></textarea>
+                    <select><optgroup id="group-disabled" label="g" disabled><option id="in-group">o</option></optgroup></select>
+                    <input id="plain-disabled" disabled /> <input type="checkbox" id="checkbox-disabled" disabled /> <input type="file" id="file-disabled" disabled />
+                    <mark id="mark">m <span id="in-mark">in <b id="deep-in-mark">deep</b></span></mark>
+                    <div id="focus-host" tabindex="0"><span id="in-focus">in</span></div>
+                    <div id="inline" style="background: red; color: blue">i</div> <div id="inline-border" style="border: 1px solid red">b</div>
+                    <mark id="inline-mark" style="Background: orange">m <span id="inline-in-mark" style="background-color: red">in</span></mark>
                     <div class="g" id="gradient"></div>
-                    <div class="dot" id="dot"><span id="in-dot"></span><a href="#x" id="dot-link"></a></div>
-                    <svg id="svg"><path id="plain"></path><path id="named" fill="#f00" stroke="blue"></path><path id="open" fill="none" stroke="currentColor"></path><path id="served" fill="url(#g)"></path></svg>
+                    <div class="dot" id="dot"><span id="in-dot" style="color: red; background: red; border: 1px solid red"></span><a href="#x" id="dot-link"></a></div>
+                    <svg id="svg"><path id="plain"></path><path id="named" fill="#f00" stroke="blue"></path></svg>
                 </div>
                 <div class="cdk-overlay-container" id="overlay">
                     <div id="pane"><button id="menu-button">m</button></div>
@@ -290,14 +383,14 @@ describe('forcedColorsCss', () => {
                     <div class="cdk-overlay-connected-position-bounding-box" id="bounding-box"><div class="cdk-overlay-pane" id="menu-pane"></div></div>
                     <div class="cdk-overlay-popover" popover="manual" id="popover"><div class="cdk-overlay-pane" id="bare-pane"><p id="bare-text">t</p></div></div>
                 </div>
-                <div id="shell"><button id="shell-button">s</button></div>`;
+                <div id="shell"><button id="shell-button">s</button><span id="shell-inline" style="color: red; background: red; border: 1px solid red">s</span></div>`;
             document.body.appendChild(root);
         });
 
         afterEach(() => root.remove());
 
         it('forces the colors of what is inside the scope', () => {
-            expect(forcedOn(css, at('#text'))).toMatchObject({
+            expect(computedOn(css, at('#text'))).toMatchObject({
                 color: DARK.canvastext,
                 'background-color': DARK.canvas,
                 'border-color': DARK.canvastext,
@@ -314,14 +407,14 @@ describe('forcedColorsCss', () => {
         });
 
         it('forces the overlay container and what it holds in the same way', () => {
-            expect(forcedOn(css, at('#pane'))).toMatchObject({ color: DARK.canvastext, 'background-color': DARK.canvas, 'box-shadow': 'none' });
-            expect(forcedOn(css, at('#menu-button'))).toMatchObject({ color: DARK.buttontext, 'background-color': DARK.buttonface });
+            expect(computedOn(css, at('#pane'))).toMatchObject({ color: DARK.canvastext, 'background-color': DARK.canvas, 'box-shadow': 'none' });
+            expect(computedOn(css, at('#menu-button'))).toMatchObject({ color: DARK.buttontext, 'background-color': DARK.buttonface });
         });
 
         it('leaves the layout elements of the CDK overlay unpainted, which are as large as the viewport and transparent on purpose', () => {
             // The popover is the host of every overlay; without a position strategy nothing else lies between it and the pane.
             for (const selector of ['#wrapper', '#bounding-box', '#backdrop', '#popover']) {
-                const forced = forcedOn(css, at(selector));
+                const forced = computedOn(css, at(selector));
 
                 expect(forced['color']).toBe(DARK.canvastext);
                 for (const property of ['background-color', 'box-shadow', 'border-color', 'outline-color']) expect(forced).not.toHaveProperty(property);
@@ -331,7 +424,7 @@ describe('forcedColorsCss', () => {
 
         it('paints the panel inside the wrapper and what is in it', () => {
             for (const selector of ['#dialog', '#menu-pane', '#dialog-text', '#bare-pane', '#bare-text']) {
-                expect(forcedOn(css, at(selector))).toMatchObject({
+                expect(computedOn(css, at(selector))).toMatchObject({
                     color: DARK.canvastext,
                     'background-color': DARK.canvas,
                     'box-shadow': 'none',
@@ -353,13 +446,14 @@ describe('forcedColorsCss', () => {
 
         it('still forces the colors on the generated content, and leaves it to an exempt subtree', () => {
             for (const pseudo of ['::before', '::after'] as const) {
-                expect(forcedOn(css, at('#text'), pseudo)).toMatchObject({
+                expect(computedOn(css, at('#text'), pseudo)).toMatchObject({
                     color: DARK.canvastext,
                     'border-color': DARK.canvastext,
                     'outline-color': DARK.canvastext,
                     'text-decoration-color': DARK.canvastext,
                     'text-shadow': 'none'
                 });
+                expect(computedOn(css, at('#link'), pseudo)).toMatchObject({ color: DARK.linktext, 'border-color': DARK.linktext });
                 expect(forcedOn(css, at('#dot'), pseudo)).toEqual({});
                 expect(forcedOn(css, at('#in-dot'), pseudo)).toEqual({});
                 expect(forcedOn(css, at('#shell'), pseudo)).toEqual({});
@@ -376,7 +470,7 @@ describe('forcedColorsCss', () => {
             for (const selector of ['#text', '#link', '#button', '#field', '#dialog-text']) {
                 expect(forcedOn(css, at(selector))['-webkit-text-fill-color']).toBe('currentColor');
             }
-            expect(forcedOn(css, at('#link'))['color']).toBe(DARK.linktext);
+            expect(computedOn(css, at('#link'))['color']).toBe(DARK.linktext);
             expect(forcedOn(css, at('#text'), '::before')['-webkit-text-fill-color']).toBe('currentColor');
             expect(forcedOn(css, at('#stage'))['-webkit-text-fill-color']).toBe('currentColor');
             expect(forcedOn(css, at('#dot'))).not.toHaveProperty('-webkit-text-fill-color');
@@ -384,13 +478,12 @@ describe('forcedColorsCss', () => {
         });
 
         it('leaves the page outside the scope alone', () => {
-            expect(forcedOn(css, at('#shell'))).toEqual({});
-            expect(forcedOn(css, at('#shell-button'))).toEqual({});
+            for (const selector of ['#shell', '#shell-button', '#shell-inline']) expect(forcedOn(css, at(selector))).toEqual({});
         });
 
         it('does not paint the scope roots, which stand in for the page behind them: only what inherits', () => {
             for (const selector of ['#stage', '#overlay']) {
-                const forced = forcedOn(css, at(selector));
+                const forced = computedOn(css, at(selector));
 
                 expect(forced['color']).toBe(DARK.canvastext);
                 for (const property of ['background-color', 'border-color', 'outline-color', 'box-shadow', 'background-image']) {
@@ -399,18 +492,82 @@ describe('forcedColorsCss', () => {
             }
         });
 
-        it('takes a link to LinkText, but an anchor without href stays text', () => {
-            expect(forcedOn(css, at('#link'))['color']).toBe(DARK.linktext);
-            expect(forcedOn(css, at('#anchor'))['color']).toBe(DARK.canvastext);
+        it('takes links to LinkText and native disabled buttons to GrayText, through the context', () => {
+            // The element sets the context, its color and borders read it, and what is inside inherits it.
+            expect(forcedOn(css, at('#link'))).toMatchObject({ '--prism-sim-fg': DARK.linktext, color: 'var(--prism-sim-fg)', 'border-color': 'var(--prism-sim-fg)' });
+            expect(forcedOn(css, at('#in-link'))).not.toHaveProperty('--prism-sim-fg');
+            expect(forcedOn(css, at('#disabled'))).toMatchObject({ '--prism-sim-fg': DARK.graytext, color: 'var(--prism-sim-fg)' });
+            for (const selector of ['#link', '#in-link']) {
+                expect(computedOn(css, at(selector))).toMatchObject({
+                    color: DARK.linktext,
+                    'border-color': DARK.linktext,
+                    'text-decoration-color': DARK.linktext,
+                    'caret-color': DARK.linktext
+                });
+            }
+            for (const selector of ['#disabled', '#in-disabled', '#search-disabled']) {
+                expect(computedOn(css, at(selector))).toMatchObject({ color: DARK.graytext, 'border-color': DARK.graytext });
+            }
+            expect(computedOn(css, at('#anchor'))['color']).toBe(DARK.canvastext);
+        });
+
+        it('grays out the controls Chromium grays out when disabled, and only those', () => {
+            for (const selector of ['#text-disabled', '#reset-disabled', '#select-disabled', '#area-disabled', '#group-disabled', '#in-group']) {
+                expect([selector, computedOn(css, at(selector))['color']]).toEqual([selector, DARK.graytext]);
+            }
+            // An input without a type, a checkbox and a file input keep the text color of a field.
+            for (const selector of ['#plain-disabled', '#checkbox-disabled', '#file-disabled']) {
+                expect([selector, computedOn(css, at(selector))['color']]).toEqual([selector, DARK.fieldtext]);
+            }
         });
 
         it('takes buttons to ButtonText on ButtonFace and fields to FieldText on Field', () => {
             for (const selector of ['#button', '#submit']) {
-                expect(forcedOn(css, at(selector))).toMatchObject({ color: DARK.buttontext, 'background-color': DARK.buttonface });
+                expect(computedOn(css, at(selector))).toMatchObject({ color: DARK.buttontext, 'background-color': DARK.buttonface, 'border-color': DARK.buttontext });
             }
             for (const selector of ['#field', '#area', '#select']) {
-                expect(forcedOn(css, at(selector))).toMatchObject({ color: DARK.fieldtext, 'background-color': DARK.field });
+                expect(computedOn(css, at(selector))).toMatchObject({ color: DARK.fieldtext, 'background-color': DARK.field, 'border-color': DARK.fieldtext });
             }
+        });
+
+        it('takes a mark to MarkText on Mark, and gives what is inside it the text color but not the ground', () => {
+            expect(computedOn(css, at('#mark'))).toMatchObject({ color: DARK.marktext, 'background-color': DARK.mark, '--prism-sim-bg-rgb': '255 255 0' });
+            for (const selector of ['#in-mark', '#deep-in-mark']) {
+                expect(computedOn(css, at(selector))).toMatchObject({ color: DARK.marktext, 'background-color': DARK.canvas, '--prism-sim-bg-rgb': '0 0 0' });
+            }
+        });
+
+        it('takes the placeholder of a field to GrayText', () => {
+            for (const selector of ['#field', '#area']) expect(computedOn(css, at(selector), '::placeholder')).toMatchObject({ color: DARK.graytext });
+            expect(forcedOn(css, at('#in-dot'), '::placeholder')).toEqual({});
+        });
+
+        it('takes the outline of the element with visible focus to Highlight, and of nothing inside it or beside it', () => {
+            (at('#field') as HTMLElement).focus();
+            expect(computedOn(css, at('#field'))['outline-color']).toBe(DARK.highlight);
+            expect(computedOn(css, at('#area'))['outline-color']).toBe(DARK.canvastext);
+
+            (at('#focus-host') as HTMLElement).focus();
+            expect(computedOn(css, at('#focus-host'))['outline-color']).toBe(DARK.highlight);
+            expect(computedOn(css, at('#in-focus'))['outline-color']).toBe(DARK.canvastext);
+            expect(computedOn(css, at('#field'))['outline-color']).toBe(DARK.canvastext);
+        });
+
+        it('forces an inline color, background and border, whatever the rule weighs', () => {
+            const net = parse(css).filter(({ selector }) => selector.includes('[style*='));
+            const netOn = (element: Element): Record<string, string> =>
+                Object.assign({}, ...net.filter(({ selector }) => element.matches(selector)).map(({ values }) => values));
+
+            // `!important` at the weight of nothing: an inline declaration has no weight to beat it with.
+            expect(netOn(at('#inline'))).toEqual({ color: 'var(--prism-sim-fg) !important', 'background-color': 'rgb(var(--prism-sim-bg-rgb)) !important' });
+            expect(netOn(at('#inline-border'))).toEqual({ 'border-color': 'var(--prism-sim-fg) !important' });
+            expect(computedOn(css, at('#inline'))).toMatchObject({ color: DARK.canvastext, 'background-color': 'rgb(0 0 0)', 'border-color': DARK.canvastext });
+            // The ground of the context: Mark on a mark, the page's inside it.
+            expect(computedOn(css, at('#inline-mark'))['background-color']).toBe('rgb(255 255 0)');
+            expect(computedOn(css, at('#inline-in-mark'))['background-color']).toBe('rgb(0 0 0)');
+            // Not on a scope root, which the simulation gives an inline `color-scheme`, nor in an exempt subtree.
+            at('#stage').setAttribute('style', 'color-scheme: dark; background: red; border: 0');
+            for (const selector of ['#stage', '#in-dot', '#shell-inline']) expect(netOn(at(selector))).toEqual({});
         });
 
         it('drops the gradient of the rules it was told about, and no other image', () => {
@@ -422,19 +579,14 @@ describe('forcedColorsCss', () => {
             for (const selector of ['#dot', '#in-dot', '#dot-link']) expect(forcedOn(css, at(selector))).toEqual({});
         });
 
-        it('forces a color that the markup of an SVG names, and leaves none, currentColor and a paint server', () => {
-            expect(forcedOn(css, at('#named'))).toMatchObject({ fill: DARK.canvastext, stroke: DARK.canvastext });
-            for (const selector of ['#plain', '#open', '#served']) {
-                expect(forcedOn(css, at(selector))['fill']).toBeUndefined();
-                expect(forcedOn(css, at(selector))['stroke']).toBeUndefined();
-            }
+        it('leaves the fill and stroke of an SVG to the author, as Chromium does', () => {
+            expect(forcedOn(css, at('#named'))).not.toHaveProperty('fill');
+            expect(forcedOn(css, at('#named'))).not.toHaveProperty('stroke');
         });
 
-        it('forces the stops and floods of an SVG, which have no none to lose', () => {
-            const svg = at('#svg');
-
-            expect(forcedOn(css, svg)).toMatchObject({ 'background-color': DARK.canvas });
-            expect(forcedOn(css, at('#plain'))).toMatchObject({ 'stop-color': DARK.canvastext, 'flood-color': DARK.canvastext, 'lighting-color': DARK.canvastext });
+        it('forces the stops and floods of an SVG', () => {
+            expect(computedOn(css, at('#svg'))).toMatchObject({ 'background-color': DARK.canvas });
+            expect(computedOn(css, at('#plain'))).toMatchObject({ 'stop-color': DARK.canvastext, 'flood-color': DARK.canvastext, 'lighting-color': DARK.canvastext });
         });
     });
 });
@@ -459,15 +611,13 @@ describe('isForced', () => {
             'caret',
             'box-shadow',
             'text-shadow',
-            'fill',
-            'stroke',
             '-webkit-text-fill-color'
         ]) {
             expect([property, isForced(property)]).toEqual([property, true]);
         }
     });
 
-    it('leaves what the sheet does not force: layout, the rest of a family and custom properties', () => {
+    it('leaves what the sheet does not force: layout, the rest of a family, the paint of an SVG and custom properties', () => {
         for (const property of [
             'display',
             'padding',
@@ -480,10 +630,13 @@ describe('isForced', () => {
             'background-position',
             'text-decoration-line',
             'color-scheme',
+            'fill',
+            'stroke',
             'stroke-width',
             'fill-opacity',
             'forced-color-adjust',
-            '--focus'
+            '--focus',
+            '--prism-sim-fg'
         ]) {
             expect([property, isForced(property)]).toEqual([property, false]);
         }
