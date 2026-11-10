@@ -292,6 +292,8 @@ describe('MediaStyleSheets', () => {
         const FORCED = { 'forced-colors': 'active' } as const;
         const NO_RULES: ForcedColorRules = { exempt: [], reenabled: [], gradientVars: [], layerVars: [] };
         const forced = (palette: ForcedPaletteName = 'dark', rules: Partial<ForcedColorRules> = {}): ForcedOptions => ({ palette, rules: { ...NO_RULES, ...rules } });
+        /** The condition of a twin that forces, without an exemption of the author's: an SVG is exempt all the same. */
+        const NOT_EXEMPT = `:not(${exemptionSelector(NO_RULES)})`;
         const styleRules = (group: { cssRules: CSSRuleList }): CSSStyleRule[] => Array.from(group.cssRules) as CSSStyleRule[];
         /** A sheet's text, rule by rule. */
         const textOf = (sheet: CSSStyleSheet): string => Array.from(sheet.cssRules, (rule) => rule.cssText).join('\n');
@@ -302,7 +304,7 @@ describe('MediaStyleSheets', () => {
             engine.apply(FORCED, forced());
             const rules = styleRules(sheet);
 
-            expect(rules.map(selectorOf)).toEqual(['.a', scopeIn('.a'), '.b', '.c', scopeIn('.c')]);
+            expect(rules.map(selectorOf)).toEqual(['.a', scopeIn('.a', false, NOT_EXEMPT), '.b', '.c', scopeIn('.c', false, NOT_EXEMPT)]);
             expect(rules[1].style.getPropertyValue('color')).toBe('var(--prism-sim-fg)');
             expect(rules[1].style.getPropertyPriority('color')).toBe('');
             expect(rules[4].style.getPropertyValue('border-top-color')).toBe('currentcolor');
@@ -311,7 +313,7 @@ describe('MediaStyleSheets', () => {
 
         it("gives an exempt subtree a twin with the palette's system colors only", () => {
             const sheet = addStyle('.a { color: Highlight; background-color: red } .b { color: red }');
-            const exemption = exemptionSelector({ ...NO_RULES, exempt: ['.dot'] }) as string;
+            const exemption = exemptionSelector({ ...NO_RULES, exempt: ['.dot'] });
 
             engine.apply(FORCED, forced('dark', { exempt: ['.dot'] }));
             const [, twin, exemptTwin, , bTwin] = styleRules(sheet);
@@ -343,7 +345,7 @@ describe('MediaStyleSheets', () => {
                 expect([property, copy.style.getPropertyPriority(property)]).toEqual([property, priority]);
             }
             // Computed from the keyword, which stays standing, and not from the value it resolves to, which would be forced.
-            expect(twin.selectorText).toBe(scopeIn('.t'));
+            expect(twin.selectorText).toBe(scopeIn('.t', false, NOT_EXEMPT));
             expect(twin.style.getPropertyValue('outline-color')).toBe(FORCED_PALETTES.light.highlight);
             expect(twin.style.getPropertyValue('border-top-color')).toBe('currentcolor');
             expect(twin.style.getPropertyPriority('border-top-color')).toBe('important');
@@ -426,7 +428,14 @@ describe('MediaStyleSheets', () => {
             const twin = rules[1] as CSSKeyframesRule;
             const frame = twin.cssRules[0] as CSSKeyframeRule;
 
-            expect(rules.map((rule) => prelude(rule.cssText))).toEqual(['@keyframes p', '@keyframes p-prism-sim', '@keyframes q', '.k', scopeIn('.k'), '.q']);
+            expect(rules.map((rule) => prelude(rule.cssText))).toEqual([
+                '@keyframes p',
+                '@keyframes p-prism-sim',
+                '@keyframes q',
+                '.k',
+                scopeIn('.k', false, NOT_EXEMPT),
+                '.q'
+            ]);
             expect(twin.name).toBe('p-prism-sim');
             expect(frame.keyText).toBe('from');
             // What a twin does not force stays, so that the animation keeps its course.
@@ -441,7 +450,7 @@ describe('MediaStyleSheets', () => {
             engine.apply(FORCED, forced('dark'));
             const twin = sheet.cssRules[1] as CSSStyleRule;
 
-            expect(twin.selectorText).toBe(scopeIn('body'));
+            expect(twin.selectorText).toBe(scopeIn('body', false, NOT_EXEMPT));
             expect(Array.from(twin.style).sort()).toEqual(['--prism-sim-sys-tok', '--tok', 'color']);
             expect(twin.style.getPropertyValue('--tok')).toBe(FORCED_PALETTES.dark.highlight);
         });
@@ -452,7 +461,7 @@ describe('MediaStyleSheets', () => {
             engine.apply({ ...LIGHT, ...FORCED }, forced('dark'));
             const [root, copy, twin] = styleRules(sheet);
 
-            expect([root, copy, twin].map(selectorOf)).toEqual([':root', scopeIn(':root'), scopeIn(':root')]);
+            expect([root, copy, twin].map(selectorOf)).toEqual([':root', scopeIn(':root'), scopeIn(':root', false, NOT_EXEMPT)]);
             expect(Array.from(copy.style)).toEqual(['--bg']);
             expect(twin.style.getPropertyValue('--bg')).toBe(FORCED_PALETTES.dark.canvas);
             expect(twin.style.getPropertyValue('--prism-sim-sys-bg')).toBe(FORCED_PALETTES.dark.canvas);
@@ -485,7 +494,7 @@ describe('MediaStyleSheets', () => {
             await flushMutations();
             const sheet = style.sheet as CSSStyleSheet;
 
-            expect(styleRules(sheet).map(selectorOf)).toEqual(['.late', scopeIn('.late')]);
+            expect(styleRules(sheet).map(selectorOf)).toEqual(['.late', scopeIn('.late', false, NOT_EXEMPT)]);
 
             style.remove();
             await flushMutations();
@@ -525,12 +534,12 @@ describe('MediaStyleSheets', () => {
             const [, others, root] = styleRules(sheet);
 
             expect(sheet.cssRules).toHaveLength(3);
-            expect(others.selectorText).toBe(scopeIn('.theme-dark'));
+            expect(others.selectorText).toBe(scopeIn('.theme-dark', false, NOT_EXEMPT));
             expect(others.style.getPropertyValue('color')).toBe('var(--prism-sim-fg)');
             expect(others.style.getPropertyValue('background-color')).toBe('rgb(from #111 var(--prism-sim-bg-rgb) / alpha)');
             expect(others.style.getPropertyValue('border-top-color')).toBe('currentcolor');
             // The scope roots only take what they may inherit.
-            expect(root.selectorText).toBe(scopeIn(':root'));
+            expect(root.selectorText).toBe(scopeIn(':root', false, NOT_EXEMPT));
             expect(Array.from(root.style)).toEqual(['color']);
         });
 
@@ -543,8 +552,8 @@ describe('MediaStyleSheets', () => {
             expect([others, root, othersTwin, rootTwin].map(selectorOf)).toEqual([
                 scopeIn('[data-theme=dark]'),
                 scopeIn(':root'),
-                scopeIn('[data-theme=dark]'),
-                scopeIn(':root')
+                scopeIn('[data-theme=dark]', false, NOT_EXEMPT),
+                scopeIn(':root', false, NOT_EXEMPT)
             ]);
             expect(others.style.getPropertyValue('background-color')).toBe('#111');
             expect(Array.from(root.style)).toEqual(['--x']);
@@ -563,7 +572,7 @@ describe('MediaStyleSheets', () => {
             if (before) pseudo.rewriteSheet(sheet);
             engine.apply(FORCED, forced());
             if (!before) pseudo.rewriteSheet(sheet);
-            expect(styleRules(sheet).map(selectorOf)).toEqual([widened, scopeIn(widened)]);
+            expect(styleRules(sheet).map(selectorOf)).toEqual([widened, scopeIn(widened, false, NOT_EXEMPT)]);
 
             engine.clear();
             expect(styleRules(sheet).map(selectorOf)).toEqual([widened]);
@@ -600,7 +609,7 @@ describe('MediaStyleSheets', () => {
             engine.apply(FORCED, forced());
 
             // Before the nested rules, as the declarations of the rule come before them.
-            expect(card.cssRules.map(selectorOf)).toEqual([`&${SCOPE_IN_SUFFIX}`, '.icon', scopeIn('.icon')]);
+            expect(card.cssRules.map(selectorOf)).toEqual([`&${SCOPE_IN_SUFFIX}${NOT_EXEMPT}`, '.icon', scopeIn('.icon', false, NOT_EXEMPT)]);
             expect((card.cssRules[0] as CSSStyleRule).style.getPropertyValue('color')).toBe('var(--prism-sim-fg)');
 
             engine.clear();
@@ -613,7 +622,7 @@ describe('MediaStyleSheets', () => {
             engine.apply(FORCED, forced());
             const [others, root] = theme.cssRules as CSSStyleRule[];
 
-            expect([others, root].map(selectorOf)).toEqual([`&${SCOPE_IN_SUFFIX}`, '& :where([data-prism-sim], .cdk-overlay-container)']);
+            expect([others, root].map(selectorOf)).toEqual([`&${SCOPE_IN_SUFFIX}${NOT_EXEMPT}`, `& :where([data-prism-sim], .cdk-overlay-container)${NOT_EXEMPT}`]);
             expect(others.style.getPropertyValue('background-color')).toBe('rgb(from #111 var(--prism-sim-bg-rgb) / alpha)');
             expect(Array.from(root.style)).toEqual(['color']);
         });

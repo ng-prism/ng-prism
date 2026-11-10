@@ -129,6 +129,38 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
             ]
         }));
 
+    // Chromium's own styles give an <svg> forced-color-adjust: preserve-parent-color: the colors the author sets on it and
+    // inside it stay, a system color in the palette, and one without a color of its own takes the forced color of its
+    // parent, LinkText in a link. A <foreignObject> is auto again, and so is an element below the svg that the author
+    // gives auto.
+    it('svg-author-colors', () =>
+        expectSimulationToMatch({
+            html: scope(
+                `.icon { color: #0af }
+                .box { color: #c00; background-color: #0c0; border: 2px solid #00c; outline: 2px solid #c0c; box-shadow: 0 0 2px red }
+                rect.r { fill: #c00; stroke: Highlight }
+                g.auto { color: #c00; forced-color-adjust: auto }
+                .fo { color: blue; background-color: #ff0; border: 1px solid red }`,
+                `<svg class="icon" width="20" height="20"><path class="icon-path" d="M0 0h10v10z" fill="currentColor" /></svg>
+                <svg class="box" width="40" height="20">
+                    <rect class="r" width="10" height="10" /><g class="auto"><rect x="10" width="10" height="10" /></g>
+                    <foreignObject class="fob" x="20" width="20" height="20"><div class="fo">fo</div></foreignObject>
+                </svg>
+                <a href="#x"><svg class="in-link" width="20" height="20"><path class="in-link-path" d="M0 0h10v10z" fill="currentColor" /></svg></a>`
+            ),
+            probes: [
+                { name: 'icon', selector: 'svg.icon', properties: ['color'] },
+                { name: 'icon-path', selector: '.icon-path', properties: ['fill'] },
+                { name: 'box', selector: 'svg.box', properties: ['color', 'background-color', 'border-top-color', 'outline-color', 'box-shadow'] },
+                { name: 'rect', selector: 'rect.r', properties: ['fill', 'stroke'] },
+                { name: 'auto', selector: 'g.auto', properties: ['color'] },
+                { name: 'foreignObject', selector: '.fob', properties: ['color'] },
+                { name: 'fo', selector: '.fo', properties: ['color', 'background-color', 'border-top-color'] },
+                { name: 'in-link', selector: 'svg.in-link', properties: ['color'] },
+                { name: 'in-link-path', selector: '.in-link-path', properties: ['fill'] }
+            ]
+        }));
+
     it('link', () =>
         expectSimulationToMatch({
             html: scope('a { color: red; border-bottom: 1px solid red }', '<a href="#target">Link <span>inside</span></a>'),

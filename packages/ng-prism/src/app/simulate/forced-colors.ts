@@ -192,17 +192,34 @@ function replaceAmpersand(selector: string, replacement: string): string | null 
     return replaced ? out : null;
 }
 
-/** The elements below an exemption that an `auto` takes it back for, as `:is(<exempt>) :is(<reenabled>)`; `null` if there is no exemption or no `auto`. */
-function reenabledSelector({ exempt, reenabled }: ForcedColorRules): string | null {
-    return exempt.length === 0 || reenabled.length === 0 ? null : `:is(${exempt.join(', ')}) :is(${reenabled.join(', ')})`;
+/**
+ * What Chromium's own styles exempt, in front of the author's exemptions: an `<svg>` has
+ * `forced-color-adjust: preserve-parent-color`, which keeps the colors the author sets on it and
+ * inside it, and a `<foreignObject>` in it has `auto`, which forces what it holds again. Where an
+ * element in an SVG sets no color, it inherits the forced one of its parent, which is all that
+ * `preserve-parent-color` does beyond `none`.
+ */
+const USER_AGENT_EXEMPT: readonly string[] = ['svg'];
+const USER_AGENT_REENABLED: readonly string[] = ['foreignObject'];
+
+/** The exempt selectors, the user agent's first. */
+function exemptOf(rules: ForcedColorRules): string[] {
+    return [...USER_AGENT_EXEMPT, ...rules.exempt];
+}
+
+/** The elements below an exemption that an `auto` takes it back for, as `:is(<exempt>) :is(<reenabled>)`, the user agent's included. */
+function reenabledSelector(rules: ForcedColorRules): string {
+    return `:is(${exemptOf(rules).join(', ')}) :is(${[...USER_AGENT_REENABLED, ...rules.reenabled].join(', ')})`;
 }
 
 /**
  * What is exempt from the forced colors, as a selector that weighs nothing: an exemption and what is
  * inside it, minus what a `forced-color-adjust: auto` below it takes back, and what is inside that.
- * `null` without an exemption, where an `auto` has nothing to take back.
+ * The user agent's are always among them: an `<svg>` and what is inside it, minus what a
+ * `<foreignObject>` holds.
  *
- * One level only: an `auto` is taken back to forcing, and a `none` below that is not exempt again.
+ * One level only: an `auto` is taken back to forcing, and a `none` below that is not exempt again,
+ * nor is an `<svg>` in a `<foreignObject>` in an `<svg>`.
  * An `auto` takes back an exemption only from the elements below an exempt one, never from the
  * exempt element it matches itself. Where one element matches both a `none` and an `auto`, the
  * browser lets specificity and order decide, which a selector cannot read. The approximation errs
@@ -211,13 +228,11 @@ function reenabledSelector({ exempt, reenabled }: ForcedColorRules): string | nu
  * A list in `:where()` or `:is()` ignores a selector that the browser rejects, so it does not take
  * the others with it.
  */
-export function exemptionSelector(rules: ForcedColorRules): string | null {
-    if (rules.exempt.length === 0) return null;
-
-    const exempt = `:where(${[...rules.exempt, ...rules.exempt.map((selector) => `${selector} *`)].join(', ')})`;
+export function exemptionSelector(rules: ForcedColorRules): string {
+    const exempt = exemptOf(rules);
     const taken = reenabledSelector(rules);
 
-    return taken === null ? exempt : `:where(${exempt}:not(:where(${taken}, ${taken} *)))`;
+    return `:where(:where(${[...exempt, ...exempt.map((selector) => `${selector} *`)].join(', ')}):not(:where(${taken}, ${taken} *)))`;
 }
 
 /**
@@ -381,7 +396,8 @@ const INLINE_NET: readonly (readonly [string, string])[] = [
  * is left out together with everything below it ({@link exemptionSelector}), except
  * for what a `forced-color-adjust: auto` takes back: that is forced again and
  * gets the context of the page, `CanvasText` on `Canvas`, and not the one the
- * exemption has inherited, a link's `LinkText` for one.
+ * exemption has inherited, a link's `LinkText` for one. An `<svg>` is exempt as
+ * Chromium's own styles make it, and a `<foreignObject>` in it is taken back.
  *
  * The system colors it names are written as their values in `palette`
  * ({@link resolveSystemColors}): the keywords would resolve against the
@@ -392,8 +408,7 @@ const INLINE_NET: readonly (readonly [string, string])[] = [
  * `stroke`, the `stop-color` of a gradient and the `flood-color` and `lighting-color` of a filter.
  */
 export function forcedColorsCss(rules: ForcedColorRules, palette: ForcedPaletteName, layered = true): string {
-    const exemption = exemptionSelector(rules);
-    const exempt = exemption === null ? '' : `:not(${exemption})`;
+    const exempt = `:not(${exemptionSelector(rules)})`;
     const reenabled = reenabledSelector(rules);
     const inside = `${INSIDE}${exempt}`;
     const block = (selectors: readonly string[], declarations: readonly string[], important = false): string => forcedRule(selectors, declarations, palette, important);
@@ -403,7 +418,7 @@ export function forcedColorsCss(rules: ForcedColorRules, palette: ForcedPaletteN
     const context = [
         block([`${ROOTS}${exempt}`], ['--prism-sim-fg: CanvasText', ground('canvas'), ...INHERITED]),
         // Before the elements a user agent colors, which a link or a mark below sets again.
-        ...(reenabled === null ? [] : [block([`${INSIDE}:where(${reenabled})`], ['--prism-sim-fg: CanvasText', ground('canvas'), ...INHERITED])]),
+        block([`${INSIDE}:where(${reenabled})`], ['--prism-sim-fg: CanvasText', ground('canvas'), ...INHERITED]),
         block(withPseudoElements(inside), COLORS),
         block([`${inside}${FIELDS}`], FIELD),
         block([`${inside}${BUTTONS}`], BUTTON),

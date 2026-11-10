@@ -46,8 +46,6 @@ const NONE: ForcedColorRules = { exempt: [], reenabled: [], gradientVars: [], la
 /** The rules of `NONE` with what `found` says instead. */
 const rulesOf = (found: Partial<ForcedColorRules>): ForcedColorRules => ({ ...NONE, ...found });
 
-const OVERLAY_STRUCTURE = ':not(:where(.cdk-overlay-popover, .cdk-global-overlay-wrapper, .cdk-overlay-connected-position-bounding-box, .cdk-overlay-backdrop))';
-
 describe('collectForcedColorRules', () => {
     afterEach(() => {
         document.head.innerHTML = '';
@@ -234,17 +232,19 @@ describe('mergeForcedColorRules', () => {
 describe('exemptionSelector', () => {
     it('names what is exempt as a selector that weighs nothing, with one level of auto below it', () => {
         expect(exemptionSelector(rulesOf({ exempt: ['.opt'], reenabled: ['.slot'] }))).toBe(
-            ':where(:where(.opt, .opt *):not(:where(:is(.opt) :is(.slot), :is(.opt) :is(.slot) *)))'
+            ':where(:where(svg, .opt, svg *, .opt *):not(:where(:is(svg, .opt) :is(foreignObject, .slot), :is(svg, .opt) :is(foreignObject, .slot) *)))'
         );
-        expect(exemptionSelector(rulesOf({ exempt: ['.opt'] }))).toBe(':where(.opt, .opt *)');
         expect(exemptionSelector(rulesOf({ exempt: ['.a', '.b > .c'], reenabled: ['.d', '.e'] }))).toBe(
-            ':where(:where(.a, .b > .c, .a *, .b > .c *):not(:where(:is(.a, .b > .c) :is(.d, .e), :is(.a, .b > .c) :is(.d, .e) *)))'
+            ':where(:where(svg, .a, .b > .c, svg *, .a *, .b > .c *):not(:where(:is(svg, .a, .b > .c) :is(foreignObject, .d, .e), :is(svg, .a, .b > .c) :is(foreignObject, .d, .e) *)))'
         );
     });
 
-    it('is null without an exemption, whatever an auto says', () => {
-        expect(exemptionSelector(NONE)).toBeNull();
-        expect(exemptionSelector(rulesOf({ reenabled: ['.slot'] }))).toBeNull();
+    it('exempts an SVG and what is inside it but a foreignObject without an exemption of the author, as the styles of Chromium do', () => {
+        expect(exemptionSelector(NONE)).toBe(':where(:where(svg, svg *):not(:where(:is(svg) :is(foreignObject), :is(svg) :is(foreignObject) *)))');
+        // An `auto` of the author's takes an SVG back like any other exemption.
+        expect(exemptionSelector(rulesOf({ reenabled: ['.slot'] }))).toBe(
+            ':where(:where(svg, svg *):not(:where(:is(svg) :is(foreignObject, .slot), :is(svg) :is(foreignObject, .slot) *)))'
+        );
     });
 
     describe('applied to a document', () => {
@@ -459,7 +459,7 @@ describe('forcedColorsCss', () => {
         expect(css).toContain(`--prism-sim-fg: ${LIGHT.canvastext};`);
         expect(css).toContain('color: var(--prism-sim-fg);');
         expect(css).toContain(`--prism-sim-fg: ${LIGHT.linktext};`);
-        expect(css).toContain(':not(:where(.dot, .dot *))');
+        expect(css).toContain(`:not(${exemptionSelector(rulesOf({ exempt: ['.dot'] }))})`);
     });
 
     it('puts its rules in the lowest layer at normal importance, and only the net for inline styles outside it and !important', () => {
@@ -506,7 +506,7 @@ describe('forcedColorsCss', () => {
     it('sets the context and what inherits on the scope roots in the palette', () => {
         const css = forcedColorsCss(NONE, 'dark');
 
-        expect(parse(css).find(({ selector }) => selector === ':where([data-prism-sim], .cdk-overlay-container)')?.values).toEqual({
+        expect(parse(css).find(({ selector }) => selector === `:where([data-prism-sim], .cdk-overlay-container):not(${exemptionSelector(NONE)})`)?.values).toEqual({
             '--prism-sim-fg': '#ffffff',
             '--prism-sim-bg-rgb': '0 0 0',
             color: 'var(--prism-sim-fg)',
@@ -533,12 +533,16 @@ describe('forcedColorsCss', () => {
         }
     });
 
-    it('has no exemption in its selectors when none was found', () => {
-        expect(forcedColorsCss(NONE, 'dark').replaceAll(OVERLAY_STRUCTURE, '')).not.toContain(':not(:where(');
+    it('has the exemption of an SVG in its selectors when the author has none', () => {
+        const css = forcedColorsCss(NONE, 'dark');
+
+        expect(css).toContain(`:not(${exemptionSelector(NONE)})`);
+        // A foreignObject takes the SVG's back.
+        expect(css).toContain(':where([data-prism-sim], .cdk-overlay-container) *:where(:is(svg) :is(foreignObject))');
     });
 
     it('exempts every selector together with what is inside it', () => {
-        expect(forcedColorsCss(rulesOf({ exempt: ['.a', '.b > .c'] }), 'dark')).toContain(':not(:where(.a, .b > .c, .a *, .b > .c *))');
+        expect(forcedColorsCss(rulesOf({ exempt: ['.a', '.b > .c'] }), 'dark')).toContain(':where(svg, .a, .b > .c, svg *, .a *, .b > .c *)');
     });
 
     it('takes the exemption from exemptionSelector, so that what an `auto` takes back is forced again', () => {
@@ -546,18 +550,19 @@ describe('forcedColorsCss', () => {
         const css = forcedColorsCss(rules, 'dark');
 
         expect(css).toContain(`:not(${exemptionSelector(rules)})`);
-        // An `auto` without an exemption above it changes nothing.
-        expect(forcedColorsCss(rulesOf({ reenabled: ['.slot'] }), 'dark')).toBe(forcedColorsCss(NONE, 'dark'));
+        // Without an exemption of the author's, an `auto` takes back what is below an SVG.
+        expect(forcedColorsCss(rulesOf({ reenabled: ['.slot'] }), 'dark')).toContain(`:not(${exemptionSelector(rulesOf({ reenabled: ['.slot'] }))})`);
     });
 
     it('sets the context and what inherits again below an exemption, where `auto` takes it back', () => {
         const css = forcedColorsCss(rulesOf({ exempt: ['.opt', '.card'], reenabled: ['.slot'] }), 'dark');
         // Every rule has the exemption in its selector; this one is the only that selects what an `auto` takes back.
-        const again = parse(css).filter(({ selector }) => selector === ':where([data-prism-sim], .cdk-overlay-container) *:where(:is(.opt, .card) :is(.slot))');
+        const again = parse(css).filter(
+            ({ selector }) => selector === ':where([data-prism-sim], .cdk-overlay-container) *:where(:is(svg, .opt, .card) :is(foreignObject, .slot))'
+        );
 
         expect(again).toHaveLength(1);
         expect(again[0].values).toMatchObject({ '--prism-sim-fg': '#ffffff', '--prism-sim-bg-rgb': '0 0 0', color: 'var(--prism-sim-fg)', 'text-shadow': 'none' });
-        expect(forcedColorsCss(rulesOf({ exempt: ['.opt'] }), 'dark')).not.toContain(':is(.opt) :is(');
     });
 
     describe('applied to a document', () => {
@@ -590,7 +595,7 @@ describe('forcedColorsCss', () => {
                     <div id="inline-url" style="background-image: url(a.png), linear-gradient(red, blue)">u</div>
                     <mark id="inline-mark" style="Background: orange">m <span id="inline-in-mark" style="background-color: red">in</span></mark>
                     <div class="dot" id="dot"><span id="in-dot" style="color: red; background: red; border: 1px solid red"></span><a href="#x" id="dot-link"></a></div>
-                    <svg id="svg"><path id="plain"></path><path id="named" fill="#f00" stroke="blue"></path></svg>
+                    <svg id="svg"><path id="plain"></path><path id="named" fill="#f00" stroke="blue"></path><foreignObject id="fo"><p id="in-fo">f</p></foreignObject></svg>
                 </div>
                 <div class="cdk-overlay-container" id="overlay">
                     <div id="pane"><button id="menu-button">m</button></div>
@@ -839,6 +844,12 @@ describe('forcedColorsCss', () => {
         it('leaves the fill and stroke of an SVG to the author, as Chromium does', () => {
             expect(forcedOn(css, at('#named'))).not.toHaveProperty('fill');
             expect(forcedOn(css, at('#named'))).not.toHaveProperty('stroke');
+        });
+
+        it('leaves an SVG and what is inside it to the author, as Chromium does, and forces what a foreignObject in it holds', () => {
+            for (const selector of ['#svg', '#plain', '#named']) expect([selector, forcedOn(css, at(selector))]).toEqual([selector, {}]);
+            expect(forcedOn(css, at('#fo'))).toMatchObject({ '--prism-sim-fg': DARK.canvastext, color: 'var(--prism-sim-fg)' });
+            expect(computedOn(css, at('#in-fo'))).toMatchObject({ color: DARK.canvastext, 'border-color': DARK.canvastext });
         });
 
         it('leaves the stops of a gradient and the colors of a filter to the author as well, as Chromium does', () => {

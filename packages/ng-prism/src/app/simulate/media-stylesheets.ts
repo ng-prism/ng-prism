@@ -47,9 +47,9 @@ interface Rewrite {
 /** What the twins need while forced colors are simulated. */
 interface Forcing {
     readonly context: TwinContext;
-    /** What is exempt ({@link exemptionSelector}), `null` without an exemption. */
-    readonly exemption: string | null;
-    /** The condition of a twin that forces: not exempt, or nothing without an exemption. */
+    /** What is exempt ({@link exemptionSelector}), an `<svg>` and its subtree at least. */
+    readonly exemption: string;
+    /** The condition of a twin that forces: not exempt. */
     readonly notExempt: string;
 }
 
@@ -246,7 +246,7 @@ export class MediaStyleSheets {
             // The names of the @keyframes twins grow during a pass, before the rules that name them are twinned.
             context: { palette, gradientVars: new Set(rules.gradientVars), layerVars: new Set(rules.layerVars), keyframes: this.keyframes },
             exemption,
-            notExempt: exemption === null ? '' : `:not(${exemption})`
+            notExempt: `:not(${exemption})`
         };
     }
 
@@ -410,7 +410,6 @@ export class MediaStyleSheets {
             const twin = forcedTwin(declarations, forcing.context);
 
             if (twin.length > 0) twins.push(`${selector(forcing.notExempt)} { ${serializeDeclarations(twin)} }`);
-            if (forcing.exemption === null) continue;
 
             const exempt = exemptTwin(declarations, forcing.context);
 

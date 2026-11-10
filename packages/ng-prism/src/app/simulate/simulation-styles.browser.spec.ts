@@ -289,7 +289,7 @@ describe('SimulationStyles', () => {
         const styles = create();
 
         styles.apply(FORCED, 'dark');
-        expect((sheet.cssRules[1] as CSSStyleRule).selectorText).toBe(scopeIn('.a'));
+        expect((sheet.cssRules[1] as CSSStyleRule).selectorText).toBe(scopeIn('.a', false, `:not(${exemptionSelector(NO_RULES)})`));
 
         addStyle('.b { color: blue }');
         await flushMutations();
