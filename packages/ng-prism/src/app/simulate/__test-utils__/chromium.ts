@@ -46,7 +46,8 @@ export function renderReal(browser: Browser, fixture: Fixture, scheme: Scheme): 
 /**
  * `fixture` with ng-prism's simulation of forced colors, as the canvas applies
  * it: outside the real mode, the scope root in `scheme`, the media engine
- * emulating `forced-colors: active` and the forced colors sheet adopted.
+ * emulating `forced-colors: active` and the forced colors sheet adopted, both
+ * in the palette of `scheme`.
  */
 export function renderSimulated(browser: Browser, fixture: Fixture, scheme: Scheme): Promise<Computed> {
     return render(browser, fixture, async (page) => {
@@ -150,7 +151,7 @@ function readProbes(probes: readonly Probe[]): Computed {
     return computed;
 }
 
-/** Makes the fixture's root a scope root in `scheme` and turns the forced colors simulation on. */
+/** Makes the fixture's root a scope root in `scheme` and turns the forced colors simulation on, in the palette of `scheme`. */
 function simulate(scheme: Scheme): void {
     const { SimulationStyles, applyScopeRoot } = (window as unknown as { __prismSim: PrismSim }).__prismSim;
     const root = document.querySelector<HTMLElement>('[data-prism-sim]');
@@ -158,7 +159,7 @@ function simulate(scheme: Scheme): void {
     if (!root) throw new Error('The fixture has no [data-prism-sim] scope root.');
 
     applyScopeRoot(root, { colorScheme: scheme, filter: null, themeClass: null, themeAttributes: {} });
-    new SimulationStyles(document).apply({ 'forced-colors': 'active' }, true);
+    new SimulationStyles(document).apply({ 'forced-colors': 'active' }, scheme);
 }
 
 let bundle: Promise<string> | undefined;

@@ -1,5 +1,6 @@
 import { attributeEnd, escapeEnd, stringEnd } from '../pseudo/pseudo-selector.js';
 import { declarationsOf, hasStyle, isImportRule, isRuleGroup, isStyleRule, propertyOf, valueOf } from './css-rules.js';
+import { type ForcedPaletteName, resolveSystemColors } from './forced-palette.js';
 import { SCOPE_IN_SUFFIX, SIM_SCOPE, splitList, splitPseudoElement } from './scope-selector.js';
 
 /** What the author's styles say about forced colors, to be taken into account by the approximation. */
@@ -251,19 +252,25 @@ const colored = (attribute: string): string =>
  * Grounds are `Canvas` only where nothing can be hidden behind them by mistake: not on
  * `::before` and `::after`, not on the layout elements of the CDK overlay.
  *
+ * The system colors it names are written as their values in `palette`
+ * ({@link resolveSystemColors}): the keywords would resolve against the
+ * browser's normal palette under the scope root's `color-scheme`, not against
+ * the forced one.
+ *
  * What it cannot do: an author's `!important` outside `@media (forced-colors)`
  * weighs more and wins, where the browser forces the color anyway. So does a
  * color in the author's own forced-colors rules that is not a system color,
  * which the browser forces as well. Colors an SVG takes from a stylesheet
  * rather than from an attribute stay, because `fill: none` must not become a
- * fill. Neither is `color-scheme` set, the palette is the caller's to choose.
+ * fill.
  */
-export function forcedColorsCss(rules: ForcedColorRules): string {
+export function forcedColorsCss(rules: ForcedColorRules, palette: ForcedPaletteName): string {
     const exempt = rules.exempt.length === 0 ? '' : `:not(:where(${[...rules.exempt, ...rules.exempt.map((selector) => `${selector} *`)].join(', ')}))`;
     const inside = `${INSIDE}${exempt}`;
     const roots = `${ROOTS_AND_INSIDE}${exempt}`;
 
     const painted = `${inside}${OVERLAY_STRUCTURE}`;
+    const block = (selectors: readonly string[], declarations: readonly string[]): string => forcedRule(selectors, declarations, palette);
 
     const css = [
         block(withPseudoElements(roots), INHERITED),
@@ -291,6 +298,13 @@ function withPseudoElements(selector: string): string[] {
     return [selector, `${selector}::before`, `${selector}::after`];
 }
 
-function block(selectors: readonly string[], declarations: readonly string[]): string {
-    return `${selectors.join(',\n')} {\n${declarations.map((declaration) => `    ${declaration} !important;`).join('\n')}\n}`;
+/** A rule of the sheet: every declaration `!important`, its system colors in `palette`. */
+function forcedRule(selectors: readonly string[], declarations: readonly string[], palette: ForcedPaletteName): string {
+    const lines = declarations.map((declaration) => {
+        const property = propertyOf(declaration);
+
+        return `    ${property}: ${resolveSystemColors(property, valueOf(declaration), palette)} !important;`;
+    });
+
+    return `${selectors.join(',\n')} {\n${lines.join('\n')}\n}`;
 }

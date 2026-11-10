@@ -1,6 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { DestroyRef, effect, inject, Injectable, Injector, untracked } from '@angular/core';
 import { PrismSimulationService } from '../services/prism-simulation.service.js';
+import type { ForcedPaletteName } from './forced-palette.js';
 import { type MatchMediaPatch, patchMatchMedia } from './match-media-patch.js';
 import { applyScopeRoot, applyTopLayerFilter, type ScopeRootState } from './scope-root.js';
 import { OVERLAY_ROOT } from './scope-selector.js';
@@ -51,9 +52,9 @@ export class PrismSimulationRuntimeService {
         effect(
             () => {
                 const emulated = this.sim.emulated();
-                const forced = this.sim.forcedActive();
+                const palette = this.sim.forcedPalette();
 
-                untracked(() => this.emulate(emulated, forced));
+                untracked(() => this.emulate(emulated, palette));
             },
             { injector: this.injector }
         );
@@ -73,8 +74,8 @@ export class PrismSimulationRuntimeService {
         });
     }
 
-    private emulate(emulated: EmulatedMedia, forced: boolean): void {
-        this.styles.apply(emulated, forced);
+    private emulate(emulated: EmulatedMedia, palette: ForcedPaletteName | null): void {
+        this.styles.apply(emulated, palette);
         this.patchMatchMedia(Object.keys(emulated).length > 0 ? emulated : null);
     }
 

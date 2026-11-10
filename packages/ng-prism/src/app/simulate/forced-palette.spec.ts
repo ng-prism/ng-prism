@@ -5,6 +5,7 @@ import {
     isSystemColor,
     keepsSystemColor,
     KEPT_SYSTEM_COLORS,
+    resolveSystemColors,
     rgbChannels,
     substituteSystemColors,
     SYSTEM_COLORS
@@ -200,6 +201,8 @@ describe('carriesColor', () => {
             'text-emphasis-color',
             'column-rule',
             'column-rule-color',
+            'row-rule',
+            'row-rule-color',
             'box-shadow',
             'text-shadow',
             'caret-color',
@@ -248,6 +251,25 @@ describe('carriesColor', () => {
         expect(carriesColor('COLOR')).toBe(true);
         expect(carriesColor('Border-Top-Color')).toBe(true);
         expect(carriesColor('Transition')).toBe(false);
+    });
+});
+
+describe('resolveSystemColors', () => {
+    it('replaces the system colors of a property that takes a color', () => {
+        expect(resolveSystemColors('outline', '2px solid Highlight', 'dark')).toBe('2px solid rgba(0, 230, 255, 0.8)');
+        expect(resolveSystemColors('Background-Color', 'Canvas', 'light')).toBe('#ffffff');
+    });
+
+    it('leaves a system color that is another word where no color can be', () => {
+        expect(resolveSystemColors('transition', 'background 0.2s', 'dark')).toBe('background 0.2s');
+        expect(resolveSystemColors('font', 'menu', 'dark')).toBe('menu');
+    });
+
+    it('replaces a custom property only when it is a whole system color, and not a deprecated one', () => {
+        expect(resolveSystemColors('--ring', ' Highlight', 'light')).toBe(' rgba(5, 0, 73, 0.8)');
+        expect(resolveSystemColors('--pair', 'light-dark(Canvas, CanvasText)', 'dark')).toBe('light-dark(#000000, #ffffff)');
+        expect(resolveSystemColors('--word', 'Background', 'dark')).toBe('Background');
+        expect(resolveSystemColors('--shadow', '0 0 0 2px Highlight', 'dark')).toBe('0 0 0 2px Highlight');
     });
 });
 

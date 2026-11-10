@@ -14,6 +14,7 @@ import {
     type RuleGroup
 } from './css-rules.js';
 import { isForced } from './forced-colors.js';
+import { type ForcedPaletteName, resolveSystemColors } from './forced-palette.js';
 import { mentionsEmulated, substituteMedia } from './media-condition.js';
 import { SCOPE_IN_SUFFIX, SCOPE_OUT_SUFFIX, scopeIn, scopeOut, SIM_SCOPE, targetsRoot, unscopeOut } from './scope-selector.js';
 import { type EmulatedMedia, sameMedia } from './simulation.js';
@@ -89,6 +90,8 @@ export class MediaStyleSheets {
     /** The inheritable properties that rules on the document root set under an emulated condition. */
     private readonly rootProperties = new Set<string>();
     private emulated: EmulatedMedia | null = null;
+    /** The palette system colors in copies resolve in, `null` while forced colors are off. */
+    private palette: ForcedPaletteName | null = null;
     private observer: MutationObserver | null = null;
     private outSuffix: string | null = null;
 
@@ -102,14 +105,20 @@ export class MediaStyleSheets {
         private readonly onNewStyles?: () => void
     ) {}
 
-    /** Rewrites every sheet for `emulated`, and keeps doing so for new styles until `clear()`. Idempotent; a different `emulated` re-applies. */
-    apply(emulated: EmulatedMedia): void {
+    /**
+     * Rewrites every sheet for `emulated`, and keeps doing so for new styles
+     * until `clear()`. With a `palette`, the copies have their system colors
+     * in it, as in the real forced colors mode. Idempotent; a different
+     * `emulated` or `palette` re-applies.
+     */
+    apply(emulated: EmulatedMedia, palette: ForcedPaletteName | null = null): void {
         if (Object.values(emulated).every((value) => value === undefined)) {
             this.clear();
             return;
         }
-        if (this.emulated && !sameMedia(this.emulated, emulated)) this.restore();
+        if (this.emulated && (!sameMedia(this.emulated, emulated) || this.palette !== palette)) this.restore();
         this.emulated = { ...emulated };
+        this.palette = palette;
         this.sync();
         if (this.observer || typeof MutationObserver === 'undefined' || !this.doc.head) return;
         this.observer = new MutationObserver(() => this.sync());
@@ -121,6 +130,7 @@ export class MediaStyleSheets {
         this.observer?.disconnect();
         this.observer = null;
         this.emulated = null;
+        this.palette = null;
         this.restore();
     }
 
@@ -243,6 +253,10 @@ export class MediaStyleSheets {
      * the palette the simulation forces, as they do in the real mode. Everything
      * else keeps the weight it has, and with it the cascade of the real mode.
      *
+     * While there is a palette, the system colors of every copy resolve in it
+     * ({@link resolveSystemColors}), as they do in the real mode, where a
+     * keyword left as it is would resolve in the browser's normal palette.
+     *
      * A rule like `@keyframes` or `@font-face` is dropped from the copy: it would
      * apply to the whole page, the shell included, and keeps its real condition.
      */
@@ -263,10 +277,7 @@ export class MediaStyleSheets {
                 this.scopeCopy(rule, emulated, nesting, forced);
             } else if (nesting !== 'top' && hasStyle(rule)) {
                 // Bare declarations apply wherever the parent matches: in the copy, only in the scope.
-                const declarations = rewriteDeclarations(rule.style.cssText, {
-                    keep: nesting === 'root' ? isInheritable : undefined,
-                    important: forced ? isForced : undefined
-                });
+                const declarations = this.copiedDeclarations(rule.style.cssText, nesting === 'root', forced);
 
                 group.deleteRule(i);
                 kept = declarations !== '' && this.tryInsert(group, i, `${scopedParent(nesting)} { ${declarations} }`);
@@ -293,7 +304,7 @@ export class MediaStyleSheets {
      */
     private scopeCopiedRule(group: RuleGroup, index: number, rule: CSSStyleRule, emulated: EmulatedMedia, nesting: Nesting, forced: boolean): boolean {
         const inner = nestingIn(rule, nesting);
-        const declarations = rewriteDeclarations(rule.style.cssText, { keep: inner === 'root' ? isInheritable : undefined, important: forced ? isForced : undefined });
+        const declarations = this.copiedDeclarations(rule.style.cssText, inner === 'root', forced);
 
         if (isRuleGroup(rule) && rule.cssRules.length > 0) {
             this.scopeCopy(rule, emulated, inner, forced);
@@ -313,8 +324,23 @@ export class MediaStyleSheets {
             group.deleteRule(index);
             return false;
         }
-        if (inner === 'root' || forced) rule.style.cssText = declarations;
+        if (inner === 'root' || forced || this.palette) rule.style.cssText = declarations;
         return true;
+    }
+
+    /**
+     * The declarations of a copy: on the document root only the inheritable
+     * ones, in a forced-colors rule the forced ones `!important`, and under a
+     * palette with their system colors resolved in it.
+     */
+    private copiedDeclarations(cssText: string, onRoot: boolean, forced: boolean): string {
+        const palette = this.palette;
+
+        return rewriteDeclarations(cssText, {
+            keep: onRoot ? isInheritable : undefined,
+            important: forced ? isForced : undefined,
+            value: palette ? (property, value) => resolveSystemColors(property, value, palette) : undefined
+        });
     }
 
     /**

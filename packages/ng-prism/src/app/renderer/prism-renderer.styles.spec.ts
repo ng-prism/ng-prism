@@ -25,14 +25,16 @@ const weight = (selector: string): number => (selector.match(/\.[\w-]+|\[[^\]]+\
  * what the browser was checked against (see the task 8 report).
  */
 describe('prism-renderer simulated ground', () => {
-    it('paints the ground Canvas under forced colors, over every [data-bg] rule that follows it', () => {
+    it("paints the ground in the palette's Canvas under forced colors, over every [data-bg] rule that follows it", () => {
         const forced = '.prism-canvas-stage[data-sim-forced]';
         const grounds = withoutComments(CANVAS_BG_STYLES)
             .split('}')
             .flatMap((block) => (block.includes('{') ? block.slice(0, block.indexOf('{')).split(',') : []))
             .map((selector) => selector.trim());
 
-        expect(rule(forced)).toMatch(/background-color: Canvas;/);
+        // The keyword `Canvas` would resolve against the browser's normal palette, not the forced one.
+        expect(rule(forced)).toMatch(/background-color: var\(--prism-sim-canvas\);/);
+        expect(HTML.slice(HTML.indexOf('<div'), HTML.indexOf('>'))).toContain('[style.--prism-sim-canvas]="ground().canvas"');
         expect(rule(forced)).toMatch(/background-image: none;/);
         expect(grounds.length).toBeGreaterThan(0);
         // CANVAS_BG_STYLES comes after this stylesheet, so the forced rule has to outweigh it.

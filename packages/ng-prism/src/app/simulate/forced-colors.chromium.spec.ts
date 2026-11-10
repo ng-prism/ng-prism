@@ -65,23 +65,21 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
             probes: [{ name: 'p', selector: 'p', properties: ['color'] }]
         }));
 
-    it.failing('own-system-colors', () =>
+    it('own-system-colors', () =>
         expectSimulationToMatch({
             html: scope(
                 '@media (forced-colors: active) { .sel { background: Highlight; color: HighlightText; forced-color-adjust: none } }',
                 '<span class="sel">Selected</span>'
             ),
             probes: [{ name: 'sel', selector: '.sel', properties: ['color', 'background-color'] }]
-        })
-    );
+        }));
 
-    it.failing('hover-and-forced', () =>
+    it('hover-and-forced', () =>
         expectSimulationToMatch({
             html: scope('@media (hover: hover) and (forced-colors: active) { .h:hover { border: 2px solid Highlight } }', '<div class="h">Hover</div>'),
             probes: [{ name: 'h', selector: '.h', properties: ['border-top-color'] }],
             hover: '.h'
-        })
-    );
+        }));
 
     it.failing('svg-colors', () =>
         expectSimulationToMatch({
@@ -131,13 +129,12 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
         })
     );
 
-    // The `!important` forced colors sheet beats inline styles already. Only its dark Canvas is not Chromium's.
-    (scheme === 'light' ? it : it.failing)('inline-style', () =>
+    // The `!important` forced colors sheet beats inline styles.
+    it('inline-style', () =>
         expectSimulationToMatch({
             html: scope('', '<div class="inline" style="background: red; color: blue; border: 1px solid green">Inline</div>'),
             probes: [{ name: 'inline', selector: '.inline', properties: ['background-color', 'color', 'border-top-color'] }]
-        })
-    );
+        }));
 
     it.failing('toggle', () =>
         expectSimulationToMatch({
@@ -266,13 +263,12 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
         })
     );
 
-    // As with inline styles: the `!important` sheet beats the animation, and only the dark Canvas differs.
-    (scheme === 'light' ? it : it.failing)('keyframes', () =>
+    // As with inline styles: the `!important` sheet beats the animation.
+    it('keyframes', () =>
         expectSimulationToMatch({
             html: scope('@keyframes p { from { background-color: #c00 } to { background-color: #0c0 } } .k { animation: p 1s paused }', '<div class="k">Animated</div>'),
             probes: [{ name: 'k', selector: '.k', properties: ['background-color'] }]
-        })
-    );
+        }));
 
     it.failing('author-layers', () =>
         expectSimulationToMatch({

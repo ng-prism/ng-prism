@@ -54,7 +54,7 @@
    [data-bg] rules of CANVAS_BG_STYLES. A state that does not fit sets
    neither attribute: it paints no ground. */
 .cell__stage[data-sim-forced] {
-    background-color: Canvas;
+    background-color: var(--prism-sim-canvas);
     background-image: none;
 }
 

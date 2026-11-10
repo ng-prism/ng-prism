@@ -124,7 +124,7 @@ export class PrismOverviewCellComponent {
 
     /** How the simulation paints the cell's ground; not at all while a state does not fit, as the cell paints no ground then. */
     protected readonly ground = computed(() =>
-        this.unfitReason() === null ? groundSimulation(this.simulation.scopeRoot(), this.simulation.forcedActive()) : NO_GROUND_SIMULATION
+        this.unfitReason() === null ? groundSimulation(this.simulation.scopeRoot(), this.simulation.forcedPalette()) : NO_GROUND_SIMULATION
     );
 
     protected readonly label = computed(() => {

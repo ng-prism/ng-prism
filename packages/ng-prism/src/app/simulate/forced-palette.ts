@@ -239,7 +239,7 @@ const COLOR_PROPERTIES: ReadonlySet<string> = new Set([
 ]);
 
 /** Shorthands that take a color and the longhands that share their prefix. */
-const COLOR_FAMILIES = ['background', 'border', 'outline', 'text-decoration', 'text-emphasis', 'column-rule', '-webkit-text-stroke'];
+const COLOR_FAMILIES = ['background', 'border', 'outline', 'text-decoration', 'text-emphasis', 'column-rule', 'row-rule', '-webkit-text-stroke'];
 
 /**
  * Whether a value of `property` can hold a color, which is where a system
@@ -261,8 +261,8 @@ export function carriesColor(property: string): boolean {
  * underscore belong to a name (`--canvas-bg`, `canvas-x`), as do escapes: a
  * name with one is left alone.
  *
- * It works on a value and knows nothing of the property it belongs to: the
- * caller applies it where {@link carriesColor} holds.
+ * It works on a value and knows nothing of the property it belongs to:
+ * {@link resolveSystemColors} applies it where a system color can be.
  */
 export function substituteSystemColors(value: string, palette: ForcedPaletteName): string {
     const colors = FORCED_PALETTES[palette];
@@ -297,6 +297,20 @@ export function substituteSystemColors(value: string, palette: ForcedPaletteName
         i = end;
     }
     return out;
+}
+
+/**
+ * The value of a declaration of `property` with its system colors in
+ * `palette` ({@link substituteSystemColors}), where a system color can be one:
+ * in a property that takes a color ({@link carriesColor}), and in a custom
+ * property whose whole value is a system color that is not deprecated. A
+ * custom property is a list of tokens until a property uses it, and
+ * `--x: Background` is as likely a word as a color.
+ */
+export function resolveSystemColors(property: string, value: string, palette: ForcedPaletteName): string {
+    const resolves = property.startsWith('--') ? isSystemColor(value, { deprecated: false }) : carriesColor(property);
+
+    return resolves ? substituteSystemColors(value, palette) : value;
 }
 
 /** End of the `url(…)` whose `(` is at `open`: past its closing bracket, with strings and escapes inside skipped. */

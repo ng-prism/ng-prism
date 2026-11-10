@@ -1,7 +1,6 @@
 import { DEFAULT_VARIANT_BG } from '../../shared/variant-bg.js';
 import { groundSimulation, NO_GROUND_SIMULATION, overlayGround, overviewGround, playgroundGround } from './ground.js';
 import type { ScopeRootState } from './scope-root.js';
-import { DEFAULT_SIMULATION } from './simulation.js';
 
 describe('playgroundGround', () => {
     const base = { override: null, recommended: null, chosen: false, canvasBg: 'dots' as const, scheme: 'dark' as const };
@@ -51,52 +50,53 @@ describe('groundSimulation', () => {
     const root = (o: Partial<ScopeRootState>): ScopeRootState => ({ colorScheme: null, filter: null, themeClass: null, themeAttributes: {}, ...o });
 
     it('changes nothing about the stage while nothing is simulated', () => {
-        expect(groundSimulation(null, false)).toEqual({ forced: null, vision: null, filter: null, colorScheme: null });
-        expect(groundSimulation(null, false)).toBe(NO_GROUND_SIMULATION);
+        expect(groundSimulation(null, null)).toEqual({ forced: null, vision: null, filter: null, colorScheme: null, canvas: null });
+        expect(groundSimulation(null, null)).toBe(NO_GROUND_SIMULATION);
     });
 
     it('leaves the scheme of the stage alone while only a scheme is emulated', () => {
         // The ground follows the scheme through `data-bg` then; nothing on it resolves a system colour.
-        expect(groundSimulation(root({ colorScheme: 'dark', themeClass: 'tl-dark' }), false)).toEqual(NO_GROUND_SIMULATION);
+        expect(groundSimulation(root({ colorScheme: 'dark', themeClass: 'tl-dark' }), null)).toEqual(NO_GROUND_SIMULATION);
     });
 
-    it('paints the ground `Canvas` in the palette of forced colors', () => {
-        expect(groundSimulation(root({ colorScheme: 'dark' }), true)).toEqual({ forced: '', vision: null, filter: null, colorScheme: 'dark' });
-        expect(groundSimulation(root({ colorScheme: 'light' }), true)).toEqual({ forced: '', vision: null, filter: null, colorScheme: 'light' });
+    it("paints the ground the palette's Canvas under forced colors, and gives the stage the palette's scrollbars", () => {
+        expect(groundSimulation(null, 'dark').canvas).toBe('#000000');
+        expect(groundSimulation(root({ colorScheme: 'dark' }), 'dark')).toEqual({ forced: '', vision: null, filter: null, colorScheme: 'dark', canvas: '#000000' });
+        expect(groundSimulation(root({ colorScheme: 'light' }), 'light')).toEqual({ forced: '', vision: null, filter: null, colorScheme: 'light', canvas: '#ffffff' });
     });
 
     it('filters the ground with the vision setting', () => {
-        expect(groundSimulation(root({ filter: 'url(#prism-vision-protanopia)' }), false)).toEqual({
+        expect(groundSimulation(root({ filter: 'url(#prism-vision-protanopia)' }), null)).toEqual({
             forced: null,
             vision: '',
             filter: 'url(#prism-vision-protanopia)',
-            colorScheme: null
+            colorScheme: null,
+            canvas: null
         });
     });
 
     it('combines forced colors and vision', () => {
-        expect(groundSimulation(root({ colorScheme: 'light', filter: 'blur(1.5px)' }), true)).toEqual({
+        expect(groundSimulation(root({ colorScheme: 'light', filter: 'blur(1.5px)' }), 'light')).toEqual({
             forced: '',
             vision: '',
             filter: 'blur(1.5px)',
-            colorScheme: 'light'
+            colorScheme: 'light',
+            canvas: '#ffffff'
         });
     });
 });
 
 describe('overlayGround', () => {
-    const forced = { ...DEFAULT_SIMULATION, forced: 'active' as const };
-
     it('is the canvas background while forced colors are off', () => {
-        expect(overlayGround('light', DEFAULT_SIMULATION)).toBe('light');
-        expect(overlayGround('dots', { ...DEFAULT_SIMULATION, scheme: 'dark', vision: 'blurred' })).toBe('dots');
+        expect(overlayGround('light', null)).toBe('light');
+        expect(overlayGround('dots', null)).toBe('dots');
     });
 
     it('is the palette of forced colors over any background', () => {
-        // The ground is `Canvas` then, so a `light` background under the dark palette is a dark ground.
-        expect(overlayGround('light', forced)).toBe('dark');
-        expect(overlayGround('dots', forced)).toBe('dark');
-        expect(overlayGround('dark', { ...forced, scheme: 'light' })).toBe('light');
-        expect(overlayGround('checker', { ...forced, scheme: 'dark' })).toBe('dark');
+        // The ground is the palette's Canvas then, so a `light` background under the dark palette is a dark ground.
+        expect(overlayGround('light', 'dark')).toBe('dark');
+        expect(overlayGround('dots', 'dark')).toBe('dark');
+        expect(overlayGround('dark', 'light')).toBe('light');
+        expect(overlayGround('checker', 'dark')).toBe('dark');
     });
 });

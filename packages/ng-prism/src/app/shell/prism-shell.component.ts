@@ -78,10 +78,10 @@ export class PrismShellComponent {
 
     /**
      * Overlays on the canvas follow its ground: light and dark are absolute, the
-     * others follow the theme, and under forced colors the ground is `Canvas` in
-     * their palette.
+     * others follow the theme, and under forced colors the ground is the
+     * palette's `Canvas`.
      */
-    protected readonly overlayTokens = computed(() => canvasOverlayTokens(overlayGround(this.variantBg.effective(), this.simulation.state())));
+    protected readonly overlayTokens = computed(() => canvasOverlayTokens(overlayGround(this.variantBg.effective(), this.simulation.forcedPalette())));
 
     protected readonly viewPanels = this.panelService.visibleViewPanels;
 

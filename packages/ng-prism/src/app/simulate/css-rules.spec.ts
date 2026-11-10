@@ -46,6 +46,16 @@ describe('rewriteDeclarations', () => {
             'color: red !important; display: none; outline: 2px solid var(--x) !important; padding: 0 !important'
         );
     });
+
+    it('gives each declaration the value `value` makes of it, with its priority, and keeps the text of one it leaves', () => {
+        const value = (property: string, v: string): string => (property === 'display' ? v : v.toUpperCase());
+
+        expect(rewriteDeclarations('color:red;  display:  none ; --Tok: a !important', { value })).toBe('color: RED; display:  none; --Tok: A !important');
+    });
+
+    it('applies `important` to the rewritten value', () => {
+        expect(rewriteDeclarations('color: red', { value: () => 'blue', important: () => true })).toBe('color: blue !important');
+    });
 });
 
 describe('isInheritable', () => {

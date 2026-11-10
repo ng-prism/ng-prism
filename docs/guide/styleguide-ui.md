@@ -197,7 +197,7 @@ A page cannot switch the browser into forced colors mode, so the canvas approxim
 - Your rules in `@media (forced-colors: active)` apply, and win over the forced colours as they do in the real mode.
 - Everything else takes system colours: text `CanvasText` on `Canvas`, borders and outlines `CanvasText`, links `LinkText`, buttons `ButtonText` on `ButtonFace`, form fields `FieldText` on `Field`. Background gradients go, as do `box-shadow` and `text-shadow`; images from a URL stay.
 - `forced-color-adjust: none` and `preserve-parent-color` keep an element and everything inside it as you styled them.
-- The colours come from the light palette under the color scheme `Light`, and from the dark one under `System` and `Dark`.
+- The colours are those of Chrome's forced colors palettes: the light one under the color scheme `Light`, the dark one under `Dark`, and under `System` the one that matches your system's color scheme, as in Chrome's own emulation. They change when your system's scheme does.
 
 Where it differs from the real mode: an element with a transparent background gets `Canvas` and covers what lies behind it, an `!important` declaration of yours outside `@media (forced-colors: active)` keeps its colour where the browser would force it, a colour that is not a system colour inside your own `@media (forced-colors: active)` block survives where the real mode would force it, and an SVG keeps the colours a stylesheet gives it (its `fill` and `stroke` attributes are forced). That is why the pill, the tooltip and the audit say `approx.`. For the exact mode, use Chrome DevTools › Rendering › Emulate CSS media feature `forced-colors`.
 

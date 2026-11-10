@@ -1,7 +1,7 @@
 import type { CanvasBg } from '../../shared/canvas-bg.type.js';
 import { DEFAULT_VARIANT_BG } from '../../shared/variant-bg.js';
+import { FORCED_PALETTES, type ForcedPaletteName } from './forced-palette.js';
 import type { ScopeRootState } from './scope-root.js';
-import { forcedPalette, type Simulation } from './simulation.js';
 
 /**
  * The background the Playground paints, with the emulated color scheme in the
@@ -42,11 +42,11 @@ export function overviewGround(declared: CanvasBg | null, scheme: 'light' | 'dar
 /**
  * The ground the overlays on the canvas are coloured for (`canvasOverlayTokens`):
  * the canvas background, or under forced colors their palette. The ground is
- * `Canvas` then, whatever the background, so a `light` background under the
- * dark palette is a dark ground.
+ * the palette's `Canvas` then, whatever the background, so a `light`
+ * background under the dark palette is a dark ground.
  */
-export function overlayGround(bg: CanvasBg, sim: Simulation): CanvasBg {
-    return forcedPalette(sim) ?? bg;
+export function overlayGround(bg: CanvasBg, palette: ForcedPaletteName | null): CanvasBg {
+    return palette ?? bg;
 }
 
 /**
@@ -58,36 +58,44 @@ export function overlayGround(bg: CanvasBg, sim: Simulation): CanvasBg {
  * nothing is the stage as it was.
  */
 export interface GroundSimulation {
-    /** `data-sim-forced`: present while forced colors are approximated, which paints the ground `Canvas`. */
+    /** `data-sim-forced`: present while forced colors are approximated, which paints the ground {@link canvas}. */
     forced: '' | null;
     /** `data-sim-vision`: present while a vision setting filters the ground. */
     vision: '' | null;
     /** `--prism-sim-filter`: the filter the ground layer is drawn with. */
     filter: string | null;
-    /** `color-scheme`: the palette of forced colors, so that `Canvas` on the ground is the one the component is forced against. */
-    colorScheme: 'light' | 'dark' | null;
+    /** `color-scheme`: the palette of forced colors, for the stage's own scrollbars. */
+    colorScheme: ForcedPaletteName | null;
+    /**
+     * `--prism-sim-canvas`: the palette's `Canvas`, the ground under forced
+     * colors. A value, since the keyword resolves against the browser's normal
+     * palette: a dark `Canvas` is `#121212` there and `#000000` in Chromium's
+     * forced one.
+     */
+    canvas: string | null;
 }
 
 /** The ground as it is without a simulation. */
-export const NO_GROUND_SIMULATION: Readonly<GroundSimulation> = Object.freeze({ forced: null, vision: null, filter: null, colorScheme: null });
+export const NO_GROUND_SIMULATION: Readonly<GroundSimulation> = Object.freeze({ forced: null, vision: null, filter: null, colorScheme: null, canvas: null });
 
 /**
  * The ground under the scope root `root` (`PrismSimulationService.scopeRoot`),
- * with forced colors on or off.
+ * in the palette of forced colors or, while they are off, `null`.
  *
  * The stage takes on a `color-scheme` only under forced colors: an emulated
  * scheme alone reaches the ground through `data-bg` (see {@link playgroundGround}),
  * whose colours are literal, and the stage's own scrollbars keep the shell's.
  */
-export function groundSimulation(root: ScopeRootState | null, forced: boolean): Readonly<GroundSimulation> {
+export function groundSimulation(root: ScopeRootState | null, palette: ForcedPaletteName | null): Readonly<GroundSimulation> {
     const filter = root?.filter ?? null;
 
-    if (!forced && !filter) return NO_GROUND_SIMULATION;
+    if (!palette && !filter) return NO_GROUND_SIMULATION;
 
     return {
-        forced: forced ? '' : null,
+        forced: palette ? '' : null,
         vision: filter ? '' : null,
         filter,
-        colorScheme: forced ? (root?.colorScheme ?? null) : null
+        colorScheme: palette,
+        canvas: palette ? FORCED_PALETTES[palette].canvas : null
     };
 }

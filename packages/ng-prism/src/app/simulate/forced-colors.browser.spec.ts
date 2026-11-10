@@ -1,4 +1,8 @@
 import { collectForcedColorRules, FORCED_PROPERTIES, type ForcedColorRules, forcedColorsCss, isForced } from './forced-colors.js';
+import { FORCED_PALETTES, SYSTEM_COLORS } from './forced-palette.js';
+
+const LIGHT = FORCED_PALETTES.light;
+const DARK = FORCED_PALETTES.dark;
 
 function addStyle(css: string): CSSStyleSheet {
     const style = document.createElement('style');
@@ -207,36 +211,45 @@ function forcedOn(css: string, element: Element, pseudo: '' | '::before' | '::af
 }
 
 describe('forcedColorsCss', () => {
-    it('forces system colors inside the scope only, minus exempt subtrees', () => {
-        const css = forcedColorsCss({ exempt: ['.dot'], gradients: ['.g'] });
+    it('forces the colors of the palette inside the scope only, minus exempt subtrees', () => {
+        const css = forcedColorsCss({ exempt: ['.dot'], gradients: ['.g'] }, 'light');
 
-        expect(css).toContain('color: CanvasText !important');
-        expect(css).toContain('background-color: Canvas !important');
+        expect(css).toContain(`color: ${LIGHT.canvastext} !important`);
+        expect(css).toContain(`background-color: ${LIGHT.canvas} !important`);
         expect(css).toContain('box-shadow: none !important');
-        expect(css).toContain('LinkText');
-        expect(css).toContain('ButtonText');
+        expect(css).toContain(`color: ${LIGHT.linktext} !important`);
         expect(css).toContain(':not(:where(.dot, .dot *))');
         expect(css).toMatch(/:where\(\.g\)[^{]*\{[^}]*background-image: none !important/);
     });
 
+    it('writes the values of the palette instead of system color keywords, which would resolve against the normal one', () => {
+        const css = forcedColorsCss(NONE, 'dark');
+
+        // A whole name only: `background-color` holds no `Background`.
+        for (const keyword of SYSTEM_COLORS) expect([keyword, new RegExp(`(?<![\\w-])${keyword}(?![\\w-])`, 'i').test(css)]).toEqual([keyword, false]);
+        expect(css).toContain('color: #ffffff !important');
+        expect(css).toContain('background-color: #000000 !important');
+        expect(css).toContain(`color: ${DARK.linktext} !important`);
+    });
+
     it('keeps the layout elements of the CDK overlay out of its grounds, with a selector that weighs nothing', () => {
-        const css = forcedColorsCss(NONE);
+        const css = forcedColorsCss(NONE, 'dark');
 
         expect(css).toContain(OVERLAY_STRUCTURE);
         expect(css).toContain('-webkit-text-fill-color: currentColor !important');
     });
 
     it('has no exemption in its selectors when none was found', () => {
-        expect(forcedColorsCss(NONE).replaceAll(OVERLAY_STRUCTURE, '')).not.toContain(':not(:where(');
-        expect(forcedColorsCss(NONE)).not.toContain('background-image');
+        expect(forcedColorsCss(NONE, 'dark').replaceAll(OVERLAY_STRUCTURE, '')).not.toContain(':not(:where(');
+        expect(forcedColorsCss(NONE, 'dark')).not.toContain('background-image');
     });
 
     it('exempts every selector together with what is inside it', () => {
-        expect(forcedColorsCss({ exempt: ['.a', '.b > .c'], gradients: [] })).toContain(':not(:where(.a, .b > .c, .a *, .b > .c *))');
+        expect(forcedColorsCss({ exempt: ['.a', '.b > .c'], gradients: [] }, 'dark')).toContain(':not(:where(.a, .b > .c, .a *, .b > .c *))');
     });
 
     it('weighs nothing and wins over the author, which is as important', () => {
-        for (const { selector, values } of parse(forcedColorsCss({ exempt: ['.dot'], gradients: ['.g', '.b::before'] }))) {
+        for (const { selector, values } of parse(forcedColorsCss({ exempt: ['.dot'], gradients: ['.g', '.b::before'] }, 'dark'))) {
             // Every class, attribute and type name in a selector sits in a `:where()`.
             expect(selector.replace(/:where\((?:[^()]|\([^()]*\))*\)/g, '').replace(/\*/g, '')).toMatch(/^(?:(?::not\(\)|:before|:after|::before|::after|,|\s)*)$/);
             for (const value of Object.values(values)) expect(value).toMatch(/ !important$/);
@@ -244,14 +257,14 @@ describe('forcedColorsCss', () => {
     });
 
     it('lists every property it sets as forced, and nothing else', () => {
-        const set = new Set(parse(forcedColorsCss({ exempt: ['.dot'], gradients: ['.g'] })).flatMap(({ values }) => Object.keys(values)));
+        const set = new Set(parse(forcedColorsCss({ exempt: ['.dot'], gradients: ['.g'] }, 'dark')).flatMap(({ values }) => Object.keys(values)));
 
         expect(Array.from(FORCED_PROPERTIES).sort()).toEqual(Array.from(set).sort());
     });
 
     describe('applied to a document', () => {
         let root: HTMLElement;
-        const css = forcedColorsCss({ exempt: ['.dot'], gradients: ['.g', '.g::before'] });
+        const css = forcedColorsCss({ exempt: ['.dot'], gradients: ['.g', '.g::before'] }, 'dark');
         const at = (selector: string): Element => {
             const element = root.querySelector(selector);
 
@@ -285,14 +298,14 @@ describe('forcedColorsCss', () => {
 
         it('forces the colors of what is inside the scope', () => {
             expect(forcedOn(css, at('#text'))).toMatchObject({
-                color: 'CanvasText',
-                'background-color': 'Canvas',
-                'border-color': 'CanvasText',
-                'outline-color': 'CanvasText',
-                'text-decoration-color': 'CanvasText',
-                'text-emphasis-color': 'CanvasText',
-                'column-rule-color': 'CanvasText',
-                'caret-color': 'CanvasText',
+                color: DARK.canvastext,
+                'background-color': DARK.canvas,
+                'border-color': DARK.canvastext,
+                'outline-color': DARK.canvastext,
+                'text-decoration-color': DARK.canvastext,
+                'text-emphasis-color': DARK.canvastext,
+                'column-rule-color': DARK.canvastext,
+                'caret-color': DARK.canvastext,
                 'box-shadow': 'none',
                 'text-shadow': 'none',
                 'accent-color': 'auto',
@@ -301,8 +314,8 @@ describe('forcedColorsCss', () => {
         });
 
         it('forces the overlay container and what it holds in the same way', () => {
-            expect(forcedOn(css, at('#pane'))).toMatchObject({ color: 'CanvasText', 'background-color': 'Canvas', 'box-shadow': 'none' });
-            expect(forcedOn(css, at('#menu-button'))).toMatchObject({ color: 'ButtonText', 'background-color': 'ButtonFace' });
+            expect(forcedOn(css, at('#pane'))).toMatchObject({ color: DARK.canvastext, 'background-color': DARK.canvas, 'box-shadow': 'none' });
+            expect(forcedOn(css, at('#menu-button'))).toMatchObject({ color: DARK.buttontext, 'background-color': DARK.buttonface });
         });
 
         it('leaves the layout elements of the CDK overlay unpainted, which are as large as the viewport and transparent on purpose', () => {
@@ -310,7 +323,7 @@ describe('forcedColorsCss', () => {
             for (const selector of ['#wrapper', '#bounding-box', '#backdrop', '#popover']) {
                 const forced = forcedOn(css, at(selector));
 
-                expect(forced['color']).toBe('CanvasText');
+                expect(forced['color']).toBe(DARK.canvastext);
                 for (const property of ['background-color', 'box-shadow', 'border-color', 'outline-color']) expect(forced).not.toHaveProperty(property);
                 for (const pseudo of ['::before', '::after'] as const) expect(forcedOn(css, at(selector), pseudo)).not.toHaveProperty('border-color');
             }
@@ -319,10 +332,10 @@ describe('forcedColorsCss', () => {
         it('paints the panel inside the wrapper and what is in it', () => {
             for (const selector of ['#dialog', '#menu-pane', '#dialog-text', '#bare-pane', '#bare-text']) {
                 expect(forcedOn(css, at(selector))).toMatchObject({
-                    color: 'CanvasText',
-                    'background-color': 'Canvas',
+                    color: DARK.canvastext,
+                    'background-color': DARK.canvas,
                     'box-shadow': 'none',
-                    'border-color': 'CanvasText'
+                    'border-color': DARK.canvastext
                 });
             }
         });
@@ -341,10 +354,10 @@ describe('forcedColorsCss', () => {
         it('still forces the colors on the generated content, and leaves it to an exempt subtree', () => {
             for (const pseudo of ['::before', '::after'] as const) {
                 expect(forcedOn(css, at('#text'), pseudo)).toMatchObject({
-                    color: 'CanvasText',
-                    'border-color': 'CanvasText',
-                    'outline-color': 'CanvasText',
-                    'text-decoration-color': 'CanvasText',
+                    color: DARK.canvastext,
+                    'border-color': DARK.canvastext,
+                    'outline-color': DARK.canvastext,
+                    'text-decoration-color': DARK.canvastext,
                     'text-shadow': 'none'
                 });
                 expect(forcedOn(css, at('#dot'), pseudo)).toEqual({});
@@ -363,7 +376,7 @@ describe('forcedColorsCss', () => {
             for (const selector of ['#text', '#link', '#button', '#field', '#dialog-text']) {
                 expect(forcedOn(css, at(selector))['-webkit-text-fill-color']).toBe('currentColor');
             }
-            expect(forcedOn(css, at('#link'))['color']).toBe('LinkText');
+            expect(forcedOn(css, at('#link'))['color']).toBe(DARK.linktext);
             expect(forcedOn(css, at('#text'), '::before')['-webkit-text-fill-color']).toBe('currentColor');
             expect(forcedOn(css, at('#stage'))['-webkit-text-fill-color']).toBe('currentColor');
             expect(forcedOn(css, at('#dot'))).not.toHaveProperty('-webkit-text-fill-color');
@@ -379,7 +392,7 @@ describe('forcedColorsCss', () => {
             for (const selector of ['#stage', '#overlay']) {
                 const forced = forcedOn(css, at(selector));
 
-                expect(forced['color']).toBe('CanvasText');
+                expect(forced['color']).toBe(DARK.canvastext);
                 for (const property of ['background-color', 'border-color', 'outline-color', 'box-shadow', 'background-image']) {
                     expect(forced).not.toHaveProperty(property);
                 }
@@ -387,16 +400,16 @@ describe('forcedColorsCss', () => {
         });
 
         it('takes a link to LinkText, but an anchor without href stays text', () => {
-            expect(forcedOn(css, at('#link'))['color']).toBe('LinkText');
-            expect(forcedOn(css, at('#anchor'))['color']).toBe('CanvasText');
+            expect(forcedOn(css, at('#link'))['color']).toBe(DARK.linktext);
+            expect(forcedOn(css, at('#anchor'))['color']).toBe(DARK.canvastext);
         });
 
         it('takes buttons to ButtonText on ButtonFace and fields to FieldText on Field', () => {
             for (const selector of ['#button', '#submit']) {
-                expect(forcedOn(css, at(selector))).toMatchObject({ color: 'ButtonText', 'background-color': 'ButtonFace' });
+                expect(forcedOn(css, at(selector))).toMatchObject({ color: DARK.buttontext, 'background-color': DARK.buttonface });
             }
             for (const selector of ['#field', '#area', '#select']) {
-                expect(forcedOn(css, at(selector))).toMatchObject({ color: 'FieldText', 'background-color': 'Field' });
+                expect(forcedOn(css, at(selector))).toMatchObject({ color: DARK.fieldtext, 'background-color': DARK.field });
             }
         });
 
@@ -410,7 +423,7 @@ describe('forcedColorsCss', () => {
         });
 
         it('forces a color that the markup of an SVG names, and leaves none, currentColor and a paint server', () => {
-            expect(forcedOn(css, at('#named'))).toMatchObject({ fill: 'CanvasText', stroke: 'CanvasText' });
+            expect(forcedOn(css, at('#named'))).toMatchObject({ fill: DARK.canvastext, stroke: DARK.canvastext });
             for (const selector of ['#plain', '#open', '#served']) {
                 expect(forcedOn(css, at(selector))['fill']).toBeUndefined();
                 expect(forcedOn(css, at(selector))['stroke']).toBeUndefined();
@@ -420,8 +433,8 @@ describe('forcedColorsCss', () => {
         it('forces the stops and floods of an SVG, which have no none to lose', () => {
             const svg = at('#svg');
 
-            expect(forcedOn(css, svg)).toMatchObject({ 'background-color': 'Canvas' });
-            expect(forcedOn(css, at('#plain'))).toMatchObject({ 'stop-color': 'CanvasText', 'flood-color': 'CanvasText', 'lighting-color': 'CanvasText' });
+            expect(forcedOn(css, svg)).toMatchObject({ 'background-color': DARK.canvas });
+            expect(forcedOn(css, at('#plain'))).toMatchObject({ 'stop-color': DARK.canvastext, 'flood-color': DARK.canvastext, 'lighting-color': DARK.canvastext });
         });
     });
 });

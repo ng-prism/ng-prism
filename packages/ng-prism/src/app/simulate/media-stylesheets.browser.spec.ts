@@ -1,4 +1,5 @@
 import { PseudoStyleSheets } from '../pseudo/pseudo-stylesheets.js';
+import { FORCED_PALETTES } from './forced-palette.js';
 import { MEDIA_FALSE, MEDIA_TRUE } from './media-condition.js';
 import { MediaStyleSheets } from './media-stylesheets.js';
 import { SCOPE_IN_SUFFIX, SCOPE_OUT_SUFFIX, scopeIn } from './scope-selector.js';
@@ -319,6 +320,51 @@ describe('MediaStyleSheets', () => {
 
             engine.apply(DARK);
             expect(((sheet.cssRules[1] as CSSMediaRule).cssRules[0] as CSSStyleRule).style.getPropertyPriority('color')).toBe('');
+        });
+
+        it('resolves the system colors of a copy in the palette, and builds the copies anew for another palette', () => {
+            const sheet = addStyle('@media (forced-colors: active) { .t { outline-color: Highlight } }');
+            const copy = (): CSSStyleRule => (sheet.cssRules[1] as CSSMediaRule).cssRules[0] as CSSStyleRule;
+
+            engine.apply({ 'forced-colors': 'active' }, 'dark');
+            expect(copy().style.getPropertyValue('outline-color')).toBe('rgba(0, 230, 255, 0.8)');
+            // Still `!important`, to win against the forced colors sheet.
+            expect(copy().style.getPropertyPriority('outline-color')).toBe('important');
+
+            engine.apply({ 'forced-colors': 'active' }, 'light');
+            expect(sheet.cssRules).toHaveLength(2);
+            expect(copy().style.getPropertyValue('outline-color')).toBe('rgba(5, 0, 73, 0.8)');
+            expect(((sheet.cssRules[0] as CSSMediaRule).cssRules[0] as CSSStyleRule).style.getPropertyValue('outline-color')).toBe('Highlight');
+        });
+
+        it('resolves system colors only where a color can be, and a custom property only when it is one', () => {
+            const sheet = addStyle(
+                '@media (forced-colors: active) { .t { border: 1px solid ButtonText; transition: background 0.2s; font: menu; --ring: Highlight; --word: Background; --mix: 0 0 0 2px Highlight } }'
+            );
+
+            engine.apply({ 'forced-colors': 'active' }, 'dark');
+            const copy = (sheet.cssRules[1] as CSSMediaRule).cssRules[0] as CSSStyleRule;
+
+            expect(copy.style.getPropertyValue('border')).toBe('1px solid #ffffff');
+            expect(copy.style.getPropertyValue('transition')).toBe('background 0.2s');
+            expect(copy.style.getPropertyValue('font')).toBe('menu');
+            expect(copy.style.getPropertyValue('--ring')).toBe(FORCED_PALETTES.dark.highlight);
+            // A deprecated color is as much a word, and a custom property with more than a color is a list of tokens.
+            expect(copy.style.getPropertyValue('--word')).toBe('Background');
+            expect(copy.style.getPropertyValue('--mix')).toBe('0 0 0 2px Highlight');
+        });
+
+        it('resolves the system colors of every copy under a palette, and of none without one', () => {
+            const sheet = addStyle('@media (prefers-reduced-motion: reduce) { .t { color: GrayText } }');
+            const copy = (): CSSStyleRule => (sheet.cssRules[1] as CSSMediaRule).cssRules[0] as CSSStyleRule;
+
+            engine.apply({ ...REDUCE, 'forced-colors': 'active' }, 'light');
+            expect(copy().style.getPropertyValue('color')).toBe(FORCED_PALETTES.light.graytext);
+            // Not a forced-colors rule: its weight stays.
+            expect(copy().style.getPropertyPriority('color')).toBe('');
+
+            engine.apply(REDUCE, null);
+            expect(copy().style.getPropertyValue('color')).toBe('GrayText');
         });
     });
 

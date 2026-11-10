@@ -97,7 +97,7 @@ export class PrismRendererComponent {
     protected readonly viewportWidth = computed(() => (this.capture.active() || !this.desktopTools() ? null : this.canvasService.viewportWidth()));
 
     /** How the simulation paints the stage's ground; nothing while nothing is simulated, so capture mode never sees it. */
-    protected readonly ground = computed(() => groundSimulation(this.simulation.scopeRoot(), this.simulation.forcedActive()));
+    protected readonly ground = computed(() => groundSimulation(this.simulation.scopeRoot(), this.simulation.forcedPalette()));
     /** Whether the stage draws the vision ground layer; a switch between two settings keeps it. */
     private readonly visionGround = computed(() => this.ground().vision !== null);
 

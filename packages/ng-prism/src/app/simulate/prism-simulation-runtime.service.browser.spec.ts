@@ -1,9 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { PrismSimulationService } from '../services/prism-simulation.service.js';
 import { PRISM_CONFIG } from '../tokens/prism-tokens.js';
+import { type ForcedColorRules, forcedColorsCss } from './forced-colors.js';
 import { MEDIA_TRUE } from './media-condition.js';
 import { MediaStyleSheets } from './media-stylesheets.js';
 import { PrismSimulationRuntimeService } from './prism-simulation-runtime.service.js';
+
+const NO_FORCED_RULES: ForcedColorRules = { exempt: [], gradients: [] };
 
 /** Lets pending MutationObserver callbacks run. */
 const flushMutations = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -77,13 +80,13 @@ describe('PrismSimulationRuntimeService', () => {
 
         sim.set({ motion: 'reduce' });
         TestBed.tick();
-        expect(apply).toHaveBeenLastCalledWith({ 'prefers-reduced-motion': 'reduce' });
+        expect(apply).toHaveBeenLastCalledWith({ 'prefers-reduced-motion': 'reduce' }, null);
         expect(window.matchMedia).not.toBe(browser);
         expect(window.matchMedia('(prefers-reduced-motion: reduce)').matches).toBe(true);
 
         sim.set({ scheme: 'dark' });
         TestBed.tick();
-        expect(apply).toHaveBeenLastCalledWith({ 'prefers-reduced-motion': 'reduce', 'prefers-color-scheme': 'dark' });
+        expect(apply).toHaveBeenLastCalledWith({ 'prefers-reduced-motion': 'reduce', 'prefers-color-scheme': 'dark' }, null);
         expect(window.matchMedia('(prefers-color-scheme: dark)').matches).toBe(true);
 
         clear.mockClear();
@@ -115,6 +118,25 @@ describe('PrismSimulationRuntimeService', () => {
         sim.reset();
         TestBed.tick();
         expect(document.adoptedStyleSheets).toEqual([]);
+    });
+
+    it('writes the stylesheets in the forced palette, and again when it changes', () => {
+        const { textOf } = stubAdoptedSheets();
+        const apply = jest.spyOn(MediaStyleSheets.prototype, 'apply');
+
+        // The system's scheme is light: only `MEDIA_TRUE` matches.
+        stubMatchMedia();
+        const { sim } = setUp();
+
+        sim.set({ forced: 'active' });
+        TestBed.tick();
+        expect(apply).toHaveBeenLastCalledWith({ 'forced-colors': 'active' }, 'light');
+        expect(textOf(document.adoptedStyleSheets[0])).toBe(forcedColorsCss(NO_FORCED_RULES, 'light'));
+
+        sim.set({ scheme: 'dark' });
+        TestBed.tick();
+        expect(apply).toHaveBeenLastCalledWith({ 'forced-colors': 'active', 'prefers-color-scheme': 'dark' }, 'dark');
+        expect(textOf(document.adoptedStyleSheets[0])).toBe(forcedColorsCss(NO_FORCED_RULES, 'dark'));
     });
 
     it('treats a .cdk-overlay-container that is there already as a scope root and follows the simulation', () => {

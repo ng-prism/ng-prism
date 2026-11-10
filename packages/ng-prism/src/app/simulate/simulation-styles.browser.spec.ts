@@ -50,12 +50,12 @@ describe('SimulationStyles', () => {
         const styles = new SimulationStyles(document);
 
         addStyle('.dot { forced-color-adjust: none }');
-        styles.apply({ 'forced-colors': 'active' }, true);
+        styles.apply({ 'forced-colors': 'active' }, 'dark');
 
         const [sheet] = document.adoptedStyleSheets;
 
         expect(document.adoptedStyleSheets).toHaveLength(1);
-        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: ['.dot'], gradients: [] }));
+        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: ['.dot'], gradients: [] }, 'dark'));
         expect(ignore).toHaveBeenCalledWith(sheet);
         // The engine has rewritten the sheets before the forced one arrives, and never gets to see it unignored.
         expect(apply.mock.invocationCallOrder[0]).toBeLessThan(adopt.mock.invocationCallOrder[0]);
@@ -70,10 +70,10 @@ describe('SimulationStyles', () => {
         const apply = jest.spyOn(MediaStyleSheets.prototype, 'apply');
         const styles = new SimulationStyles(document);
 
-        styles.apply({ 'forced-colors': 'active' }, true);
+        styles.apply({ 'forced-colors': 'active' }, 'dark');
         const [sheet] = document.adoptedStyleSheets;
 
-        styles.apply({ 'forced-colors': 'active' }, true);
+        styles.apply({ 'forced-colors': 'active' }, 'dark');
         expect(document.adoptedStyleSheets).toEqual([sheet]);
         expect(apply).toHaveBeenCalledTimes(2);
     });
@@ -82,13 +82,46 @@ describe('SimulationStyles', () => {
         const { textOf } = stubAdoptedSheets();
         const styles = new SimulationStyles(document);
 
-        styles.apply({ 'forced-colors': 'active' }, true);
+        styles.apply({ 'forced-colors': 'active' }, 'dark');
         styles.clear();
 
         addStyle('.late { forced-color-adjust: none }');
-        styles.apply({ 'forced-colors': 'active' }, true);
-        expect(textOf(document.adoptedStyleSheets[0])).toBe(forcedColorsCss(collectForcedColorRules(document)));
+        styles.apply({ 'forced-colors': 'active' }, 'dark');
+        expect(textOf(document.adoptedStyleSheets[0])).toBe(forcedColorsCss(collectForcedColorRules(document), 'dark'));
         expect(textOf(document.adoptedStyleSheets[0])).toContain('.late');
+    });
+
+    it('rewrites the forced colors sheet in place for another palette, once, and hands the palette to the media engine', () => {
+        const { adopt, textOf } = stubAdoptedSheets();
+        const apply = jest.spyOn(MediaStyleSheets.prototype, 'apply');
+        const styles = new SimulationStyles(document);
+
+        addStyle('@media (forced-colors: active) { .t { color: Highlight } } .dot { forced-color-adjust: none }');
+        styles.apply({ 'forced-colors': 'active' }, 'dark');
+        const [sheet] = document.adoptedStyleSheets;
+        const replaceSync = jest.spyOn(sheet, 'replaceSync');
+
+        styles.apply({ 'forced-colors': 'active' }, 'light');
+        expect(apply).toHaveBeenLastCalledWith({ 'forced-colors': 'active' }, 'light');
+        expect(document.adoptedStyleSheets).toEqual([sheet]);
+        expect(adopt).toHaveBeenCalledTimes(1);
+        // The media engine builds its copies anew and calls back, which writes the sheet; nothing writes it twice.
+        expect(replaceSync).toHaveBeenCalledTimes(1);
+        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: ['.dot'], gradients: [] }, 'light'));
+
+        styles.clear();
+    });
+
+    it('writes the sheet for another palette without styles that would make the media engine call back', () => {
+        const { textOf } = stubAdoptedSheets();
+        const styles = new SimulationStyles(document);
+
+        styles.apply({ 'forced-colors': 'active' }, 'dark');
+        const [sheet] = document.adoptedStyleSheets;
+
+        styles.apply({ 'forced-colors': 'active' }, 'light');
+        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: [], gradients: [] }, 'light'));
+        styles.clear();
     });
 
     it('keeps the other adopted sheets', () => {
@@ -98,7 +131,7 @@ describe('SimulationStyles', () => {
         document.adoptedStyleSheets = [own];
         const styles = new SimulationStyles(document);
 
-        styles.apply({ 'forced-colors': 'active' }, true);
+        styles.apply({ 'forced-colors': 'active' }, 'dark');
         expect(document.adoptedStyleSheets).toHaveLength(2);
         expect(document.adoptedStyleSheets[0]).toBe(own);
         styles.clear();
@@ -109,8 +142,8 @@ describe('SimulationStyles', () => {
         const apply = jest.spyOn(MediaStyleSheets.prototype, 'apply');
         const styles = new SimulationStyles(document);
 
-        expect(() => styles.apply({ 'forced-colors': 'active' }, true)).not.toThrow();
-        expect(apply).toHaveBeenLastCalledWith({ 'forced-colors': 'active' });
+        expect(() => styles.apply({ 'forced-colors': 'active' }, 'dark')).not.toThrow();
+        expect(apply).toHaveBeenLastCalledWith({ 'forced-colors': 'active' }, 'dark');
     });
 
     it('takes the forced colors sheet away and keeps emulating the scheme when only forced colors go', () => {
@@ -119,13 +152,13 @@ describe('SimulationStyles', () => {
         const clear = jest.spyOn(MediaStyleSheets.prototype, 'clear');
         const styles = new SimulationStyles(document);
 
-        styles.apply({ 'forced-colors': 'active', 'prefers-color-scheme': 'dark' }, true);
+        styles.apply({ 'forced-colors': 'active', 'prefers-color-scheme': 'dark' }, 'dark');
         expect(document.adoptedStyleSheets).toHaveLength(1);
         clear.mockClear();
 
-        styles.apply({ 'prefers-color-scheme': 'dark' }, false);
+        styles.apply({ 'prefers-color-scheme': 'dark' }, null);
         expect(document.adoptedStyleSheets).toEqual([]);
-        expect(apply).toHaveBeenLastCalledWith({ 'prefers-color-scheme': 'dark' });
+        expect(apply).toHaveBeenLastCalledWith({ 'prefers-color-scheme': 'dark' }, null);
         expect(clear).not.toHaveBeenCalled();
     });
 
@@ -134,12 +167,12 @@ describe('SimulationStyles', () => {
         const clear = jest.spyOn(MediaStyleSheets.prototype, 'clear');
         const styles = new SimulationStyles(document);
 
-        styles.apply({}, false);
+        styles.apply({}, null);
         expect(clear).toHaveBeenCalledTimes(1);
         expect(apply).not.toHaveBeenCalled();
 
-        styles.apply({ 'prefers-reduced-motion': 'reduce' }, false);
-        expect(apply).toHaveBeenLastCalledWith({ 'prefers-reduced-motion': 'reduce' });
+        styles.apply({ 'prefers-reduced-motion': 'reduce' }, null);
+        expect(apply).toHaveBeenLastCalledWith({ 'prefers-reduced-motion': 'reduce' }, null);
 
         clear.mockClear();
         styles.clear();
@@ -150,16 +183,16 @@ describe('SimulationStyles', () => {
         const { textOf } = stubAdoptedSheets();
         const styles = new SimulationStyles(document);
 
-        styles.apply({ 'forced-colors': 'active' }, true);
+        styles.apply({ 'forced-colors': 'active' }, 'dark');
         const [sheet] = document.adoptedStyleSheets;
 
-        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: [], gradients: [] }));
+        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: [], gradients: [] }, 'dark'));
 
         addStyle('.dot { forced-color-adjust: none }');
         await flushMutations();
         // Rewritten in place: the same sheet, still the only one adopted.
         expect(document.adoptedStyleSheets).toEqual([sheet]);
-        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: ['.dot'], gradients: [] }));
+        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: ['.dot'], gradients: [] }, 'dark'));
 
         styles.clear();
     });
