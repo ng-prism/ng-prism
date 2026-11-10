@@ -360,22 +360,50 @@ const DISABLED_CONTROLS = forceable(
 );
 
 /**
+ * What comes before a declaration in a `style` attribute, besides its start: a semicolon, or white
+ * space, a line break or a tab, as CSS strings write them. The CSSOM writes `color: red; background:
+ * blue;`, and so does Angular for its style bindings and static styles; an author may write the
+ * declarations without spaces or on lines of their own.
+ */
+const BEFORE_DECLARATION: readonly string[] = [';', ' ', '\\A ', '\\9 '];
+
+/**
+ * A selector that weighs nothing for an element whose `style` attribute declares one of `properties`,
+ * which all hold `stem`. The name stands where a declaration starts and goes on with its colon, so
+ * that a name it is a part of does not count: `--sel-color` and `background-color` are not `color`,
+ * `background-size` is not `background`, `border-radius` is no `border`. A space before the colon
+ * goes unseen.
+ *
+ * The stem comes first: most inline styles name none (`width`, `transform`, `--progress`), and the
+ * browser tries the names only on an element whose attribute holds it, as it reads a compound from
+ * left to right.
+ */
+function declares(stem: string, properties: readonly string[]): string {
+    const names = properties.flatMap((name) => [`[style^="${name}:" i]`, ...BEFORE_DECLARATION.map((before) => `[style*="${before}${name}:" i]`)]);
+
+    return `:where([style*="${stem}" i]):where(${names.join(', ')})`;
+}
+
+const BORDERS = ['border', 'border-color', ...['top', 'right', 'bottom', 'left', 'block', 'inline', 'block-start', 'block-end', 'inline-start', 'inline-end'].flatMap((side) => [`border-${side}`, `border-${side}-color`])];
+
+/**
  * The net for inline styles, which no rule of the author's styles carries and so no twin: for an
- * element whose `style` attribute names a property, the property with the value of the context. A
- * rule can only reach an inline declaration with `!important`, and the attribute is all a selector
- * can see of it, so an inline background loses its alpha and an inline system color is forced too.
- * One rule for each property: an element with an inline `color` gets no ground it does not have in
- * the browser, and a selector the browser rejects takes no other with it.
+ * element whose `style` attribute declares a property that sets a forced color ({@link declares}),
+ * that color with the value of the context. A rule can only reach an inline declaration with
+ * `!important`, and the attribute is all a selector can see of it, so an inline background loses its
+ * alpha and an inline system color is forced too. One rule for each forced property: an element with
+ * an inline `color` gets no ground it does not have in the browser, and a selector the browser
+ * rejects takes no other with it.
  */
 const INLINE_NET: readonly (readonly [string, string])[] = [
-    [':where([style*="color" i])', 'color: var(--prism-sim-fg)'],
-    [':where([style*="background" i])', 'background-color: rgb(var(--prism-sim-bg-rgb))'],
-    [':where([style*="border" i])', 'border-color: currentcolor'],
-    [':where([style*="outline" i])', 'outline-color: var(--prism-sim-outline, currentcolor)'],
-    [':where([style*="box-shadow" i])', 'box-shadow: none'],
-    [':where([style*="text-shadow" i])', 'text-shadow: none'],
+    [declares('color', ['color']), 'color: var(--prism-sim-fg)'],
+    [declares('background', ['background', 'background-color']), 'background-color: rgb(var(--prism-sim-bg-rgb))'],
+    [declares('border', BORDERS), 'border-color: currentcolor'],
+    [declares('outline', ['outline', 'outline-color']), 'outline-color: var(--prism-sim-outline, currentcolor)'],
+    [declares('box-shadow', ['box-shadow']), 'box-shadow: none'],
+    [declares('text-shadow', ['text-shadow']), 'text-shadow: none'],
     // A `url()` among the images keeps the whole value, as in the browser.
-    [':where([style*="gradient" i]:not([style*="url(" i]))', 'background-image: none']
+    [`:where([style*="-gradient(" i]:not([style*="url(" i]))${declares('background', ['background', 'background-image'])}`, 'background-image: none']
 ];
 
 /**
@@ -448,7 +476,7 @@ export function forcedColorsCss(rules: ForcedColorRules, palette: ForcedPaletteN
         block([`${inside}${FOCUS}`], FOCUSED)
     ].join('\n\n');
     // Not on the roots, which the simulation gives an inline `color-scheme`.
-    const net = INLINE_NET.map(([attribute, declaration]) => block([`${inside}${OVERLAY_STRUCTURE}${attribute}`], [declaration], true)).join('\n\n');
+    const net = INLINE_NET.map(([attribute, declaration]) => block([`${INSIDE}${attribute}${exempt}${OVERLAY_STRUCTURE}`], [declaration], true)).join('\n\n');
 
     return layered ? `@layer ${FORCED_LAYER} {\n${context}\n}\n\n${net}` : `${context}\n\n${net}`;
 }

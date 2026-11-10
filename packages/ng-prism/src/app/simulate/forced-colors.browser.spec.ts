@@ -529,7 +529,7 @@ describe('forcedColorsCss', () => {
         // A ground only where a user agent paints one, and an image only for an inline gradient.
         for (const { selector, values } of parse(css)) {
             if ('background-color' in values) expect([selector, /(?:input|button|mark|dialog|popover|style\*=)/.test(selector)]).toEqual([selector, true]);
-            if ('background-image' in values) expect([selector, selector.includes('[style*="gradient" i]')]).toEqual([selector, true]);
+            if ('background-image' in values) expect([selector, selector.includes('[style*="-gradient(" i]')]).toEqual([selector, true]);
             if ('box-shadow' in values) expect([selector, selector.includes('[style*=')]).toEqual([selector, true]);
         }
     });
@@ -594,6 +594,8 @@ describe('forcedColorsCss', () => {
                     <div id="inline" style="background: red; color: blue">i</div> <div id="inline-border" style="border: 1px solid red">b</div>
                     <div id="inline-rest" style="box-shadow: 0 0 2px red; text-shadow: 1px 1px red; outline: 1px solid red; background-image: linear-gradient(red, blue)">r</div>
                     <div id="inline-url" style="background-image: url(a.png), linear-gradient(red, blue)">u</div>
+                    <div id="inline-names" style="--sel-color: red; --x-background: red; background-size: 2px; border-radius: 2px; outline-offset: 1px; transition: color 0s">n</div>
+                    <div id="inline-tight" style="color:red;BACKGROUND:blue;Border-Top:1px solid red">t</div>
                     <mark id="inline-mark" style="Background: orange">m <span id="inline-in-mark" style="background-color: red">in</span></mark>
                     <div class="dot" id="dot"><span id="in-dot" style="color: red; background: red; border: 1px solid red"></span><a href="#x" id="dot-link"></a></div>
                     <svg id="svg"><path id="plain"></path><path id="named" fill="#f00" stroke="blue"></path><foreignObject id="fo"><p id="in-fo">f</p></foreignObject></svg>
@@ -829,14 +831,23 @@ describe('forcedColorsCss', () => {
             });
 
             it('forces inline shadows, an inline outline and an inline gradient without a url()', () => {
+                // An inline image is no inline background color: the ground stays the one of the rules.
                 expect(netOn(at('#inline-rest'))).toEqual({
                     'box-shadow': 'none !important',
                     'text-shadow': 'none !important',
                     'outline-color': 'var(--prism-sim-outline, currentcolor) !important',
-                    'background-color': 'rgb(var(--prism-sim-bg-rgb)) !important',
                     'background-image': 'none !important'
                 });
                 expect(netOn(at('#inline-url'))).not.toHaveProperty('background-image');
+            });
+
+            it('forces a declaration of the property only, not one whose name holds it, whatever the case and the spaces', () => {
+                expect(netOn(at('#inline-names'))).toEqual({});
+                expect(netOn(at('#inline-tight'))).toEqual({
+                    color: 'var(--prism-sim-fg) !important',
+                    'background-color': 'rgb(var(--prism-sim-bg-rgb)) !important',
+                    'border-color': 'currentcolor !important'
+                });
             });
 
             it('has one rule for each property, so that a selector the browser rejects takes no other with it', () => {

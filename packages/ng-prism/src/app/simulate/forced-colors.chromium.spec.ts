@@ -290,6 +290,46 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
             probes: [{ name: 'inline', selector: '.inline', properties: ['background-color', 'color', 'border-top-color'] }]
         }));
 
+    // Only an inline declaration of a forced property is forced, not one whose name merely contains it: a custom
+    // property, `background-size`, `border-radius`, a transition of `color`. The colors from the rules stay.
+    it('inline-style-names', () =>
+        expectSimulationToMatch({
+            html: scope(
+                `.sel { color: HighlightText; background: Highlight } .chip { border: 2px solid Highlight } .ol { outline: 2px solid Highlight }`,
+                `<span class="sel custom" style="--sel-color: red; --sel-background: red; --sel-border: 1px solid red">a</span>
+                <span class="sel size" style="background-size: 2px; background-image: none">b</span>
+                <span class="sel transition" style="transition: color 0s, background-color 0s, border-color 0s">c</span>
+                <span class="chip radius" style="border-radius: 2px; border-width: 3px; border-top-style: dashed">d</span>
+                <span class="ol offset" style="outline-offset: 2px; outline-width: 3px">e</span>`
+            ),
+            probes: [
+                { name: 'custom', selector: '.custom', properties: ['color', 'background-color'] },
+                { name: 'size', selector: '.size', properties: ['color', 'background-color'] },
+                { name: 'transition', selector: '.transition', properties: ['color', 'background-color'] },
+                { name: 'radius', selector: '.radius', properties: ['border-top-color'] },
+                { name: 'offset', selector: '.offset', properties: ['outline-color'] }
+            ]
+        }));
+
+    // An inline declaration as an author writes it by hand: without spaces, in capitals, on a line of its own.
+    it('inline-style-forms', () =>
+        expectSimulationToMatch({
+            html: scope(
+                '',
+                `<span class="tight" style="color:red;BACKGROUND:blue;Border-Top:1px solid red">a</span>
+                <span class="lines" style="
+color: red;
+	background-color: blue;
+    outline: 1px solid red">b</span>
+                <span class="rest" style="box-shadow:0 0 2px red; text-shadow: 1px 1px red; background-image: linear-gradient(red, blue)">c</span>`
+            ),
+            probes: [
+                { name: 'tight', selector: '.tight', properties: ['color', 'background-color', 'border-top-color'] },
+                { name: 'lines', selector: '.lines', properties: ['color', 'background-color', 'outline-color'] },
+                { name: 'rest', selector: '.rest', properties: ['box-shadow', 'text-shadow', 'background-image'] }
+            ]
+        }));
+
     it('toggle', () =>
         expectSimulationToMatch({
             html: scope(
