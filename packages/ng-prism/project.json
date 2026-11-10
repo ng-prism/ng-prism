@@ -17,6 +17,7 @@
             "options": {
                 "jestConfig": "packages/ng-prism/jest.chromium.config.cjs"
             },
+            "inputs": ["default", "^default", { "runtime": "node -p process.platform" }],
             "cache": true
         }
     }

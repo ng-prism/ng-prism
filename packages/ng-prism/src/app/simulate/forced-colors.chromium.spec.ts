@@ -47,9 +47,10 @@ it('normalizes the colors Chromium serializes differently', () => {
 
 /**
  * Each fixture renders twice, in Chromium's real forced colors mode and with
- * the simulation, and the simulation has to compute what Chromium computes.
- * `it.failing` marks a divergence the simulation still has: it fails once the
- * simulation matches, and then becomes an `it`.
+ * the simulation, and the simulation has to compute what Chromium computes, in
+ * both palettes. A fixture for a divergence fails first and passes with its
+ * fix; a divergence the simulation keeps on purpose is listed in the guide
+ * (styleguide-ui.md › Forced colors › Where it differs), not parked here.
  */
 describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (scheme) => {
     async function expectSimulationToMatch(fixture: Fixture): Promise<void> {

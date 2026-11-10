@@ -55,7 +55,7 @@ The consumer plugin's skills (`.agents/plugins/claude/skills/`) describe the sam
 - Signal APIs (`input()`, `output()`, `model()`), `inject()` instead of constructor injection, standalone components. Decorator `@Input()`/`@Output()` only in the scanner fixtures that cover the legacy path.
 - Template and styles in sibling files; stylesheets are `.css`, since `ngc` inlines them unprocessed. Inline `template:` is fine in `__fixtures__/` and test stubs.
 - `.js` extension on relative imports; `index.ts` barrels are the intended public surface.
-- Tests colocated as `foo.spec.ts`; in `packages/ng-prism`, a test that needs the DOM is named `*.browser.spec.ts` so it runs in the jsdom project.
+- Tests colocated as `foo.spec.ts`; in `packages/ng-prism`, a test that needs the DOM is named `*.browser.spec.ts` so it runs in the jsdom project, and one that drives a real Chromium through Playwright is named `*.chromium.spec.ts` so it runs in the target `test-chromium`, not in `test`.
 - `@Showcase` configs in the test workspace stay statically evaluable: literals, `const`, enum members; a function call or `let` is dropped with a warning.
 
 ## Report
