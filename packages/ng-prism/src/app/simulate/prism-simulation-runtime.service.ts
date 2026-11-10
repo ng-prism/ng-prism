@@ -1,11 +1,10 @@
 import { DOCUMENT } from '@angular/common';
 import { DestroyRef, effect, inject, Injectable, Injector, untracked } from '@angular/core';
 import { PrismSimulationService } from '../services/prism-simulation.service.js';
-import { collectForcedColorRules, forcedColorsCss } from './forced-colors.js';
 import { type MatchMediaPatch, patchMatchMedia } from './match-media-patch.js';
-import { MediaStyleSheets } from './media-stylesheets.js';
 import { applyScopeRoot, applyTopLayerFilter, type ScopeRootState } from './scope-root.js';
 import { OVERLAY_ROOT } from './scope-selector.js';
+import { SimulationStyles } from './simulation-styles.js';
 import type { EmulatedMedia } from './simulation.js';
 
 /** An overlay host that CDK opened as a popover, which puts it in the top layer. */
@@ -15,11 +14,11 @@ function isPopover(child: Element): child is HTMLElement {
 
 /**
  * Carries the simulation from {@link PrismSimulationService} into the page:
- * the stylesheets ({@link MediaStyleSheets}), `matchMedia`
- * ({@link patchMatchMedia}), the forced colors sheet and the CDK overlay
- * container as a scope root, with the vision filter on the overlays in it that
- * the browser shows in the top layer. The scope roots in the canvas and the
- * Overview belong to the components that render them.
+ * the stylesheets and the forced colors sheet ({@link SimulationStyles}),
+ * `matchMedia` ({@link patchMatchMedia}) and the CDK overlay container as a
+ * scope root, with the vision filter on the overlays in it that the browser
+ * shows in the top layer. The scope roots in the canvas and the Overview belong
+ * to the components that render them.
  *
  * Every part runs only while it has something to do and takes back what it
  * changed when it stops and when the app is destroyed. The shell starts it
@@ -31,12 +30,10 @@ export class PrismSimulationRuntimeService {
     private readonly doc = inject(DOCUMENT);
     private readonly injector = inject(Injector);
     private readonly destroyRef = inject(DestroyRef);
-    // New styles while forced colors are on can bring exemptions and gradients of their own.
-    private readonly stylesheets = new MediaStyleSheets(this.doc, () => this.refreshForcedSheet());
+    private readonly styles = new SimulationStyles(this.doc);
 
     private started = false;
     private matchMediaPatch: MatchMediaPatch | null = null;
-    private forcedSheet: CSSStyleSheet | null = null;
     private bodyObserver: MutationObserver | null = null;
     private containerObserver: MutationObserver | null = null;
     /** The overlay containers made scope roots. */
@@ -70,19 +67,15 @@ export class PrismSimulationRuntimeService {
         );
 
         this.destroyRef.onDestroy(() => {
-            this.emulate({}, false);
+            this.styles.clear();
+            this.patchMatchMedia(null);
             this.scopeOverlays(null);
         });
     }
 
     private emulate(emulated: EmulatedMedia, forced: boolean): void {
-        const emulating = Object.keys(emulated).length > 0;
-
-        if (emulating) this.stylesheets.apply(emulated);
-        else this.stylesheets.clear();
-        this.patchMatchMedia(emulating ? emulated : null);
-        // After the stylesheets, and ignored by them before it is adopted, so that it is never rewritten.
-        this.adoptForcedSheet(forced);
+        this.styles.apply(emulated, forced);
+        this.patchMatchMedia(Object.keys(emulated).length > 0 ? emulated : null);
     }
 
     private patchMatchMedia(emulated: EmulatedMedia | null): void {
@@ -96,51 +89,6 @@ export class PrismSimulationRuntimeService {
         } else if (win && typeof win.matchMedia === 'function') {
             this.matchMediaPatch = patchMatchMedia(win, emulated);
         }
-    }
-
-    /**
-     * Adopts the sheet that approximates forced colors, or takes it away. While
-     * it is adopted, {@link refreshForcedSheet} keeps it up to date.
-     */
-    private adoptForcedSheet(forced: boolean): void {
-        const doc = this.doc;
-        const adopted = this.forcedSheet;
-
-        if (forced === (adopted !== null)) return;
-
-        if (adopted) {
-            this.forcedSheet = null;
-            doc.adoptedStyleSheets = doc.adoptedStyleSheets.filter((sheet) => sheet !== adopted);
-            return;
-        }
-
-        // A document that cannot adopt sheets keeps the rest of the simulation.
-        const Sheet = doc.defaultView?.CSSStyleSheet;
-
-        if (!doc.adoptedStyleSheets || typeof Sheet?.prototype.replaceSync !== 'function') return;
-
-        const sheet = new Sheet();
-
-        sheet.replaceSync(this.forcedColorsText(sheet));
-        this.stylesheets.ignore(sheet);
-        doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet];
-        this.forcedSheet = sheet;
-    }
-
-    /**
-     * Collects the exemptions and gradients again and rewrites the adopted
-     * forced colors sheet in place. The media engine calls it when it has
-     * rewritten styles it had not seen: a component opened for the first time
-     * brings its styles while forced colors are on.
-     */
-    private refreshForcedSheet(): void {
-        const sheet = this.forcedSheet;
-
-        sheet?.replaceSync(this.forcedColorsText(sheet));
-    }
-
-    private forcedColorsText(own: CSSStyleSheet): string {
-        return forcedColorsCss(collectForcedColorRules(this.doc, [own]));
     }
 
     /**
