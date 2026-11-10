@@ -220,7 +220,7 @@ A page cannot switch the browser into forced colors mode, so the canvas approxim
 - **Native controls** that the browser paints itself, such as a checkbox or a radio button with `appearance: auto`, keep their native look, where the real mode paints them in the forced colors.
 - **A component with `ViewEncapsulation.ShadowDom`** is not reached, see [Limits](#limits).
 - **A selector list that mixes `:root`, `html` or `body` with other selectors** counts as the document root for the rules nested inside it.
-- **The relative color syntax** builds the forced backgrounds, so the browser needs Chrome 119, Safari 18 or Firefox 128.
+- **The relative color syntax** builds the forced backgrounds, so the browser needs Chrome 131, Safari 18 or Firefox 133. From Chrome 119, Safari 16.4 and Firefox 128 on it works, except from `currentcolor` and from a system color keyword: a background in `currentcolor`, `AccentColor` or `AccentColorText` stays transparent there.
 
 For the exact mode, use Chrome DevTools › Rendering › Emulate CSS media feature `forced-colors`.
 
