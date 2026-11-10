@@ -164,6 +164,25 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
             ]
         }));
 
+    // An author's forced-color-adjust: auto on the <svg> itself wins against Chromium's own preserve-parent-color: the
+    // svg and what is inside it are forced, under an exemption of the author's too. Not probed: the fill of currentColor
+    // inside it, which Chromium resolves against the color before it was forced (a limit in the guide).
+    it('svg-auto-on-svg', () =>
+        expectSimulationToMatch({
+            html: scope(
+                `svg.self { forced-color-adjust: auto; color: #c00; background-color: #0c0; border: 2px solid #00c } svg.self rect { color: #0af }
+                .opt { forced-color-adjust: none } .opt svg.below { forced-color-adjust: auto; color: #c00 }`,
+                `<svg class="self" width="20" height="20"><rect class="in-self" width="10" height="10" /></svg>
+                <div class="opt"><svg class="below" width="20" height="20"><rect class="in-below" width="10" height="10" /></svg></div>`
+            ),
+            probes: [
+                { name: 'self', selector: 'svg.self', properties: ['color', 'background-color', 'border-top-color'] },
+                { name: 'in-self', selector: '.in-self', properties: ['color'] },
+                { name: 'below', selector: 'svg.below', properties: ['color'] },
+                { name: 'in-below', selector: '.in-below', properties: ['color'] }
+            ]
+        }));
+
     it('link', () =>
         expectSimulationToMatch({
             html: scope('a { color: red; border-bottom: 1px solid red }', '<a href="#target">Link <span>inside</span></a>'),

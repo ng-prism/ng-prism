@@ -233,18 +233,18 @@ describe('mergeForcedColorRules', () => {
 describe('exemptionSelector', () => {
     it('names what is exempt as a selector that weighs nothing, with one level of auto below it', () => {
         expect(exemptionSelector(rulesOf({ exempt: ['.opt'], reenabled: ['.slot'] }))).toBe(
-            ':where(:where(svg, .opt, svg *, .opt *):not(:where(:is(svg, .opt) :is(foreignObject, .slot), :is(svg, .opt) :is(foreignObject, .slot) *)))'
+            ':where(:where(svg:not(:is(.slot)), .opt, svg:not(:is(.slot)) *, .opt *):not(:where(:is(svg:not(:is(.slot)), .opt) :is(foreignObject, .slot), :is(svg:not(:is(.slot)), .opt) :is(foreignObject, .slot) *)))'
         );
         expect(exemptionSelector(rulesOf({ exempt: ['.a', '.b > .c'], reenabled: ['.d', '.e'] }))).toBe(
-            ':where(:where(svg, .a, .b > .c, svg *, .a *, .b > .c *):not(:where(:is(svg, .a, .b > .c) :is(foreignObject, .d, .e), :is(svg, .a, .b > .c) :is(foreignObject, .d, .e) *)))'
+            ':where(:where(svg:not(:is(.d, .e)), .a, .b > .c, svg:not(:is(.d, .e)) *, .a *, .b > .c *):not(:where(:is(svg:not(:is(.d, .e)), .a, .b > .c) :is(foreignObject, .d, .e), :is(svg:not(:is(.d, .e)), .a, .b > .c) :is(foreignObject, .d, .e) *)))'
         );
     });
 
     it('exempts an SVG and what is inside it but a foreignObject without an exemption of the author, as the styles of Chromium do', () => {
         expect(exemptionSelector(NONE)).toBe(':where(:where(svg, svg *):not(:where(:is(svg) :is(foreignObject), :is(svg) :is(foreignObject) *)))');
-        // An `auto` of the author's takes an SVG back like any other exemption.
+        // An `auto` of the author's takes an SVG back like any other exemption, and an `auto` on the SVG itself wins against the user agent's style.
         expect(exemptionSelector(rulesOf({ reenabled: ['.slot'] }))).toBe(
-            ':where(:where(svg, svg *):not(:where(:is(svg) :is(foreignObject, .slot), :is(svg) :is(foreignObject, .slot) *)))'
+            ':where(:where(svg:not(:is(.slot)), svg:not(:is(.slot)) *):not(:where(:is(svg:not(:is(.slot))) :is(foreignObject, .slot), :is(svg:not(:is(.slot))) :is(foreignObject, .slot) *)))'
         );
     });
 
@@ -262,7 +262,8 @@ describe('exemptionSelector', () => {
             root.innerHTML = `
                 <div class="opt" id="opt"><b id="b">b</b><i class="slot" id="slot"><span id="in-slot"><u id="deep-in-slot">u</u></span></i></div>
                 <i class="slot" id="outside-slot"><span id="outside-in-slot">s</span></i>
-                <div id="plain"><b id="outside-b">b</b></div>`;
+                <div id="plain"><b id="outside-b">b</b></div>
+                <svg id="svg"><rect id="in-svg" /></svg> <svg class="auto" id="svg-auto"><rect id="in-svg-auto" /></svg>`;
             document.body.appendChild(root);
         });
 
@@ -287,6 +288,13 @@ describe('exemptionSelector', () => {
             expect(at('#b').matches(selector)).toBe(true);
             // Not an exemption, with or without the auto.
             expect(at('#outside-slot').matches(selector)).toBe(false);
+        });
+
+        it('takes an SVG that the author gives auto itself out of the exemption of the user agent, and what is inside it', () => {
+            const selector = exemptionSelector(rulesOf({ reenabled: ['svg.auto'] }));
+
+            for (const id of ['#svg', '#in-svg']) expect([id, at(id).matches(selector)]).toEqual([id, true]);
+            for (const id of ['#svg-auto', '#in-svg-auto']) expect([id, at(id).matches(selector)]).toEqual([id, false]);
         });
     });
 });
@@ -559,7 +567,7 @@ describe('forcedColorsCss', () => {
         const css = forcedColorsCss(rulesOf({ exempt: ['.opt', '.card'], reenabled: ['.slot'] }), 'dark');
         // Every rule has the exemption in its selector; this one is the only that selects what an `auto` takes back.
         const again = parse(css).filter(
-            ({ selector }) => selector === ':where([data-prism-sim], .cdk-overlay-container) *:where(:is(svg, .opt, .card) :is(foreignObject, .slot))'
+            ({ selector }) => selector === ':where([data-prism-sim], .cdk-overlay-container) *:where(:is(svg:not(:is(.slot)), .opt, .card) :is(foreignObject, .slot))'
         );
 
         expect(again).toHaveLength(1);

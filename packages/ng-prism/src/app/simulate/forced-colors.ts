@@ -199,12 +199,17 @@ function replaceAmpersand(selector: string, replacement: string): string | null 
  * element in an SVG sets no color, it inherits the forced one of its parent, which is all that
  * `preserve-parent-color` does beyond `none`.
  */
-const USER_AGENT_EXEMPT: readonly string[] = ['svg'];
+const USER_AGENT_EXEMPT = 'svg';
 const USER_AGENT_REENABLED: readonly string[] = ['foreignObject'];
 
-/** The exempt selectors, the user agent's first. */
+/**
+ * The exempt selectors, the user agent's first. An `auto` of the author's on an `<svg>` itself wins
+ * against the user agent's style, and the `<svg>` is no exemption then.
+ */
 function exemptOf(rules: ForcedColorRules): string[] {
-    return [...USER_AGENT_EXEMPT, ...rules.exempt];
+    const svg = rules.reenabled.length > 0 ? `${USER_AGENT_EXEMPT}:not(:is(${rules.reenabled.join(', ')}))` : USER_AGENT_EXEMPT;
+
+    return [svg, ...rules.exempt];
 }
 
 /** The elements below an exemption that an `auto` takes it back for, as `:is(<exempt>) :is(<reenabled>)`, the user agent's included. */
@@ -216,7 +221,7 @@ function reenabledSelector(rules: ForcedColorRules): string {
  * What is exempt from the forced colors, as a selector that weighs nothing: an exemption and what is
  * inside it, minus what a `forced-color-adjust: auto` below it takes back, and what is inside that.
  * The user agent's are always among them: an `<svg>` and what is inside it, minus what a
- * `<foreignObject>` holds.
+ * `<foreignObject>` holds, and minus an `<svg>` that the author gives `auto` itself.
  *
  * One level only: an `auto` is taken back to forcing, and a `none` below that is not exempt again,
  * nor is an `<svg>` in a `<foreignObject>` in an `<svg>`.
