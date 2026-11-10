@@ -11,6 +11,13 @@
         },
         "test": {
             "dependsOn": ["^build", "plugin-jsdoc:build"]
+        },
+        "test-chromium": {
+            "executor": "@nx/jest:jest",
+            "options": {
+                "jestConfig": "packages/ng-prism/jest.chromium.config.cjs"
+            },
+            "cache": true
         }
     }
 }

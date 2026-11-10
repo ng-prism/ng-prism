@@ -441,6 +441,7 @@ Tests use **Jest 30** with **SWC** for fast TypeScript transformation.
 - Helpers that several specs share go in `__test-utils__/` directories. Both are left out of the library build and of the declared-dependencies check (`npm run check:deps`), so a fixture or helper may import a package that only the root `package.json` declares, as a devDependency
 - Test environment is `node` (not `jsdom`) unless specifically required
 - In `packages/ng-prism`, a spec whose `Date`s depend on the time zone is named `*.tz.spec.ts`: `jest.config.cjs` runs it in two projects, `America/New_York` and `Europe/Berlin`, through `jest.timezone-environment.cjs`, which sets `TZ` before the spec runs and gives the zone to the spec as `__PRISM_TIMEZONE__`
+- In `packages/ng-prism`, a spec that checks the canvas simulation against a real browser is named `*.chromium.spec.ts`. It runs in Node and drives Chromium through Playwright (`src/app/simulate/__test-utils__/chromium.ts`), in a target of its own, `test-chromium` (`jest.chromium.config.cjs`), and not in `test`: in CI, `test` runs on Nx Cloud agents, which have no browser. `npm run check` runs it as well, so install Chromium once with `npx playwright install chromium`
 
 ### Running Tests
 
@@ -450,6 +451,9 @@ npx nx test ng-prism
 
 # Single test file
 npx nx test ng-prism -- --testPathPatterns=scanner
+
+# The specs against real Chromium (*.chromium.spec.ts)
+npx nx run ng-prism:test-chromium
 
 # All packages
 npx nx run-many -t test

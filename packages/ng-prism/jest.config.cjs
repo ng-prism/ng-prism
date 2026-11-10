@@ -16,6 +16,7 @@ module.exports = {
             testPathIgnorePatterns: [
                 '\\.browser\\.spec\\.ts$',
                 '\\.tz\\.spec\\.ts$',
+                '\\.chromium\\.spec\\.ts$',
                 'prism-url-state\\.service\\.spec\\.ts$',
                 'prism-renderer\\.service\\.spec\\.ts$',
                 'prism-persistence\\.service\\.spec\\.ts$',
