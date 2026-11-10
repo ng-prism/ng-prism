@@ -1,5 +1,6 @@
+import { escapeEnd, stringEnd } from '../pseudo/pseudo-selector.js';
 import { declarationsOf, propertyOf } from './css-rules.js';
-import { carriesColor, type ForcedPaletteName, keepsSystemColor, resolveSystemColors, substituteSystemColors, SYSTEM_COLORS } from './forced-palette.js';
+import { carriesColor, type ForcedPaletteName, isSystemColor, keepsSystemColor, resolveSystemColors, substituteSystemColors, SYSTEM_COLORS } from './forced-palette.js';
 import { splitList } from './scope-selector.js';
 
 /*
@@ -226,10 +227,13 @@ function nameOf(property: string): string {
  *   ({@link resolveSystemColors}), and is left alone otherwise: the paint of an SVG, `fill`,
  *   `stroke`, `stop-color`, `flood-color` and `lighting-color`, is not forced.
  * - **A shorthand that `var()` left without longhands** ({@link declarationsOfStyle}) gets the
- *   forced values of its color, and of its image for `background`. A `background` that is a
- *   custom property of a background list takes the color of the list's last layer, and a `none`
- *   for each of its layers. A `background` that holds more than one `var()`, or a `var()` among
- *   other values, keeps its color: the twin cannot tell which of its parts is the color.
+ *   forced values of its color, and of its image for `background`. The color is the one part that
+ *   can hold one: a system color that stays, written out or held by a custom property among the
+ *   parts, is kept, as in `border: 2px solid var(--accent)` ({@link shorthandTwin}). A `background`
+ *   takes the ground with the alpha of its color ({@link backgroundColorOf}): of a color written out,
+ *   of the one `var()` among its parts, or of the last layer of a background list a custom property
+ *   holds, and a `none` for each of the list's layers. Of several `var()`s it cannot tell which is
+ *   the color, and takes the ground, opaque.
  *
  * A CSS-wide keyword (`inherit`, `unset` …) is left: it takes a value that is forced already.
  * The priority of a declaration goes to every declaration of its twin.
@@ -285,15 +289,7 @@ function twinOf({ property, value, important }: Declaration, context: TwinContex
 
     const shorthand = COLOR_SHORTHANDS.get(name);
 
-    if (shorthand) {
-        if (shorthand.colorOnly && text.toLowerCase() === CURRENT_COLOR) return [];
-
-        return shorthand.colors.map((longhand) => {
-            const forced = COLOR_REPLACEMENTS.get(longhand) as string;
-
-            return set(longhand, shorthand.colorOnly ? forcedColor(text, forced, context.palette) : forced);
-        });
-    }
+    if (shorthand) return shorthandTwin(shorthand, text, context.palette).map(([longhand, to]) => set(longhand, to));
 
     switch (name) {
         case 'background-color':
@@ -333,6 +329,108 @@ function forcedColor(value: string, forced: string, palette: ForcedPaletteName):
 /** The ground of the context with the alpha of `original`. */
 function groundOf(original: string): string {
     return `rgb(from ${original} ${GROUND_CHANNELS} / alpha)`;
+}
+
+/** The ground of the context, opaque. */
+const GROUND = `rgb(${GROUND_CHANNELS})`;
+
+/**
+ * The parts of a value between its white space and its slashes, outside brackets and strings:
+ * `2px solid var(--x)` to `2px`, `solid` and `var(--x)`, `center / cover` to `center` and `cover`.
+ */
+function partsOf(value: string): string[] {
+    const parts: string[] = [];
+    let part = '';
+    let depth = 0;
+    let i = 0;
+
+    while (i < value.length) {
+        const ch = value[i];
+        const end = ch === '\\' ? escapeEnd(value, i) : ch === '"' || ch === "'" ? stringEnd(value, i) : i + 1;
+
+        if (ch === '(') depth++;
+        else if (ch === ')') depth = Math.max(0, depth - 1);
+        if (depth === 0 && (ch === '/' || /\s/.test(ch))) {
+            if (part !== '') parts.push(part);
+            part = '';
+        } else {
+            part += value.slice(i, end);
+        }
+        i = end;
+    }
+    if (part !== '') parts.push(part);
+    return parts;
+}
+
+/** A part that is a `var()` of its own, with or without a fallback. */
+const PART_VAR = new RegExp(String.raw`^var\(\s*${VAR_NAME}\s*[,)]`, 'i');
+
+/** The custom properties that are parts of a value of their own (`var(--x)` in `2px solid var(--x)`), and not inside a function. */
+function partVars(parts: readonly string[]): string[] {
+    return parts.flatMap((part) => PART_VAR.exec(part)?.[1] ?? []);
+}
+
+/**
+ * `fallback` behind the shadows of the custom properties `names`: a system color that one of them
+ * holds and Chromium leaves standing stays, as the shadow of a whole `var()` does in
+ * {@link forcedColor}. A shadow holds a system color or nothing, so at most one of them applies where
+ * the property takes only one color.
+ */
+function behindShadows(names: readonly string[], fallback: string): string {
+    return names.reduceRight((inner, name) => `var(${shadowName(name)}, ${inner})`, fallback);
+}
+
+/** A color written out as a part: a hex color, a color function, `transparent`, `currentcolor` or a system color. Not a named color, which needs a list. */
+const WRITTEN_COLOR = /^(?:#[0-9a-f]{3,8}|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix|light-dark|contrast-color|device-cmyk)\(.*\)|transparent|currentcolor)$/i;
+
+function isWrittenColor(part: string): boolean {
+    return WRITTEN_COLOR.test(part) || isSystemColor(part);
+}
+
+/**
+ * What the twin of a color shorthand that `var()` left whole sets, longhand by longhand.
+ *
+ * - **A shorthand of colors only** (`border-color`) gives each side its own part, as the browser
+ *   does, so that `var(--accent) red` keeps a system color that `--accent` holds on the top and
+ *   bottom and forces the sides; a value whose parts do not add up to the sides is one color.
+ * - **A shorthand of a color among other values** (`border`, `outline`, `text-decoration`) has its
+ *   color in the one part that can hold one: a system color written out stays, and so does one
+ *   that a custom property among the parts holds ({@link behindShadows}); anything else is forced.
+ *
+ * A `currentcolor` that stands ({@link standsForced}) gets no declaration.
+ */
+function shorthandTwin({ colors, colorOnly }: ColorShorthand, value: string, palette: ForcedPaletteName): [string, string][] {
+    const parts = partsOf(value);
+
+    if (colorOnly) {
+        const sides = parts.length > 1 ? sidesOf(parts, colors.length) : null;
+
+        return colors.flatMap((longhand, i): [string, string][] => {
+            const part = sides ? sides[i] : value;
+
+            return standsForced(longhand, part) ? [] : [[longhand, forcedColor(part, COLOR_REPLACEMENTS.get(longhand) as string, palette)]];
+        });
+    }
+
+    const written = parts.find((part) => keepsSystemColor(part));
+
+    return colors.map((longhand) => [
+        longhand,
+        written !== undefined ? substituteSystemColors(written, palette) : behindShadows(partVars(parts), COLOR_REPLACEMENTS.get(longhand) as string)
+    ]);
+}
+
+/**
+ * The part of a value that each side takes: of four sides top, right, bottom and left as for a
+ * margin, of two the start and the end. `null` where the parts are too many for the sides.
+ */
+function sidesOf(parts: readonly string[], sides: number): string[] | null {
+    if (sides === 2) return parts.length <= 2 ? [parts[0], parts[1] ?? parts[0]] : null;
+    if (parts.length > 4) return null;
+
+    const [top, right = top, bottom = top, left = right] = parts;
+
+    return [top, right, bottom, left];
 }
 
 /**
@@ -393,8 +491,8 @@ function hasGradient(value: string, { gradientVars }: TwinContext): boolean {
 }
 
 /**
- * What a `background` that `var()` left without longhands sets: the color, if the value is
- * nothing but one `var()` (the color is then all it can be), and no image, if it holds a gradient.
+ * What a `background` that `var()` left without longhands sets: the color ({@link backgroundColorOf})
+ * and no image, if it holds a gradient.
  *
  * A custom property that holds a background list ({@link TwinContext.layerVars}) has its color in
  * its last layer, which `rgb(from <list> …)` cannot read, and loses its gradients one by one, as
@@ -402,13 +500,60 @@ function hasGradient(value: string, { gradientVars }: TwinContext): boolean {
  * wins for it, and falls back to the custom property itself where that is no list.
  */
 function backgroundShorthandTwin(value: string, context: TwinContext): [string, string][] {
-    const twin: [string, string][] = [];
+    const color = backgroundColorOf(value, context);
+    const twin: [string, string][] = color === null ? [] : [['background-color', color]];
     const custom = wholeVar(value);
     const list = custom !== null && context.layerVars.has(custom);
 
-    if (custom !== null) twin.push(['background-color', forcedColor(value, groundOf(list ? `var(${layerColorName(custom)}, ${value})` : value), context.palette)]);
     if (hasGradient(value, context)) twin.push(['background-image', list ? `var(${layerImagesName(custom)}, none)` : 'none']);
     return twin;
+}
+
+/** The words of a `background` besides its colors and images: repeats, attachments, positions, sizes and boxes. Any other word in it is a color. */
+const BACKGROUND_WORDS: ReadonlySet<string> = new Set([
+    ...['none', 'repeat', 'repeat-x', 'repeat-y', 'no-repeat', 'space', 'round', 'scroll', 'fixed', 'local'],
+    ...['left', 'right', 'top', 'bottom', 'center', 'cover', 'contain', 'auto'],
+    ...['border-box', 'padding-box', 'content-box', 'border-area', 'text']
+]);
+
+const WORD = /^-?[a-z][a-z0-9-]*$/i;
+
+/** Whether a part of a `background` is its color as written: {@link isWrittenColor}, or a word that is none of {@link BACKGROUND_WORDS}, a named color. */
+function isBackgroundColor(part: string): boolean {
+    return isWrittenColor(part) || (WORD.test(part) && !BACKGROUND_WORDS.has(part.toLowerCase()));
+}
+
+/**
+ * The forced color of a `background` that `var()` left without longhands, or `null` where it has
+ * none. Its color is a part of the last layer:
+ *
+ * - **A color written out**: a system color that stays, or else the ground with the color's alpha.
+ * - **One `var()` among the parts**, `var(--c)` or `var(--c) no-repeat`: the ground with the alpha of
+ *   the custom property, a system color that it holds excepted. Where it holds no color, but an image
+ *   or a position, the relative color is invalid and the ground transparent: the browser, where the
+ *   background has no color then, gives `Canvas` with the alpha of the initial `transparent`. A
+ *   custom property of a background list gives the color of its last layer.
+ * - **Several**, `var(--c) var(--pos)`: a system color that one of them holds stays, and else the
+ *   ground, with the alpha of the last layer of a background list that one of them holds, and opaque
+ *   otherwise: the twin cannot tell which of them is the color, and errs toward the ground.
+ * - **None**, `linear-gradient(var(--a), var(--b))`: no color, which the original leaves at the
+ *   initial `transparent` already.
+ */
+function backgroundColorOf(value: string, context: TwinContext): string | null {
+    const layers = splitList(value);
+    const parts = partsOf(layers[layers.length - 1]);
+    const written = parts.find(isBackgroundColor);
+    const vars = partVars(parts);
+    // The colors of the last layers of the background lists among them, the first that applies, or `last`.
+    const layerColors = (last: string): string => vars.filter((name) => context.layerVars.has(name)).reduceRight((inner, name) => `var(${layerColorName(name)}, ${inner})`, last);
+
+    if (written !== undefined) return forcedColor(written, groundOf(written), context.palette);
+    if (vars.length === 0) return null;
+    if (vars.length === 1) return behindShadows(vars, groundOf(layerColors(parts.find((part) => PART_VAR.test(part)) as string)));
+
+    const lists = layerColors(GROUND);
+
+    return behindShadows(vars, lists === GROUND ? GROUND : groundOf(lists));
 }
 
 /** `value`, a list of animation names, with the names that have a twin renamed, or `null` if none has. */

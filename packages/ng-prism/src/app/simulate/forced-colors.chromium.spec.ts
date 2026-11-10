@@ -9,6 +9,9 @@ function scope(css: string, body: string): string {
     return `<div class="host" data-prism-sim><style>${css}</style>${body}</div>`;
 }
 
+/** The elements of the fixture `background-var-among-values`, by class. */
+const BACKGROUNDS = ['chip', 'on', 'kept', 'kept-fallback', 'two-vars', 'written', 'last-layer', 'mix', 'mix-system', 'fallback', 'ring', 'translucent', 'image', 'named', 'no-color'];
+
 /** A check mark, as a mask. */
 const CHECK = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8l3 3 7-7' fill='none' stroke='black' stroke-width='2'/%3E%3C/svg%3E")`;
 
@@ -503,6 +506,67 @@ color: red;
                 '<div class="t">Token</div>'
             ),
             probes: [{ name: 't', selector: '.t', properties: ['background-color', 'color'] }]
+        }));
+
+    // A system color that stays in a color shorthand among other values, from a token or written out: the color is
+    // the one part of a border, an outline or a decoration that can hold one. Every other color is forced.
+    it('shorthand-var-color', () =>
+        expectSimulationToMatch({
+            html: scope(
+                `@media (forced-colors: active) { :root { --accent: Highlight; --muted: GrayText; --w: 3px } }
+                :root { --red: #c00 }
+                .card { border: 2px solid var(--accent); outline: 2px solid var(--muted); text-decoration: underline var(--accent); text-emphasis: dot var(--accent); column-rule: 1px solid var(--accent); column-count: 2 }
+                .written { border: var(--w) solid Highlight; outline: var(--w) solid GrayText; text-decoration: underline var(--w) Highlight }
+                .red { border: 2px solid var(--red); outline: 2px solid var(--red) }
+                .sides { border-top: 2px solid var(--accent); border-inline-start: 2px solid var(--muted); border-bottom: 2px solid var(--red) }
+                .two { border: var(--w) solid var(--accent) }
+                .colors { border-style: solid; border-color: var(--accent) var(--red) var(--muted) }
+                .f:focus-visible { outline: 2px solid var(--muted) }`,
+                `<div class="card">Card</div><div class="written">Written</div><div class="red">Red</div><div class="sides">Sides</div>
+                <div class="two">Two</div><div class="colors">Colors</div><button class="f">Focus</button>`
+            ),
+            probes: [
+                { name: 'card', selector: '.card', properties: ['border-top-color', 'outline-color', 'text-decoration-color', 'text-emphasis-color', 'column-rule-color'] },
+                { name: 'written', selector: '.written', properties: ['border-top-color', 'outline-color', 'text-decoration-color'] },
+                { name: 'red', selector: '.red', properties: ['border-top-color', 'outline-color'] },
+                { name: 'sides', selector: '.sides', properties: ['border-top-color', 'border-left-color', 'border-bottom-color'] },
+                { name: 'two', selector: '.two', properties: ['border-top-color'] },
+                { name: 'colors', selector: '.colors', properties: ['border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color'] },
+                { name: 'focused', selector: '.f', properties: ['outline-color'] }
+            ],
+            focus: '.f'
+        }));
+
+    // A background with a var() among other values, or in a function, becomes Canvas with the alpha of its color, and
+    // keeps a system color that a token holds. One that holds an image leaves the background without a color, and
+    // transparent. Of several var()s the simulation cannot tell which is the color, and takes Canvas.
+    it('background-var-among-values', () =>
+        expectSimulationToMatch({
+            html: scope(
+                `@media (forced-colors: active) { :root { --tok: Highlight; --hl: Highlight } }
+                .b { display: inline-block; width: 20px; height: 10px }
+                .chip { --chip-bg: #c00; background: var(--chip-bg) no-repeat }
+                .on { --on: #005fe3; background: var(--on) center / cover }
+                .kept { background: var(--tok) no-repeat }
+                .kept-fallback { background: var(--tok, red) }
+                .two-vars { --pos: center; --c: #0c0; background: var(--c) var(--pos) no-repeat }
+                .written { --img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"); background: var(--img) rgb(0 200 0 / 0.5) }
+                .last-layer { --c: rgb(0 200 0 / 0.3); background: linear-gradient(red, blue), var(--c) }
+                .mix { --p: #6366f1; background: color-mix(in srgb, var(--p) 6%, transparent) }
+                .mix-system { background: color-mix(in srgb, var(--hl) 50%, transparent) }
+                .fallback { background: var(--undefined, rgb(200 0 0 / 0.4)) }
+                .ring { --ring: linear-gradient(90deg, #a0f, #0af), rgb(133 41 213 / 0.4); background: var(--ring) no-repeat }
+                .translucent { --t: rgb(200 0 0 / 0.4); background: var(--t) no-repeat }
+                .image { --img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"); background: var(--img) no-repeat center }
+                .named { --img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"); background: var(--img) no-repeat rebeccapurple }
+                .no-color { background: linear-gradient(var(--undefined, red), blue) no-repeat }`,
+                BACKGROUNDS.map((name) => `<span class="b ${name}"></span>`).join('')
+            ),
+            probes: BACKGROUNDS.map((name) => ({
+                name,
+                selector: `.${name}`,
+                properties: ['background-color']
+            }))
         }));
 
     // The twin of the rule names the twin of the @keyframes, whose colors are forced.
