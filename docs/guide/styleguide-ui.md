@@ -133,7 +133,7 @@ The **Background** group of the tools menu has a chip for each background: **Dot
 - **Without a recommendation** your pick is the canvas background for every component and variant that declares none. It starts as Dots and is kept across visits, in the browser's `localStorage`. Until you pick one, a [simulated](#the-ground) Light or Dark color scheme takes the canvas to Light or Dark.
 - **Transparent and Checker** look the same on the canvas, a checkerboard. Their tooltips say the difference: `Checkerboard here, a real alpha channel in a capture` for Transparent, and that Checker is deprecated and keeps the themed colour in a capture.
 
-The Overview does not use your pick: it paints the declared background, or a checkerboard where nothing is declared. Simulated forced colors paint the ground in the system colour `Canvas` whatever is declared or picked, see [The ground](#the-ground). Capture mode ignores your pick as well and paints the declared background; where nothing is declared, the capture is transparent, with a real alpha channel. See [`bg`](api/showcase-config.md#bg).
+The Overview does not use your pick: it paints the declared background, or a checkerboard where nothing is declared. Simulated forced colors paint the ground in the palette's `Canvas` whatever is declared or picked, see [The ground](#the-ground). Capture mode ignores your pick as well and paints the declared background; where nothing is declared, the capture is transparent, with a real alpha channel. See [`bg`](api/showcase-config.md#bg).
 
 ## State switch
 
@@ -159,7 +159,7 @@ The **Simulate** group at the end of the tools menu shows the component under co
 | --------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `Motion`        | `System`, `Reduce`                                                             | `Reduce` answers `prefers-reduced-motion: reduce`                                                                                                            |
 | `Color scheme`  | `System`, `Light`, `Dark`                                                      | `Light` and `Dark` answer `prefers-color-scheme` and set `color-scheme` on the component, so `light-dark()`, system colours and native controls follow along |
-| `Forced colors` | `Off`, `Active`                                                                | `Active` answers `forced-colors: active` and approximates the mode's system colours, see [Forced colors](#forced-colors)                                     |
+| `Forced colors` | `Off`, `Active`                                                                | `Active` answers `forced-colors: active` and approximates what the mode does to your colors, see [Forced colors](#forced-colors)                             |
 | `Vision`        | `None`, `Protanopia`, `Deuteranopia`, `Tritanopia`, `Achromatopsia`, `Blurred` | Draws the component through a filter, see [Vision](#vision)                                                                                                  |
 
 `System`, `Off` and `None` leave the real answer alone, and the settings combine. Each choice previews what it does: the dot in front of `System` moves and the one in front of `Reduce` stands still (both stand still when your own system asks for reduced motion), the color schemes and forced colors show a small page in their colours, and each Vision tile runs a stripe of red, green, blue and yellow through its filter. The tooltip of `Active` names the exact mode in Chrome's DevTools.
@@ -188,18 +188,37 @@ The live a11y audit runs again under a simulated color scheme or forced colors, 
 ### The ground
 
 - **Color scheme:** under `Light` or `Dark` the canvas takes the matching background, `light` or `dark`, as long as neither the variant nor you picked one. A background the variant declares wins, and so does one you pick in the Background group. A pick for the canvas as a whole, made on a variant without a recommendation, is kept under every scheme and in later visits, so from then on the canvas no longer follows the scheme; pick Light or Dark yourself to match it. Overview cells whose variant declares no background take `light` or `dark` as well, instead of the checkerboard.
-- **Forced colors:** the ground is the system colour `Canvas`, over any background, as in the real mode. The Background group says `Canvas while Forced colors is on`.
+- **Forced colors:** the ground is the `Canvas` of the palette, white in the light one and black in the dark one, over any background, as in the real mode. The Background group says `Canvas while Forced colors is on`.
 
 ### Forced colors
 
-A page cannot switch the browser into forced colors mode, so the canvas approximates it:
+A page cannot switch the browser into forced colors mode, so the canvas approximates it: it changes the colors of your styles the way Chrome's mode does.
 
-- Your rules in `@media (forced-colors: active)` apply, and win over the forced colours as they do in the real mode.
-- Everything else takes system colours: text `CanvasText` on `Canvas`, borders and outlines `CanvasText`, links `LinkText`, buttons `ButtonText` on `ButtonFace`, form fields `FieldText` on `Field`. Background gradients go, as do `box-shadow` and `text-shadow`; images from a URL stay.
-- `forced-color-adjust: none` and `preserve-parent-color` keep an element and everything inside it as you styled them.
-- The colours are those of Chrome's forced colors palettes: the light one under the color scheme `Light`, the dark one under `Dark`, and under `System` the one that matches your system's color scheme, as in Chrome's own emulation. They change when your system's scheme does.
+**The palette** is the one of Chrome's forced colors emulation: the light one under the color scheme `Light`, the dark one under `Dark`, and under `System` the one that matches your system's color scheme. It changes when your system's scheme does. System colors resolve against it, so `Highlight` is the palette's `Highlight` and not the browser's normal one.
 
-Where it differs from the real mode: an inline `style` loses the alpha of its background and has a system colour in it forced, and an animation started from script (`element.animate()`) keeps its colours. That is why the pill, the tooltip and the audit say `approx.`. For the exact mode, use Chrome DevTools › Rendering › Emulate CSS media feature `forced-colors`.
+**What is forced.** Your rules apply as they are and win and lose against each other as before, in a `@layer`, nested or with `!important`. Your rules in `@media (forced-colors: active)` apply as in the real mode, so a color there that is not a system color is forced like any other. Wherever a rule sets one of the properties below, the canvas gives the element what the browser puts in its place:
+
+- **The text color** is `CanvasText`. In a link it is `LinkText`, in a button `ButtonText`, in a form field `FieldText`, in a disabled native control such as a button, a select or a text area `GrayText`, and in a `<mark>` `MarkText`; a placeholder is `GrayText`. What is inside takes the color of its parent.
+- **Borders, outlines, text decorations, carets and the other foreground colors** take the text color of their own element, so the border of a link is `LinkText` and not `CanvasText`. An outline on the element with visible focus (`:focus-visible`) is `Highlight` whatever color it has, `transparent` included, so a `transparent` outline written as the fallback for forced colors shows. The generated content of that element and what is inside it do not get it.
+- **Background colors** become `Canvas`, on a `<mark>` `Mark`, and keep the alpha you wrote: a transparent background stays transparent, on `::before` and `::after` as well, and a translucent one stays translucent. Where you set none, a button has the palette's `ButtonFace` and a form field its `Field`.
+- **Shadows** (`box-shadow`, `text-shadow`) and **gradients** in `background-image` go, a gradient that sits in a custom property as well. Images from a URL stay. `accent-color` and `scrollbar-color` become `auto`.
+- **`fill` and `stroke`** are not forced, as attributes or in a stylesheet. Chrome leaves them as they are, and so does the canvas.
+- **System colors** that you write stay and resolve against the palette. That holds behind `var()` as well, so a token such as `@media (forced-colors: active) { :root { --tok: ButtonText } }` keeps working, and under `forced-color-adjust: none`. `AccentColor` and `AccentColorText` are the exception: Chrome forces them like any other color. `currentcolor` stays as well.
+- **Inline styles and CSS animations** are forced like the rest: the colors of a `style` attribute, and the colors in the keyframes of an `@keyframes`.
+- **`forced-color-adjust: none` and `preserve-parent-color`** keep an element and everything inside it as you styled them. `forced-color-adjust: auto` on an element inside takes that back for the element and what is inside it, and its colors are forced again.
+
+**Where it differs from the real mode.** The canvas stays an approximation, which is why the pill, the tooltip and the audit say `approx.`. It differs in these places:
+
+- **There is no backplate behind text.** Chrome paints `Canvas` behind every line of text, which CSS cannot do for a line. Text in `HighlightText` over a `Highlight` background, without `forced-color-adjust: none` on the element, reads fine in the simulation and fails in the real mode, where the text sits on the backplate and not on the `Highlight`. Put `forced-color-adjust: none` on the element that paints the surface, and the colors you wrote stay.
+- **`forced-color-adjust` goes one level.** An `auto` below an exemption takes it back, but a `none` below that `auto` does not exempt again. Where your rules give one element both a `none` and an `auto`, the real mode lets specificity and order decide, and the canvas reads neither: an `auto` below an exemption always wins, and on an element with no exemption above it the `none` does.
+- **Animations started from script**, with `element.animate()` or Angular's animations module, keep their colors.
+- **An inline `style`** is forced through its attribute: a background loses its alpha, and a system color in it is forced, where the real mode lets it stand.
+- **Native controls** that the browser paints itself, such as a checkbox or a radio button with `appearance: auto`, keep their native look, where the real mode paints them in the forced colors.
+- **A component with `ViewEncapsulation.ShadowDom`** is not reached, see [Limits](#limits).
+- **A selector list that mixes `:root`, `html` or `body` with other selectors** counts as the document root for the rules nested inside it.
+- **The relative color syntax** builds the forced backgrounds, so the browser needs Chrome 119, Safari 18 or Firefox 128.
+
+For the exact mode, use Chrome DevTools › Rendering › Emulate CSS media feature `forced-colors`.
 
 ### Vision
 

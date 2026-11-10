@@ -195,8 +195,10 @@ function reenabledSelector({ exempt, reenabled }: ForcedColorRules): string | nu
  * `null` without an exemption, where an `auto` has nothing to take back.
  *
  * One level only: an `auto` is taken back to forcing, and a `none` below that is not exempt again.
- * Nor does an `auto` that matches the very element of an exemption count; the cascade between the two
- * is the author's, which a selector cannot read.
+ * An `auto` takes back an exemption only from the elements below an exempt one, never from the
+ * exempt element it matches itself. Where one element matches both a `none` and an `auto`, the
+ * browser lets specificity and order decide, which a selector cannot read. The approximation errs
+ * both ways: an `auto` below an exemption always wins, and without an exemption above it the `none` does.
  *
  * A list in `:where()` or `:is()` ignores a selector that the browser rejects, so it does not take
  * the others with it.

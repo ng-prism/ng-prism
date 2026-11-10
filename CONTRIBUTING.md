@@ -48,10 +48,10 @@ npm install
 #### 2. Verify the core builds and tests
 
 ```bash
-npm run check       # Format + declared-deps check + docs check + style + lint + test + build + typecheck for all packages
+npm run check       # Format + declared-deps check + docs check + style + lint + test + test-chromium + build + typecheck for all packages
 ```
 
-CI runs these same steps (see [Run the Check Suite](#3-run-the-check-suite)). It must pass before continuing, because the test-workspace setup depends on a working core build.
+`test-chromium` drives a real browser, so install Chromium once with `npx playwright install chromium`. CI runs these same steps (see [Run the Check Suite](#3-run-the-check-suite)). It must pass before continuing, because the test-workspace setup depends on a working core build.
 
 #### 3. Start the local registry (separate terminal)
 
@@ -234,13 +234,14 @@ Use a descriptive branch name with a prefix:
 Before opening a PR, run the checks CI runs on GitHub:
 
 ```bash
-npm run check       # nx format:check + check-declared-deps + check-docs + stylelint + lint + test + build + typecheck for all packages
+npm run check       # nx format:check + check-declared-deps + check-docs + stylelint + lint + test + test-chromium + build + typecheck for all packages
 ```
 
-CI runs step for step the same list. The one difference is that CI appends
-`e2e-ci` to the final `nx run-many`, a target no project currently defines.
-It predates this toolchain and is skipped silently, so it changes nothing
-either way.
+CI runs the same list. It runs `test-chromium` as a step of its own on the main
+job, after installing Chromium, because the Nx Cloud agents that run the other
+targets have no browser. It also appends `e2e-ci` to the final `nx run-many`, a
+target no project currently defines. That one predates this toolchain and is
+skipped silently, so it changes nothing either way.
 
 If `check` fails on formatting, lint, or style, auto-fix what can be auto-fixed with:
 

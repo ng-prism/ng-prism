@@ -91,13 +91,13 @@ In depth: `docs/architecture/pipeline.md` (build pipeline and both builders),
 Angular 22 (signals, standalone components), TypeScript 6, Nx 22. The packages
 build with bare `ngc`, tests run on Jest 30 with SWC, lint on ESLint 9 with
 angular-eslint and Prettier, styles on Stylelint. Playwright is a root
-devDependency for browser automation (the `prism-test-workspace` screenshots),
-HyperFrames and GSAP are root devDependencies for the product films, and a
-local Verdaccio registry feeds the test workspace's installs.
-`package.json` holds the exact versions.
+devDependency for browser automation (the `prism-test-workspace` screenshots and
+the `*.chromium.spec.ts` specs), HyperFrames and GSAP are root devDependencies
+for the product films, and a local Verdaccio registry feeds the test workspace's
+installs. `package.json` holds the exact versions.
 
 ```bash
-npm run check          # Full local check: format, declared deps, docs, Stylelint, then lint/test/build/typecheck everywhere
+npm run check          # Full local check: format, declared deps, docs, Stylelint, then lint/test/test-chromium/build/typecheck everywhere
 npm run check:fix      # Fix what check reports (see below for why not nx ... --fix)
 npm run build:all      # Build the core and every plugin
 npx nx test ng-prism   # One package's tests; add -- --testPathPatterns=<name> for one spec
@@ -143,7 +143,11 @@ Three things are easy to get wrong and are worth repeating here:
 - Tests run in Jest's `node` environment. In `packages/ng-prism`, a test that
   needs the DOM is named `*.browser.spec.ts`, which puts it in the jsdom project
   of its `jest.config.cjs`. One whose `Date`s depend on the time zone is named
-  `*.tz.spec.ts`, which runs it once in New York and once in Berlin.
+  `*.tz.spec.ts`, which runs it once in New York and once in Berlin. One that
+  compares the canvas simulation with a real browser is named
+  `*.chromium.spec.ts`: it drives Chromium through Playwright in the
+  `test-chromium` target, which `npm run check` runs and `nx run-many -t test`
+  does not, and needs `npx playwright install chromium` once.
 - A change to public API or behaviour updates the owner page under `docs/` (see `CONTRIBUTING.md` › Documentation) in
   the same PR, and the consumer plugin's skills under `.agents/plugins/claude/skills/` where they describe it.
 - ng-prism majors track Angular majors. A breaking change inside the current
