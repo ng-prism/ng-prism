@@ -72,9 +72,9 @@ Every variant reports the canvas background it renders on. A component may decla
 //              { name: 'On dark', index: 1, bg: 'dark' }]
 ```
 
-The resolution order is variant, then component, then `transparent`. `@ng-prism/core/plugin` exports it as `resolveVariantBg()`, alongside `DEFAULT_VARIANT_BG` (`'transparent'`) and the `CanvasBg` type. `transparent` means "nothing declared" and is captured without a backdrop. What each value paints, and which values follow the theme, is under [`bg`](api/showcase-config.md#bg).
+The resolution order is variant, then component, then [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults) of the config, then `transparent`. `@ng-prism/core/plugin` exports it as `resolveVariantBg()`, which takes the project's value as an optional third argument, alongside `DEFAULT_VARIANT_BG` (`'transparent'`) and the `CanvasBg` type. `transparent` means "nothing declared, and the project has set no default" and is captured without a backdrop. What each value paints, and which values follow the theme, is under [`bg`](api/showcase-config.md#bg).
 
-[Capture mode](#capture-isolation-mode) paints this background, so the manifest value and the screenshot always agree. A runner that screenshots a variant on `transparent`, which includes every variant that declares nothing, must pass `omitBackground: true`, or the browser's own page backdrop ends up in the image, see [Capturing transparency](guide/visual-regression.md#capturing-transparency).
+[Capture mode](#capture-isolation-mode) paints this background, so the manifest value and the screenshot always agree. A runner that screenshots a variant on `transparent`, which includes every variant that declares nothing unless the config sets `showcaseDefaults.bg`, must pass `omitBackground: true`, or the browser's own page backdrop ends up in the image, see [Capturing transparency](guide/visual-regression.md#capturing-transparency).
 
 ### Reading `@Showcase` metadata
 

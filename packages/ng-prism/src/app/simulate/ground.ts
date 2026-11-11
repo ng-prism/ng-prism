@@ -14,6 +14,12 @@ import type { ScopeRootState } from './scope-root.js';
  * component on the light dot grid. Without an emulated scheme, it is the
  * canvas background as before.
  *
+ * `fallback` is the project's `showcaseDefaults.bg`. It only replaces the
+ * canvas background where nobody decided, so the emulated scheme beats it too:
+ * a dark scheme should not leave the component on the light ground the project
+ * set for the default case. It is no decision of the variant, which is why it is
+ * not `recommended`.
+ *
  * `chosen` is what tells a picked `dots` from the default one: the value alone
  * cannot, and a pick made while a scheme is emulated has to hold.
  */
@@ -23,20 +29,22 @@ export function playgroundGround(o: {
     chosen: boolean;
     canvasBg: CanvasBg;
     scheme: 'light' | 'dark' | null;
+    fallback: CanvasBg | null;
 }): CanvasBg {
-    return o.override ?? o.recommended ?? (o.chosen ? o.canvasBg : o.scheme) ?? o.canvasBg;
+    return o.override ?? o.recommended ?? (o.chosen ? o.canvasBg : o.scheme) ?? o.fallback ?? o.canvasBg;
 }
 
 /**
  * The background an overview cell paints: what its variant declares, or the
- * emulated scheme, or {@link DEFAULT_VARIANT_BG}.
+ * emulated scheme, or the project's `showcaseDefaults.bg` (`fallback`), or
+ * {@link DEFAULT_VARIANT_BG}.
  *
  * The cells have no background of the user's own, so there is no pick to
- * respect, and the scheme only takes the place of the default that an
- * undeclared variant would get.
+ * respect, and the scheme and the fallback only take the place of the default
+ * that an undeclared variant would get.
  */
-export function overviewGround(declared: CanvasBg | null, scheme: 'light' | 'dark' | null): CanvasBg {
-    return declared ?? scheme ?? DEFAULT_VARIANT_BG;
+export function overviewGround(declared: CanvasBg | null, scheme: 'light' | 'dark' | null, fallback: CanvasBg | null = null): CanvasBg {
+    return declared ?? scheme ?? fallback ?? DEFAULT_VARIANT_BG;
 }
 
 /**

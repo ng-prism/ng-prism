@@ -3,7 +3,7 @@ import { groundSimulation, NO_GROUND_SIMULATION, overviewGround, playgroundGroun
 import type { ScopeRootState } from './scope-root.js';
 
 describe('playgroundGround', () => {
-    const base = { override: null, recommended: null, chosen: false, canvasBg: 'dots' as const, scheme: 'dark' as const };
+    const base = { override: null, recommended: null, chosen: false, canvasBg: 'dots' as const, scheme: 'dark' as const, fallback: null };
 
     it('follows the emulated scheme while nothing else decides', () => {
         expect(playgroundGround(base)).toBe('dark');
@@ -30,6 +30,33 @@ describe('playgroundGround', () => {
     });
 });
 
+describe('playgroundGround with a project fallback', () => {
+    const base = { override: null, recommended: null, chosen: false, canvasBg: 'dots' as const, scheme: null, fallback: 'light' as const };
+
+    it('paints the fallback where nobody decided', () => {
+        expect(playgroundGround(base)).toBe('light');
+    });
+
+    it('lets an emulated scheme win over it', () => {
+        expect(playgroundGround({ ...base, scheme: 'dark' })).toBe('dark');
+    });
+
+    it('lets the background the user picked win over it, a picked dots included', () => {
+        expect(playgroundGround({ ...base, chosen: true })).toBe('dots');
+        expect(playgroundGround({ ...base, chosen: true, canvasBg: 'plain', scheme: 'dark' })).toBe('plain');
+    });
+
+    it('lets a declared background and the override win over it', () => {
+        expect(playgroundGround({ ...base, recommended: 'dark' })).toBe('dark');
+        expect(playgroundGround({ ...base, override: 'plain', recommended: 'dark' })).toBe('plain');
+    });
+
+    it('is the canvas background as before without a fallback', () => {
+        expect(playgroundGround({ ...base, fallback: null })).toBe('dots');
+        expect(playgroundGround({ ...base, fallback: null, scheme: 'dark' })).toBe('dark');
+    });
+});
+
 describe('overviewGround', () => {
     it('follows the emulated scheme when the variant declares nothing', () => {
         expect(overviewGround(null, 'light')).toBe('light');
@@ -43,6 +70,25 @@ describe('overviewGround', () => {
     it('keeps a declared background over the scheme', () => {
         expect(overviewGround('dark', 'light')).toBe('dark');
         expect(overviewGround('plain', null)).toBe('plain');
+    });
+
+    describe('with a project fallback', () => {
+        it('paints the fallback instead of the tooling default', () => {
+            expect(overviewGround(null, null, 'light')).toBe('light');
+        });
+
+        it('lets the emulated scheme win over it', () => {
+            expect(overviewGround(null, 'dark', 'light')).toBe('dark');
+        });
+
+        it('lets a declared background win over it', () => {
+            expect(overviewGround('plain', null, 'light')).toBe('plain');
+            expect(overviewGround('dark', 'light', 'light')).toBe('dark');
+        });
+
+        it('is the tooling default for a null fallback', () => {
+            expect(overviewGround(null, null, null)).toBe(DEFAULT_VARIANT_BG);
+        });
     });
 });
 

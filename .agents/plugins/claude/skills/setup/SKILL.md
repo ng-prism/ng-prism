@@ -92,6 +92,11 @@ the Node way, without tsconfig `paths`.
   keyed on `:root`, `html` or `body` can't be switched this way (it would switch the styleguide too). The attribute
   names `class`, `style` and `data-prism-sim` are left out with a console warning; avoid `data-theme`, which the
   styleguide still sets on `<html>` until 23.0. A library that themes through `prefers-color-scheme` needs nothing.
+- `showcaseDefaults: { bg }` (since 22.8): the canvas background of every variant that declares no `bg`, e.g.
+  `showcaseDefaults: { bg: 'light' }` for a library whose components are all designed against a light surface. Without
+  it that is `dots` in the Playground and `transparent` in the Overview, in capture mode and in
+  `window.__PRISM_MANIFEST__`. Only a fallback: a declared `bg`, a pick in the tools menu and a simulated color scheme
+  beat it, and the pill doesn't call it recommended.
 - `strictShowcase` (default `false`): a dropped `@Showcase` value fails the build instead of warning.
 
 `ui`, `appComponent`, `themeStylesheet` and `headless` are in the typings, but nothing has ever read them; they are

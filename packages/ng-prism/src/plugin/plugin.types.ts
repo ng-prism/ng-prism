@@ -458,7 +458,8 @@ export interface DiscoveryVariant {
     index: number;
     /**
      * The canvas background this variant renders on, already resolved:
-     * `Variant.bg`, else `ShowcaseConfig.bg`, else `DEFAULT_VARIANT_BG`.
+     * `Variant.bg`, else `ShowcaseConfig.bg`, else the project's
+     * `showcaseDefaults.bg`, else `DEFAULT_VARIANT_BG`.
      *
      * Always present, because a screenshot runner cannot act on "nothing
      * declared". It is also the background capture mode paints, so the value
@@ -518,6 +519,27 @@ export interface NgPrismColorSchemeTarget {
 export interface NgPrismColorSchemeConfig {
     light?: NgPrismColorSchemeTarget;
     dark?: NgPrismColorSchemeTarget;
+}
+
+/**
+ * What the project sets for every showcase that does not decide it, see
+ * {@link NgPrismConfig.showcaseDefaults}. Since 22.8.0.
+ */
+export interface NgPrismShowcaseDefaults {
+    /**
+     * The canvas background of a variant that declares no `bg`, in place of the
+     * built-in one: `dots` in the Playground, `transparent` in the Overview, in
+     * capture mode and in `__PRISM_MANIFEST__`.
+     *
+     * Only a fallback. It loses to everything someone decided: the override set
+     * for the variant in the toolbar, a `bg` the variant or the component
+     * declares, the background picked for the whole canvas and an emulated color
+     * scheme. It is not marked as recommended in the background pill or the tools
+     * menu, and a pick on a variant without `bg` stays a pick for the whole canvas.
+     *
+     * A value that is not a {@link CanvasBg} is ignored.
+     */
+    bg?: CanvasBg;
 }
 
 export interface NgPrismConfig {
@@ -585,6 +607,18 @@ export interface NgPrismConfig {
      * Since 22.8.0.
      */
     colorScheme?: NgPrismColorSchemeConfig;
+    /**
+     * Fallbacks for what a `@Showcase` does not declare. Only `bg` so far: the
+     * canvas background of the variants without one, say `light` for a library
+     * whose components are all designed against a light surface.
+     *
+     * ```ts
+     * showcaseDefaults: { bg: 'light' }
+     * ```
+     *
+     * Without it nothing changes. Since 22.8.0.
+     */
+    showcaseDefaults?: NgPrismShowcaseDefaults;
     /**
      * When true, the build fails instead of warning whenever the scanner has
      * to drop a `@Showcase` value: one it cannot evaluate statically, an

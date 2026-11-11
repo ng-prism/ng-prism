@@ -1,4 +1,5 @@
 import type { DiscoveryComponent, DiscoveryManifest, DiscoveryPart, DiscoveryState, DiscoveryVariant, RuntimeManifest } from '../plugin/plugin.types.js';
+import type { CanvasBg } from '../shared/canvas-bg.type.js';
 import { publicOutputNames } from '../shared/model-outputs.js';
 import type { ForcedPseudoStates } from '../shared/pseudo-state.type.js';
 import { resolveVariantBg } from '../shared/variant-bg.js';
@@ -75,8 +76,11 @@ export function serializableMeta(meta: Record<string, unknown> | undefined): Rec
  *
  * A part (`@Showcase({ partOf })`) is listed under its parent as `parts`, with the
  * public names of its inputs and outputs, and never in `components`.
+ *
+ * `fallback` is the project's `showcaseDefaults.bg`: the `bg` of a variant that
+ * declares none, in place of `DEFAULT_VARIANT_BG`.
  */
-export function buildDiscoveryManifest(manifest: RuntimeManifest): DiscoveryManifest {
+export function buildDiscoveryManifest(manifest: RuntimeManifest, fallback: CanvasBg | null = null): DiscoveryManifest {
     return {
         components: manifest.components.map((component): DiscoveryComponent => {
             const { className, showcaseConfig } = component.meta;
@@ -91,7 +95,7 @@ export function buildDiscoveryManifest(manifest: RuntimeManifest): DiscoveryMani
                 ? declared.map((variant, index) => {
                       const meta = serializableMeta(variant.meta);
                       const pseudo = forcesAnyState(variant.pseudo) ? (serializableMeta(variant.pseudo) as ForcedPseudoStates | undefined) : undefined;
-                      const discovered: DiscoveryVariant = { name: variant.name, index, bg: resolveVariantBg(showcaseConfig, index) };
+                      const discovered: DiscoveryVariant = { name: variant.name, index, bg: resolveVariantBg(showcaseConfig, index, fallback) };
 
                       if (meta) discovered.meta = meta;
                       if (pseudo) discovered.pseudo = pseudo;
@@ -102,7 +106,7 @@ export function buildDiscoveryManifest(manifest: RuntimeManifest): DiscoveryMani
                       {
                           name: 'Default',
                           index: 0,
-                          bg: resolveVariantBg(showcaseConfig, 0)
+                          bg: resolveVariantBg(showcaseConfig, 0, fallback)
                       }
                   ];
 

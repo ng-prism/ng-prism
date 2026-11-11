@@ -58,7 +58,7 @@ Two consequences for a runner:
 - **Record it next to the baseline.** A variant whose `bg` changes compares a capture on one surface against a baseline on another: every pixel differs while the component is untouched. Storing the background alongside the baseline image lets you tell that apart from a regression, and the plugin's report has fields for both (`bg`, `baselineBg`).
 - **Declare a background on anything you baseline.** `light` or `dark` when the component was designed against a surface, since their colours are absolute. [`transparent`](#capturing-transparency) when the component's own transparency is the thing under test. Avoid `dots` and `plain`: they follow the theme, so a capture on one of them is only as stable as the browser profile's theme, see [`bg`](api/showcase-config.md#bg).
 
-With nothing declared a variant resolves to `transparent`. An undeclared variant has no opinion about its surface, so it is captured without one.
+With nothing declared a variant resolves to `transparent`. An undeclared variant has no opinion about its surface, so it is captured without one. A project whose components are all designed against one surface can say so once with [`showcaseDefaults: { bg: 'light' }`](api/ng-prism-config.md#showcasedefaults): the variants that declare nothing resolve to that value instead, and `__PRISM_MANIFEST__` reports it.
 
 A capture keeps the text colour of the ground, also on `transparent`, which paints nothing there: a component that inherits its colour is dark ink on `light` and `transparent` and light ink on `dark`, whatever theme the runner's browser started in. It is the same colour as while browsing, see [Base Tokens](guide/theming.md#base-tokens-theme-independent).
 
@@ -90,7 +90,7 @@ await element.screenshot({ path, omitBackground: true });
 
 `omitBackground` clears the _browser's_ default page backdrop, which no stylesheet can reach. Without it the capture comes back as PNG colour type 2 (no alpha channel, fully opaque) over whatever the browser painted. It still looks like a correct screenshot, but it no longer tests transparency and nothing reports that. With the flag, the same variants come back as colour type 6 with meaningful alpha.
 
-Since an undeclared variant also resolves to `transparent`, a transparency-aware runner needs this flag for every variant without a `bg`, not only for the ones that declare `transparent`.
+Since an undeclared variant also resolves to `transparent`, unless the config sets `showcaseDefaults.bg`, a transparency-aware runner needs this flag for every variant without a `bg`, not only for the ones that declare `transparent`. The `bg` in `__PRISM_MANIFEST__` says which it is.
 
 Two things to know before you record baselines this way:
 

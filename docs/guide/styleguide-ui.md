@@ -59,7 +59,7 @@ With `states`, every variant counts one cell for itself and one for each state, 
 
 Each cell renders its variant as declared:
 
-- **Background**: a variant's own [`bg`](api/showcase-config.md#bg) paints that cell, so an `On dark` variant sits on dark while its neighbours do not. Variants that declare nothing get the checkerboard, matching what external tooling is told the variant renders on, or the ground of a [simulated color scheme](#the-ground).
+- **Background**: a variant's own [`bg`](api/showcase-config.md#bg) paints that cell, so an `On dark` variant sits on dark while its neighbours do not. Variants that declare nothing get the checkerboard, or the [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults) of the config, matching what external tooling is told the variant renders on, or the ground of a [simulated color scheme](#the-ground).
 - **Layout**: a variant with `canvasLayout: 'stretch'` takes a full row instead of a column, because it has no intrinsic width to compare against its neighbours. The matrix has its own columns, see below.
 - **Pseudo states**: a variant's own [`pseudo`](guide/states.md#per-variant-pseudo-states) states are forced in its cell, and only there, so a `Hovered` cell sits next to its unhovered neighbours. The tools menu's **State** group does not reach the Overview.
 - **Caption**: running number and variant name below the frame, e.g. `08 On dark`. The matrix names its rows instead.
@@ -130,10 +130,10 @@ The **Background** group of the tools menu has a chip for each background: **Dot
 
 - **The recommended background.** A component or a variant can declare the background it is designed for with [`bg`](api/showcase-config.md#bg). Its chip carries a border in the primary colour and the tooltip `Recommended background for this variant`, whenever the variant on screen has a recommendation. The recommended and the filled chip can be the same.
 - **Picking another one** while a recommendation exists changes the background for this variant only. A pill `Recommended: dark` with a **Reset** button appears at the top left of the canvas, and Reset goes back to the recommendation. The pick goes with the next variant or component, so coming back to a variant always shows its recommendation.
-- **Without a recommendation** your pick is the canvas background for every component and variant that declares none. It starts as Dots and is kept across visits, in the browser's `localStorage`. Until you pick one, a [simulated](#the-ground) Light or Dark color scheme takes the canvas to Light or Dark.
+- **Without a recommendation** your pick is the canvas background for every component and variant that declares none. It starts as Dots, or as the [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults) of the config, and is kept across visits, in the browser's `localStorage`. Until you pick one, a [simulated](#the-ground) Light or Dark color scheme takes the canvas to Light or Dark. A `showcaseDefaults.bg` is no recommendation: its chip has no border, no pill appears, and your pick replaces it for every variant that declares nothing.
 - **Transparent** is a light checkerboard on the canvas, the same in the dark and the light theme, but has no colour in a capture. Its tooltip says so: `Checkerboard here, a real alpha channel in a capture`.
 
-The Overview does not use your pick: it paints the declared background, or a checkerboard where nothing is declared. Simulated forced colors paint the ground in the palette's `Canvas` whatever is declared or picked, see [The ground](#the-ground). Capture mode ignores your pick as well and paints the declared background; where nothing is declared, the capture is transparent, with a real alpha channel. See [`bg`](api/showcase-config.md#bg).
+The Overview does not use your pick: it paints the declared background, or a checkerboard (the `showcaseDefaults.bg` of the config, if it sets one) where nothing is declared. Simulated forced colors paint the ground in the palette's `Canvas` whatever is declared or picked, see [The ground](#the-ground). Capture mode ignores your pick as well and paints the declared background; where nothing is declared, the capture is transparent, with a real alpha channel, unless `showcaseDefaults.bg` sets another. See [`bg`](api/showcase-config.md#bg).
 
 ## State switch
 
@@ -187,7 +187,7 @@ The live a11y audit runs again under a simulated color scheme or forced colors, 
 
 ### The ground
 
-- **Color scheme:** under `Light` or `Dark` the canvas takes the matching background, `light` or `dark`, as long as neither the variant nor you picked one. A background the variant declares wins, and so does one you pick in the Background group. A pick for the canvas as a whole, made on a variant without a recommendation, is kept under every scheme and in later visits, so from then on the canvas no longer follows the scheme; pick Light or Dark yourself to match it. Overview cells whose variant declares no background take `light` or `dark` as well, instead of the checkerboard.
+- **Color scheme:** under `Light` or `Dark` the canvas takes the matching background, `light` or `dark`, as long as neither the variant nor you picked one. A background the variant declares wins, and so does one you pick in the Background group. A pick for the canvas as a whole, made on a variant without a recommendation, is kept under every scheme and in later visits, so from then on the canvas no longer follows the scheme; pick Light or Dark yourself to match it. Overview cells whose variant declares no background take `light` or `dark` as well, instead of the checkerboard. A [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults) gives way to the scheme in the canvas and in the cells: it only fills in where nothing else decides.
 - **Forced colors:** the ground is the `Canvas` of the palette, white in the light one and black in the dark one, over any background, as in the real mode. The Background group says `Canvas while Forced colors is on`.
 
 ### Forced colors

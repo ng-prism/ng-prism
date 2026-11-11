@@ -3,6 +3,7 @@ import { provideHighlightOptions } from 'ngx-highlightjs';
 import type { ComponentPageOptions } from '../plugin/page-helpers.js';
 import { componentPage } from '../plugin/page-helpers.js';
 import type { NgPrismConfig, RuntimeManifest } from '../plugin/plugin.types.js';
+import { showcaseDefaultBg } from '../shared/variant-bg.js';
 import { buildDiscoveryManifest } from './discovery-manifest.js';
 import { BUILTIN_PANELS } from './panels/builtin-panels.js';
 import { PRISM_BUILTIN_PANELS, PRISM_CONFIG, PRISM_MANIFEST } from './tokens/prism-tokens.js';
@@ -22,9 +23,10 @@ export function providePrism(manifest: RuntimeManifest, config?: NgPrismConfig, 
     // Exposes a thin discovery view of the manifest to external audit tooling:
     // class name, title, variants, and the `@Showcase` metadata a tool needs to
     // decide how to treat a variant. Still no Angular type references; see
-    // buildDiscoveryManifest for what gets stripped and why.
+    // buildDiscoveryManifest for what gets stripped and why. A variant without a
+    // `bg` reports `showcaseDefaults.bg`, the same value capture mode paints.
     if (typeof globalThis !== 'undefined') {
-        (globalThis as Record<string, unknown>)['__PRISM_MANIFEST__'] = buildDiscoveryManifest(mergedManifest);
+        (globalThis as Record<string, unknown>)['__PRISM_MANIFEST__'] = buildDiscoveryManifest(mergedManifest, showcaseDefaultBg(config));
     }
 
     return makeEnvironmentProviders([

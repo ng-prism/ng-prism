@@ -1,5 +1,5 @@
 import { CANVAS_BGS, type CanvasBg } from './canvas-bg.type.js';
-import { declaredVariantBg, DEFAULT_VARIANT_BG, resolveVariantBg } from './variant-bg.js';
+import { declaredVariantBg, DEFAULT_VARIANT_BG, resolveVariantBg, showcaseDefaultBg } from './variant-bg.js';
 
 /**
  * A variant as `@Showcase` actually declares one.
@@ -64,5 +64,44 @@ describe('resolveVariantBg', () => {
     it('returns the declared bg when there is one', () => {
         expect(resolveVariantBg({ bg: 'dark' }, 0)).toBe('dark');
         expect(resolveVariantBg({ bg: 'dark', variants: [variant('A', 'plain')] }, 0)).toBe('plain');
+    });
+
+    it('uses the fallback where nothing is declared', () => {
+        expect(resolveVariantBg({}, 0, 'light')).toBe('light');
+        expect(resolveVariantBg({ variants: [variant('A')] }, 0, 'light')).toBe('light');
+    });
+
+    it('keeps a declared bg over the fallback', () => {
+        expect(resolveVariantBg({ bg: 'dark' }, 0, 'light')).toBe('dark');
+        expect(resolveVariantBg({ bg: 'dark', variants: [variant('A', 'plain')] }, 0, 'light')).toBe('plain');
+    });
+
+    it('treats a null fallback like none', () => {
+        expect(resolveVariantBg({}, 0, null)).toBe(DEFAULT_VARIANT_BG);
+    });
+});
+
+describe('showcaseDefaultBg', () => {
+    it('returns the configured background', () => {
+        expect(showcaseDefaultBg({ showcaseDefaults: { bg: 'light' } })).toBe('light');
+        expect(showcaseDefaultBg({ showcaseDefaults: { bg: 'transparent' } })).toBe('transparent');
+    });
+
+    it.each(CANVAS_BGS)('accepts %s, as every value of CANVAS_BGS', (bg) => {
+        expect(showcaseDefaultBg({ showcaseDefaults: { bg } })).toBe(bg);
+    });
+
+    it.each(['checker', 'nope', '', 7, {}, true])('ignores %p, which is no canvas background', (bg) => {
+        // The type catches these at build time; a JavaScript config or a removed value
+        // (`checker`) must not reach the canvas as `data-bg`.
+        expect(showcaseDefaultBg({ showcaseDefaults: { bg } })).toBeNull();
+    });
+
+    it('returns null without a configured background', () => {
+        expect(showcaseDefaultBg({ showcaseDefaults: {} })).toBeNull();
+        expect(showcaseDefaultBg({ showcaseDefaults: { bg: null } })).toBeNull();
+        expect(showcaseDefaultBg({})).toBeNull();
+        expect(showcaseDefaultBg(null)).toBeNull();
+        expect(showcaseDefaultBg(undefined)).toBeNull();
     });
 });

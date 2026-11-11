@@ -18,6 +18,7 @@ export type {
     NgPrismColorSchemeTarget,
     NgPrismConfig,
     NgPrismPlugin,
+    NgPrismShowcaseDefaults,
     OutputMeta,
     PanelBadge,
     PanelDefinition,

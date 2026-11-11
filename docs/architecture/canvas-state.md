@@ -20,14 +20,15 @@ Computes the actually-applied canvas background by resolving a fallback chain:
 
 ```
 recommended = variant.bg ?? component.bg
-effective   = override ?? recommended ?? (bgChosen ? canvas.bg() : schemeGround) ?? canvas.bg()   // browsing
-effective   = recommended ?? DEFAULT_VARIANT_BG           // capture mode ('transparent')
+effective   = override ?? recommended ?? (bgChosen ? canvas.bg() : schemeGround) ?? showcaseDefaults.bg ?? canvas.bg()   // browsing
+effective   = recommended ?? showcaseDefaults.bg ?? DEFAULT_VARIANT_BG   // capture mode ('transparent')
 ```
 
 - `recommended`: computed from the active component and variant (`Variant.bg` wins over `ShowcaseConfig.bg`), `null` when neither declares one
 - `schemeGround`: `PrismSimulationService.schemeGround()`, `light` or `dark` while the simulation emulates a color scheme, else `null`; the browsing chain is `playgroundGround()` (`simulate/ground.ts`)
+- `showcaseDefaults.bg`: the project's fallback, read once from `PRISM_CONFIG` through `showcaseDefaultBg()` (`shared/variant-bg.ts`), which returns `null` for anything that is not in `CANVAS_BGS`. It only fills the place of "nobody decided", so it is not `recommended`: the pill, the recommended chip and the toolbar's choice between override and `canvas.setBg()` stay as they are. The Overview cell reads the same value (`overviewGround()`), and `providePrism` hands it to `buildDiscoveryManifest()`, so the manifest agrees with capture mode
 - `override`: read-only view of a transient signal; set when the user picks a background from the tools menu's **Background** group while a recommendation is active
-- `effective`: the final `CanvasBg` value bound to the `data-bg` attribute of `.prism-canvas-stage`. Capture mode ignores the override and the simulation, which are session UI state, and uses `DEFAULT_VARIANT_BG` where nothing is declared instead of `canvas.bg()`: `dots` paints a theme token, so a baseline would depend on the runner's theme. `DEFAULT_VARIANT_BG` is also what the discovery manifest reports, so the reported and the captured background cannot drift apart.
+- `effective`: the final `CanvasBg` value bound to the `data-bg` attribute of `.prism-canvas-stage`. Capture mode ignores the override and the simulation, which are session UI state, and uses `showcaseDefaults.bg`, or `DEFAULT_VARIANT_BG` without one, where nothing is declared instead of `canvas.bg()`: `dots` paints a theme token, so a baseline would depend on the runner's theme. That value is also what the discovery manifest reports, so the reported and the captured background cannot drift apart.
 - `isDeviating`: computed boolean; true when the override is non-null AND differs from the current recommendation. It shows the `Recommended: <bg> [Reset]` pill (`PrismCanvasBgPillComponent`), whose button calls `clearOverride()`.
 
 The override auto-clears whenever the active variant or component changes, so navigating back to a variant always shows its recommendation again.
