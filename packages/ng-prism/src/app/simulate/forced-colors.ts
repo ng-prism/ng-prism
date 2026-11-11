@@ -1,41 +1,88 @@
-import { attributeEnd, escapeEnd, stringEnd } from '../pseudo/pseudo-selector.js';
+import { attributeEnd, escapeEnd, rewritePseudoSelector, stringEnd } from '../pseudo/pseudo-selector.js';
 import { declarationsOf, hasStyle, isImportRule, isRuleGroup, isStyleRule, propertyOf, valueOf } from './css-rules.js';
-import { SCOPE_IN_SUFFIX, SIM_SCOPE, splitList, splitPseudoElement } from './scope-selector.js';
+import { FORCED_PALETTES, type ForcedPaletteName, resolveSystemColors, rgbChannels } from './forced-palette.js';
+import { backgroundLayers } from './forced-values.js';
+import { SCOPE_IN_SUFFIX, SCOPE_OUT_SUFFIX, SIM_SCOPE, splitList, splitPseudoElement } from './scope-selector.js';
 
 /** What the author's styles say about forced colors, to be taken into account by the approximation. */
 export interface ForcedColorRules {
     /** Selectors of rules that declare `forced-color-adjust: none` or `preserve-parent-color`: they and everything below them keep the author's colors. */
     exempt: string[];
-    /** Selectors of rules that paint a gradient and no URL image: the browser drops such a background image in forced colors mode. */
-    gradients: string[];
+    /** Selectors of rules that declare `forced-color-adjust: auto`: an element below an exemption that matches one has its colors forced again, and so has everything below it. */
+    reenabled: string[];
+    /** Custom properties that some declaration gives a gradient and none a `url()`: a background image that reads one is dropped like a gradient written out. */
+    gradientVars: string[];
+    /** Custom properties that some declaration gives a background list, `linear-gradient(…), #8529d5` ({@link backgroundLayers}): a `background` that reads one takes the color of its last layer and drops its gradients layer by layer. */
+    layerVars: string[];
 }
 
 interface Found {
     exempt: Set<string>;
-    gradients: Set<string>;
+    reenabled: Set<string>;
+    /** The custom properties that a declaration gives a gradient. */
+    gradientVars: Set<string>;
+    /** The custom properties that a declaration gives a `url()`. */
+    urlVars: Set<string>;
+    /** The custom properties that a declaration gives a background list. */
+    layerVars: Set<string>;
 }
 
+const GRADIENT = /-gradient\(/i;
+const URL_IMAGE = /url\(/i;
+
 /**
- * The exemptions and gradients in the document's styles: its stylesheets, the
- * adopted ones and what they import, to any depth of grouping and nesting. A
- * sheet whose rules cannot be read (cross-origin) is skipped; the media engine
- * has already said so.
+ * The exemptions and the custom properties of gradients and background lists in
+ * the document's styles: its stylesheets, the adopted ones and what they import,
+ * to any depth of grouping and nesting. A sheet whose rules cannot be read
+ * (cross-origin) is skipped; the media engine has already said so.
  *
  * Conditions are not evaluated: an exemption inside `@media (min-width: …)` counts
  * wherever the page is, and one inside `@media (forced-colors: active)`, where
  * authors write most of them, counts although the page is not in the mode.
  *
  * The sheets in `skip` are not read. That is for the simulation's own forced
- * colors sheet: nothing in it is an author's exemption or gradient.
+ * colors sheet: nothing in it is an author's exemption. A sheet the media engine
+ * has rewritten reads as it did before, so that the exemptions stay as short as
+ * the author wrote them, which every twin carries.
  */
 export function collectForcedColorRules(doc: Document, skip: Iterable<CSSStyleSheet> = []): ForcedColorRules {
-    const found: Found = { exempt: new Set(), gradients: new Set() };
+    return collectForcedColorRulesIn([...Array.from(doc.styleSheets), ...(doc.adoptedStyleSheets ?? [])], skip);
+}
+
+/** {@link collectForcedColorRules} for `sheets` and what they import, and no other sheet: for the styles that arrive while forced colors are on. */
+export function collectForcedColorRulesIn(sheets: Iterable<CSSStyleSheet>, skip: Iterable<CSSStyleSheet> = []): ForcedColorRules {
+    const found: Found = { exempt: new Set(), reenabled: new Set(), gradientVars: new Set(), urlVars: new Set(), layerVars: new Set() };
     // A sheet to skip counts as read already.
     const seen = new Set<object>(skip);
 
-    for (const sheet of [...Array.from(doc.styleSheets), ...(doc.adoptedStyleSheets ?? [])]) collectSheet(sheet, found, seen);
+    for (const sheet of sheets) collectSheet(sheet, found, seen);
 
-    return { exempt: Array.from(found.exempt), gradients: Array.from(found.gradients) };
+    return {
+        exempt: Array.from(found.exempt),
+        reenabled: Array.from(found.reenabled),
+        // One declaration with a `url()` is enough to keep the image, wherever the property is given a gradient.
+        gradientVars: Array.from(found.gradientVars).filter((name) => !found.urlVars.has(name)),
+        layerVars: Array.from(found.layerVars)
+    };
+}
+
+/** Whether `a` and `b` say the same, in the same order. */
+export function sameForcedColorRules(a: ForcedColorRules, b: ForcedColorRules): boolean {
+    const same = (x: readonly string[], y: readonly string[]): boolean => x.length === y.length && x.every((item, i) => item === y[i]);
+
+    return same(a.exempt, b.exempt) && same(a.reenabled, b.reenabled) && same(a.gradientVars, b.gradientVars) && same(a.layerVars, b.layerVars);
+}
+
+/** `rules` with what `more` adds, each list in the order it was found, once; `rules` itself if `more` adds nothing. */
+export function mergeForcedColorRules(rules: ForcedColorRules, more: ForcedColorRules): ForcedColorRules {
+    const merged: ForcedColorRules = {
+        exempt: Array.from(new Set([...rules.exempt, ...more.exempt])),
+        reenabled: Array.from(new Set([...rules.reenabled, ...more.reenabled])),
+        gradientVars: Array.from(new Set([...rules.gradientVars, ...more.gradientVars])),
+        layerVars: Array.from(new Set([...rules.layerVars, ...more.layerVars]))
+    };
+
+    return sameForcedColorRules(merged, rules) ? rules : merged;
 }
 
 function collectSheet(sheet: CSSStyleSheet, found: Found, seen: Set<object>): void {
@@ -69,30 +116,39 @@ function collectRules(rules: CSSRuleList, parent: string | null, found: Found, s
     }
 }
 
-/** Notes the selectors of one block under what its declarations say; of a property set twice, the last wins. */
+/**
+ * Notes the selectors of one block under what its declarations say; of a property set twice, the last wins.
+ * A custom property is noted by name, from every block it is declared in: which declaration wins is for the cascade.
+ */
 function record(selectorList: string, cssText: string, found: Found): void {
     let adjust = '';
-    let background = '';
 
     for (const declaration of declarationsOf(cssText)) {
         const property = propertyOf(declaration);
 
         if (property === 'forced-color-adjust') adjust = valueOf(declaration).toLowerCase();
-        else if (property === 'background' || property === 'background-image') background = valueOf(declaration);
+        else if (property.startsWith('--')) {
+            const value = valueOf(declaration);
+
+            if (GRADIENT.test(value)) found.gradientVars.add(property);
+            if (URL_IMAGE.test(value)) found.urlVars.add(property);
+            if (backgroundLayers(value) !== null) found.layerVars.add(property);
+        }
     }
 
     const exempt = adjust === 'none' || adjust === 'preserve-parent-color';
-    // A `url()` among the images keeps the whole value, as in the browser.
-    const gradient = /-gradient\(/i.test(background) && !/url\(/i.test(background);
+    const reenabled = adjust === 'auto';
 
-    if (!exempt && !gradient) return;
+    if (!exempt && !reenabled) return;
     for (const part of splitList(selectorList)) {
-        const selector = part.trim();
+        // As the author wrote it: the copy of a rule in the scope and the original out of it are one
+        // rule, whether the media engine has rewritten the sheet yet or not.
+        const selector = part.replaceAll(SCOPE_IN_SUFFIX, '').replaceAll(SCOPE_OUT_SUFFIX, '').trim();
 
-        if (selector === '') continue;
-        // A pseudo-element has no subtree to exempt.
-        if (exempt && splitPseudoElement(selector).pseudoElement === '') found.exempt.add(selector);
-        if (gradient) found.gradients.add(selector);
+        // A pseudo-element has no subtree to exempt or to take an exemption back for.
+        if (selector === '' || splitPseudoElement(selector).pseudoElement !== '') continue;
+        if (exempt) found.exempt.add(selector);
+        if (reenabled) found.reenabled.add(selector);
     }
 }
 
@@ -136,161 +192,331 @@ function replaceAmpersand(selector: string, replacement: string): string | null 
     return replaced ? out : null;
 }
 
-/** Strictly inside the scope. The roots stand in for the page and are never painted: the overlay container covers the viewport, the shell included. */
-const INSIDE = `:where(${SIM_SCOPE}) *`;
-
-/** The roots and everything inside, for what inherits. */
-const ROOTS_AND_INSIDE = `*${SCOPE_IN_SUFFIX}`;
-
-// The properties of CSS Color Adjust 1, "Properties Affected by Forced Colors Mode", and the
-// ones it lists beside them: what the browser forces for a page in the mode.
+/**
+ * What Chromium's own styles exempt, in front of the author's exemptions: an `<svg>` has
+ * `forced-color-adjust: preserve-parent-color`, which keeps the colors the author sets on it and
+ * inside it, and a `<foreignObject>` in it has `auto`, which forces what it holds again. Where an
+ * element in an SVG sets no color, it inherits the forced one of its parent, which is all that
+ * `preserve-parent-color` does beyond `none`.
+ */
+const USER_AGENT_EXEMPT = 'svg';
+const USER_AGENT_REENABLED: readonly string[] = ['foreignObject'];
 
 /**
- * Inherited, so the roots take them too and the ground of a text without element of its own is right.
+ * The exempt selectors, the user agent's first. An `auto` of the author's on an `<svg>` itself wins
+ * against the user agent's style, and the `<svg>` is no exemption then.
+ */
+function exemptOf(rules: ForcedColorRules): string[] {
+    const svg = rules.reenabled.length > 0 ? `${USER_AGENT_EXEMPT}:not(:is(${rules.reenabled.join(', ')}))` : USER_AGENT_EXEMPT;
+
+    return [svg, ...rules.exempt];
+}
+
+/** The elements below an exemption that an `auto` takes it back for, as `:is(<exempt>) :is(<reenabled>)`, the user agent's included. */
+function reenabledSelector(rules: ForcedColorRules): string {
+    return `:is(${exemptOf(rules).join(', ')}) :is(${[...USER_AGENT_REENABLED, ...rules.reenabled].join(', ')})`;
+}
+
+/**
+ * What is exempt from the forced colors, as a selector that weighs nothing: an exemption and what is
+ * inside it, minus what a `forced-color-adjust: auto` below it takes back, and what is inside that.
+ * The user agent's are always among them: an `<svg>` and what is inside it, minus what a
+ * `<foreignObject>` holds, and minus an `<svg>` that the author gives `auto` itself.
+ *
+ * One level only: an `auto` is taken back to forcing, and a `none` below that is not exempt again,
+ * nor is an `<svg>` in a `<foreignObject>` in an `<svg>`.
+ * An `auto` takes back an exemption only from the elements below an exempt one, never from the
+ * exempt element it matches itself. Where one element matches both a `none` and an `auto`, the
+ * browser lets specificity and order decide, which a selector cannot read. The approximation errs
+ * both ways: an `auto` below an exemption always wins, and without an exemption above it the `none` does.
+ *
+ * A list in `:where()` or `:is()` ignores a selector that the browser rejects, so it does not take
+ * the others with it.
+ */
+export function exemptionSelector(rules: ForcedColorRules): string {
+    const exempt = exemptOf(rules);
+    const taken = reenabledSelector(rules);
+
+    return `:where(:where(${[...exempt, ...exempt.map((selector) => `${selector} *`)].join(', ')}):not(:where(${taken}, ${taken} *)))`;
+}
+
+/**
+ * The cascade layer of the forced colors sheet. Declared first in the document
+ * (`SimulationStyles`), it is the lowest of all, so that every rule of the
+ * author's, in a layer or not, and every twin of one wins against it.
+ */
+export const FORCED_LAYER = 'prism-sim-forced';
+
+/** The scope roots alone. */
+const ROOTS = `:where(${SIM_SCOPE})`;
+
+/** Strictly inside the scope. The roots stand in for the page and are never painted: the overlay container covers the viewport, the shell included. */
+const INSIDE = `${ROOTS} *`;
+
+/*
+ * The context. Chromium does not force one value for everyone: an element is forced to the color
+ * the user agent gives it in the mode, `LinkText` for a link, `GrayText` for a disabled button, and
+ * what is inside inherits it. The sheet keeps that context in custom properties, which inherit as
+ * well, and the forced colors read it:
+ *
+ * - `--prism-sim-fg`, the text color. Every other foreground color, a border, an outline or a caret,
+ *   is `currentcolor`: Chromium forces it to the color of the element itself, which is the text
+ *   color and no other (`Highlight` next to a text of `Highlight`),
+ * - `--prism-sim-bg-rgb`, the ground as channels (`r g b`), for a background. Unlike the text
+ *   color it stops at the element that sets it: what is inside a `<mark>`, and its generated
+ *   content, gets `Canvas`, not `Mark`,
+ * - `--prism-sim-outline`, the outline of the element with visible focus, and of no other, not
+ *   even its generated content; any other outline is `currentcolor`.
+ */
+
+/**
+ * What inherits, set where a context starts: on the scope roots, which would inherit it from the
+ * shell, and on what an `auto` takes back from an exemption. Below them an element takes it from
+ * its parent, as in the browser, where an element without a color of its own inherits the one of
+ * its parent, a system color that the author keeps there included.
  *
  * `-webkit-text-fill-color` follows `color`: text that an author filled with a gradient (a transparent
- * fill over `background-clip: text`) would vanish once the gradient is gone. As `currentColor` it
- * keeps a link on `LinkText`.
+ * fill over `background-clip: text`) would vanish once the gradient is gone. As `currentcolor`, which
+ * inherits as the keyword, it keeps a link on `LinkText`.
  */
 const INHERITED: readonly string[] = [
-    'color: CanvasText',
-    '-webkit-text-fill-color: currentColor',
-    'caret-color: CanvasText',
+    'color: var(--prism-sim-fg)',
+    '-webkit-text-fill-color: currentcolor',
+    'caret-color: currentcolor',
     'text-shadow: none',
     'accent-color: auto',
     'scrollbar-color: auto'
 ];
 
-/** Colors that nothing can hide behind: they are set on the generated content too. */
+/**
+ * Colors that do not inherit, for every element and its generated content: where neither the
+ * author nor a user agent sets one, the initial `currentcolor` is the color of the element, and
+ * where a user agent does, a field's border for one, its color follows the element's as well.
+ */
 const COLORS: readonly string[] = [
-    'border-color: CanvasText',
-    'outline-color: CanvasText',
-    'text-decoration-color: CanvasText',
-    'text-emphasis-color: CanvasText',
-    'column-rule-color: CanvasText',
-    'row-rule-color: CanvasText',
-    'stop-color: CanvasText',
-    'flood-color: CanvasText',
-    'lighting-color: CanvasText'
+    'border-color: currentcolor',
+    'outline-color: var(--prism-sim-outline, currentcolor)',
+    'text-decoration-color: currentcolor',
+    'text-emphasis-color: currentcolor',
+    'column-rule-color: currentcolor',
+    'row-rule-color: currentcolor'
 ];
 
-/**
- * What covers an element: a ground and a shadow. `background-color` loses its alpha, since the CSS cannot
- * read what the author set, so a transparent element is `Canvas` here and in the browser it stays
- * transparent. Where that matters is an element that lies over another, which it hides: it is
- * kept off the generated content, where scrims, ripples and focus layers are made, and off the
- * structure of the CDK overlay ({@link OVERLAY_STRUCTURE}).
- */
-const GROUND: readonly string[] = ['background-color: Canvas', 'box-shadow: none'];
-
-// What the SVG markup, the fields, the buttons and the links get, and a gradient that falls away.
-const FILL: readonly string[] = ['fill: CanvasText'];
-const STROKE: readonly string[] = ['stroke: CanvasText'];
-const FIELD: readonly string[] = ['color: FieldText', 'background-color: Field', 'border-color: ButtonBorder'];
-const BUTTON: readonly string[] = ['color: ButtonText', 'background-color: ButtonFace', 'border-color: ButtonBorder'];
-const LINK: readonly string[] = ['color: LinkText', 'text-decoration-color: LinkText'];
-const NO_GRADIENT: readonly string[] = ['background-image: none'];
-
-/**
- * Every property the sheet forces. A copy of the author's own `@media (forced-colors: active)`
- * rules has to win on these, and only on these: the media engine makes them `!important` there
- * ({@link isForced}), and everything else keeps the cascade it has in the real mode.
- */
-export const FORCED_PROPERTIES: ReadonlySet<string> = new Set([INHERITED, COLORS, GROUND, FILL, STROKE, FIELD, BUTTON, LINK, NO_GRADIENT].flat().map(propertyOf));
-
-// The side or the axis in the name of a longhand: `border-left-color` is a `border-color`, `border-block-start` a `border`.
-const SIDE = /-(?:top|right|bottom|left|block|inline)(?:-(?:start|end))?(?=-|$)/g;
-
-/**
- * Whether a declaration of `property` sets something the sheet forces: one of
- * {@link FORCED_PROPERTIES}, the longhand of one for a side (`border-left-color`),
- * or a shorthand that sets one (`border`, `background`, `outline`), whose other
- * parts go with it.
- */
-export function isForced(property: string): boolean {
-    const base = property.replace(SIDE, '');
-
-    return FORCED_PROPERTIES.has(base) || Array.from(FORCED_PROPERTIES).some((forced) => forced.startsWith(`${base}-`));
-}
+// The context of the elements a user agent colors on its own, as Chromium shows them in the mode:
+// fields, buttons, links, disabled controls, marks and placeholders, rules, dialogs and popovers,
+// and the outline of the element with visible focus. Each sets its color, which the user agent sets
+// in the page's normal palette; their borders and outlines follow it.
+const TEXT = 'color: var(--prism-sim-fg)';
+const FIELD: readonly string[] = ['--prism-sim-fg: FieldText', TEXT, 'background-color: Field'];
+const BUTTON: readonly string[] = ['--prism-sim-fg: ButtonText', TEXT, 'background-color: ButtonFace'];
+const SURFACE: readonly string[] = [TEXT, 'background-color: Canvas'];
+const LINK: readonly string[] = ['--prism-sim-fg: LinkText', TEXT];
+const DISABLED: readonly string[] = ['--prism-sim-fg: GrayText', TEXT];
+const MARK: readonly string[] = ['--prism-sim-fg: MarkText', TEXT, 'background-color: Mark'];
+const PLACEHOLDER: readonly string[] = ['--prism-sim-fg: GrayText', TEXT];
+const FOCUSED: readonly string[] = ['--prism-sim-outline: Highlight'];
+const INSIDE_FOCUSED: readonly string[] = ['--prism-sim-outline: initial'];
 
 /**
  * The elements the CDK overlay lays out around a panel: the popover that hosts every overlay in the
  * top layer, a wrapper as large as the viewport for a dialog or a toast, a box around a connected
- * panel, a backdrop. All transparent on purpose, and all large and positioned, so a ground on one
- * covers the page, the shell included. Without a position strategy the popover is all there is
- * around the panel. The panel inside, where the content is, is painted.
+ * panel, a backdrop. All large and positioned, so an opaque ground on one covers the page, the shell
+ * included. Without a position strategy the popover is all there is around the panel. The panel
+ * inside, where the content is, is painted.
  */
 const OVERLAY_STRUCTURE = ':not(:where(.cdk-overlay-popover, .cdk-global-overlay-wrapper, .cdk-overlay-connected-position-bounding-box, .cdk-overlay-backdrop))';
 
+/**
+ * `tail` with every pseudo-class the canvas can force widened to its stand-in class, as the pseudo
+ * engine widens the author's selectors ({@link rewritePseudoSelector}), so that a forced state
+ * matches here as the real one does. Written so, and not left to the engine: it widens a sheet once,
+ * and this one is written anew for every palette and every change of the rules.
+ */
+function forceable(tail: string): string {
+    return rewritePseudoSelector(tail) ?? tail;
+}
+
 // The tail of a selector for the elements a user agent colors on its own. Nothing but `:where()`
 // weighs more than the universal selector, so each of them weighs nothing.
-const LINKS = ':where(a:any-link)';
+const LINKS = forceable(':where(a:any-link)');
 const BUTTONS = ':where(button, input[type=button i], input[type=submit i], input[type=reset i])';
 const FIELDS = ':where(input, select, textarea)';
+const SURFACES = ':where(dialog, [popover])';
+const RULES = ':where(hr)';
+const MARKS = ':where(mark)';
+const INSIDE_MARKS = ':where(mark *)';
+const PLACEHOLDERS = ':where(input, textarea)::placeholder';
 
-/** An attribute of an SVG element that names a color. `none`, `currentColor` and a paint server are not colors, and stay as they are. */
-const colored = (attribute: string): string =>
-    `:where(svg, svg *):where([${attribute}]:not([${attribute}=none i], [${attribute}=currentColor i], [${attribute}^=url i], [${attribute}=""]))`;
+// Chromium takes any outline of the focused element to `Highlight`, a transparent one or not, but
+// only under `:focus-visible`: a button focused by a click keeps the text color.
+const FOCUS = forceable(':where(:focus-visible)');
+const INSIDE_FOCUS = forceable(':where(:focus-visible *)');
 
 /**
- * The stylesheet that approximates forced colors mode in the simulation scope
- * ({@link SIM_SCOPE}): system colors for what the author painted, no shadows,
- * no gradients.
+ * The types of an input that Chromium grays out when it is disabled, as measured. Not among them:
+ * an input without a `type` (although `type=text` is), a checkbox, a radio button, a range, a file
+ * and a color input.
+ */
+const GRAYED_TYPES = ['text', 'search', 'tel', 'url', 'email', 'password', 'number', 'date', 'month', 'week', 'time', 'datetime-local', 'button', 'submit', 'reset'];
+
+/** The controls Chromium grays out when they are disabled: buttons, selects, text areas, option groups (a single option stays) and the inputs of {@link GRAYED_TYPES}. */
+const DISABLED_CONTROLS = forceable(
+    `:where(button:disabled, select:disabled, textarea:disabled, optgroup:disabled, input:is(${GRAYED_TYPES.map((type) => `[type=${type} i]`).join(', ')}):disabled)`
+);
+
+/**
+ * What comes before a declaration in a `style` attribute, besides its start: a semicolon, or white
+ * space, a line break or a tab, as CSS strings write them. The CSSOM writes `color: red; background:
+ * blue;`, and so does Angular for its style bindings and static styles; an author may write the
+ * declarations without spaces or on lines of their own.
+ */
+const BEFORE_DECLARATION: readonly string[] = [';', ' ', '\\A ', '\\9 '];
+
+/**
+ * A selector that weighs nothing for an element whose `style` attribute declares one of `properties`,
+ * which all hold `stem`. The name stands where a declaration starts and goes on with its colon, so
+ * that a name it is a part of does not count: `--sel-color` and `background-color` are not `color`,
+ * `background-size` is not `background`, `border-radius` is no `border`. A space before the colon
+ * goes unseen.
  *
- * Every rule weighs nothing (`:where()`) and every declaration is `!important`.
- * So the author's normal declarations lose, as the browser overrides them, and
- * the copies of the author's own `@media (forced-colors: active)` rules (their
- * {@link FORCED_PROPERTIES} made `!important` by the media engine, and with the
- * weight of the original) win, as in the mode. Equal weights are decided by
- * order, which is why the more special rules for links, buttons and fields come
- * after the general ones.
+ * The stem comes first: most inline styles name none (`width`, `transform`, `--progress`), and the
+ * browser tries the names only on an element whose attribute holds it, as it reads a compound from
+ * left to right.
+ */
+function declares(stem: string, properties: readonly string[]): string {
+    const names = properties.flatMap((name) => [`[style^="${name}:" i]`, ...BEFORE_DECLARATION.map((before) => `[style*="${before}${name}:" i]`)]);
+
+    return `:where([style*="${stem}" i]):where(${names.join(', ')})`;
+}
+
+/** The borders that set a color, and the old logical sides Chromium still takes under a `-webkit-` prefix. */
+const BORDERS = [
+    'border',
+    'border-color',
+    ...['top', 'right', 'bottom', 'left', 'block', 'inline', 'block-start', 'block-end', 'inline-start', 'inline-end'].flatMap((side) => [
+        `border-${side}`,
+        `border-${side}-color`
+    ]),
+    ...['start', 'end', 'before', 'after'].flatMap((side) => [`-webkit-border-${side}`, `-webkit-border-${side}-color`])
+];
+
+/**
+ * The net for inline styles, which no rule of the author's styles carries and so no twin: for an
+ * element whose `style` attribute declares a property that sets a forced color ({@link declares}),
+ * that color with the value of the context. A rule can only reach an inline declaration with
+ * `!important`, and the attribute is all a selector can see of it, so an inline background loses its
+ * alpha and an inline system color is forced too. One rule for each forced property: an element with
+ * an inline `color` gets no ground it does not have in the browser, and a selector the browser
+ * rejects takes no other with it.
+ *
+ * A property that Chromium also takes under a vendor prefix is listed under both names: the attribute
+ * keeps the name the author wrote, and {@link declares} does not take `-webkit-box-shadow` for
+ * `box-shadow`.
+ */
+const INLINE_NET: readonly (readonly [string, string])[] = [
+    [declares('color', ['color']), 'color: var(--prism-sim-fg)'],
+    [declares('background', ['background', 'background-color']), 'background-color: rgb(var(--prism-sim-bg-rgb))'],
+    [declares('border', BORDERS), 'border-color: currentcolor'],
+    [declares('outline', ['outline', 'outline-color']), 'outline-color: var(--prism-sim-outline, currentcolor)'],
+    [declares('caret-color', ['caret-color']), 'caret-color: currentcolor'],
+    [declares('box-shadow', ['box-shadow', '-webkit-box-shadow']), 'box-shadow: none'],
+    [declares('text-shadow', ['text-shadow']), 'text-shadow: none'],
+    // A `url()` among the images keeps the whole value, as in the browser.
+    [`:where([style*="-gradient(" i]:not([style*="url(" i]))${declares('background', ['background', 'background-image'])}`, 'background-image: none']
+];
+
+/**
+ * The stylesheet that sets the context of the forced colors in the simulation
+ * scope ({@link SIM_SCOPE}) and covers what no rule of the author's sets. The
+ * author's rules are forced by their twins (forced-values.ts), which the media
+ * engine puts right behind them and which read the context of this sheet.
+ *
+ * The context comes from where it does in the browser: the scope roots set it to
+ * `CanvasText` on `Canvas`, a link to `LinkText`, a disabled button to
+ * `GrayText`, a `<mark>` to `MarkText` on `Mark`, and the element with visible
+ * focus has a `Highlight` outline. The text color of a context is set where the
+ * context starts and inherits from there, so an element without a color of its
+ * own takes the one of its parent, even a system color the author keeps there.
+ * Borders and every other foreground are `currentcolor`, the forced color of
+ * their own element.
+ *
+ * Its rules sit in the cascade layer {@link FORCED_LAYER} at normal importance
+ * and weigh nothing (`:where()`): every rule of the author's and every twin wins
+ * against them, a transparent button of the author's stays transparent. Equal
+ * weights are decided by order, which is why the more special rules for fields,
+ * buttons, links, disabled controls and marks come after the general ones. Only
+ * the net for inline styles ({@link INLINE_NET}) is outside the layer and
+ * `!important`, and keeps off the scope roots, which the simulation gives an
+ * inline `color-scheme`, and off the layout elements of the CDK overlay
+ * ({@link OVERLAY_STRUCTURE}). `layered: false` writes the same rules without
+ * the layer, for a document that does not take its declaration.
  *
  * What an exemption names, `forced-color-adjust: none` and `preserve-parent-color`,
- * is left out together with everything below it.
+ * is left out together with everything below it ({@link exemptionSelector}), except
+ * for what a `forced-color-adjust: auto` takes back: that is forced again and
+ * gets the context of the page, `CanvasText` on `Canvas`, and not the one the
+ * exemption has inherited, a link's `LinkText` for one. An `<svg>` is exempt as
+ * Chromium's own styles make it, and a `<foreignObject>` in it is taken back.
  *
- * Grounds are `Canvas` only where nothing can be hidden behind them by mistake: not on
- * `::before` and `::after`, not on the layout elements of the CDK overlay.
+ * The system colors it names are written as their values in `palette`
+ * ({@link resolveSystemColors}): the keywords would resolve against the
+ * browser's normal palette under the scope root's `color-scheme`, not against
+ * the forced one.
  *
- * What it cannot do: an author's `!important` outside `@media (forced-colors)`
- * weighs more and wins, where the browser forces the color anyway. So does a
- * color in the author's own forced-colors rules that is not a system color,
- * which the browser forces as well. Colors an SVG takes from a stylesheet
- * rather than from an attribute stay, because `fill: none` must not become a
- * fill. Neither is `color-scheme` set, the palette is the caller's to choose.
+ * The paint of an SVG stays the author's, as in the browser, which forces none of it: `fill`,
+ * `stroke`, the `stop-color` of a gradient and the `flood-color` and `lighting-color` of a filter.
  */
-export function forcedColorsCss(rules: ForcedColorRules): string {
-    const exempt = rules.exempt.length === 0 ? '' : `:not(:where(${[...rules.exempt, ...rules.exempt.map((selector) => `${selector} *`)].join(', ')}))`;
+export function forcedColorsCss(rules: ForcedColorRules, palette: ForcedPaletteName, layered = true): string {
+    const exempt = `:not(${exemptionSelector(rules)})`;
+    const reenabled = reenabledSelector(rules);
     const inside = `${INSIDE}${exempt}`;
-    const roots = `${ROOTS_AND_INSIDE}${exempt}`;
+    const block = (selectors: readonly string[], declarations: readonly string[], important = false): string => forcedRule(selectors, declarations, palette, important);
+    // The channels of a system color, which `rgb()` and the relative color syntax take as they are.
+    const ground = (color: 'canvas' | 'mark'): string => `--prism-sim-bg-rgb: ${rgbChannels(FORCED_PALETTES[palette][color])}`;
 
-    const painted = `${inside}${OVERLAY_STRUCTURE}`;
-
-    const css = [
-        block(withPseudoElements(roots), INHERITED),
-        block(withPseudoElements(painted), COLORS),
-        block([painted], GROUND),
-        block([`${inside}${colored('fill')}`], FILL),
-        block([`${inside}${colored('stroke')}`], STROKE),
+    const context = [
+        block([`${ROOTS}${exempt}`], ['--prism-sim-fg: CanvasText', ground('canvas'), ...INHERITED]),
+        // Before the elements a user agent colors, which a link or a mark below sets again.
+        block([`${INSIDE}:where(${reenabled})`], ['--prism-sim-fg: CanvasText', ground('canvas'), ...INHERITED]),
+        block(withPseudoElements(inside), COLORS),
         block([`${inside}${FIELDS}`], FIELD),
         block([`${inside}${BUTTONS}`], BUTTON),
-        block([`${inside}${LINKS}`], LINK)
-    ];
+        block([`${inside}${SURFACES}`], SURFACE),
+        block([`${inside}${RULES}`], [TEXT]),
+        block([`${inside}${LINKS}`], LINK),
+        block([`${inside}${DISABLED_CONTROLS}`], DISABLED),
+        // Before the marks, so that a mark inside a mark is one again.
+        block([`${inside}${INSIDE_MARKS}`, ...generatedContent(`${inside}${MARKS}`)], [ground('canvas')]),
+        block([`${inside}${MARKS}`], [...MARK, ground('mark')]),
+        block([`${inside}${PLACEHOLDERS}`], PLACEHOLDER),
+        // Before the element with visible focus, as for the marks: a state the canvas forces on every element of a
+        // component puts one inside another, and each of them has it.
+        block([`${inside}${INSIDE_FOCUS}`, ...generatedContent(`${inside}${FOCUS}`)], INSIDE_FOCUSED),
+        block([`${inside}${FOCUS}`], FOCUSED)
+    ].join('\n\n');
+    // Not on the roots, which the simulation gives an inline `color-scheme`.
+    const net = INLINE_NET.map(([attribute, declaration]) => block([`${INSIDE}${attribute}${exempt}${OVERLAY_STRUCTURE}`], [declaration], true)).join('\n\n');
 
-    // One rule each: a selector that the browser rejects takes the whole list of a rule with it.
-    for (const gradient of rules.gradients) {
-        const { element, pseudoElement } = splitPseudoElement(gradient);
-
-        css.push(block([`${roots}:where(${element === '' ? '*' : element})${pseudoElement}`], NO_GRADIENT));
-    }
-
-    return css.join('\n\n');
+    return layered ? `@layer ${FORCED_LAYER} {\n${context}\n}\n\n${net}` : `${context}\n\n${net}`;
 }
 
 /** A selector and the generated content in front of and behind it, which `*` does not match. */
 function withPseudoElements(selector: string): string[] {
-    return [selector, `${selector}::before`, `${selector}::after`];
+    return [selector, ...generatedContent(selector)];
 }
 
-function block(selectors: readonly string[], declarations: readonly string[]): string {
-    return `${selectors.join(',\n')} {\n${declarations.map((declaration) => `    ${declaration} !important;`).join('\n')}\n}`;
+/** The generated content in front of and behind what `selector` matches, which inherits from it. */
+function generatedContent(selector: string): string[] {
+    return [`${selector}::before`, `${selector}::after`];
+}
+
+/** A rule of the sheet, its system colors in `palette`. */
+function forcedRule(selectors: readonly string[], declarations: readonly string[], palette: ForcedPaletteName, important: boolean): string {
+    const lines = declarations.map((declaration) => {
+        const property = propertyOf(declaration);
+
+        return `    ${property}: ${resolveSystemColors(property, valueOf(declaration), palette)}${important ? ' !important' : ''};`;
+    });
+
+    return `${selectors.join(',\n')} {\n${lines.join('\n')}\n}`;
 }

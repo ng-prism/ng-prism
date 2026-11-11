@@ -1,3 +1,5 @@
+import type { ForcedPaletteName } from './forced-palette.js';
+
 /** `System` leaves the preference alone, `Reduce` emulates `prefers-reduced-motion: reduce`. */
 export type MotionSetting = 'system' | 'reduce';
 
@@ -147,13 +149,14 @@ export function schemeGround(s: Simulation): 'light' | 'dark' | null {
 
 /**
  * The palette forced colours are approximated in, or `null` while they are
- * off. It follows the colour scheme: `Light` gives the light palette, `Dark`
- * and `System` the dark one.
+ * off. It follows the colour scheme, as Chromium's emulation does: `Light`
+ * gives the light palette, `Dark` the dark one and `System` the one of
+ * `system`, the scheme the operating system prefers.
  */
-export function forcedPalette(s: Simulation): 'light' | 'dark' | null {
+export function forcedPalette(s: Simulation, system: ForcedPaletteName): ForcedPaletteName | null {
     if (s.forced !== 'active') return null;
 
-    return s.scheme === 'light' ? 'light' : 'dark';
+    return s.scheme === 'system' ? system : s.scheme;
 }
 
 /**

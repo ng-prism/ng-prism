@@ -60,7 +60,7 @@ While the canvas simulates a color scheme or forced colors (since 22.8.0), the a
 - the gauge in the component head, while it shows the A11y score, carries `sim`, or `sim · approx.` under forced colors, with the condition in its tooltip; its card names it on the A11y score row
 - the badge of the A11y tab says it to a screen reader, as in `2 violations under Dark scheme`
 
-A result belongs to the condition it names. After a switch, the previous result stays, dimmed in the Violations sub-tab, until the new audit is in. Motion and vision leave the computed colours alone, so they start no audit and the figures name neither. Forced colors are an approximation, see [Forced colors](guide/styleguide-ui.md#forced-colors), so a score under them is no result of the real mode.
+A result belongs to the condition it names. After a switch, the previous result stays, dimmed in the Violations sub-tab, until the new audit is in. Motion and vision leave the computed colours alone, so they start no audit and the figures name neither. Under forced colors the audit measures the component in the colors of Chrome's forced palette, the light or the dark one. That is an approximation, see [Forced colors](guide/styleguide-ui.md#forced-colors): the real mode paints a backplate behind text that the simulation lacks and can give another result, so a score under forced colors is no result of the real mode.
 
 The a11y pill in the header and the markers in the sidebar come from the library-wide report, see [A11y Reports](guide/a11y-reports.md), and do not follow the simulation.
 

@@ -1,6 +1,7 @@
 import { DOCUMENT } from '@angular/common';
-import { computed, inject, Injectable, isDevMode, signal } from '@angular/core';
+import { computed, DestroyRef, inject, Injectable, isDevMode, signal } from '@angular/core';
 import type { NgPrismColorSchemeConfig, NgPrismColorSchemeTarget } from '../../plugin/plugin.types.js';
+import type { ForcedPaletteName } from '../simulate/forced-palette.js';
 import { RESERVED_ATTRIBUTES, sameScopeRoot, type ScopeRootState } from '../simulate/scope-root.js';
 import {
     auditConditionLabel,
@@ -37,13 +38,21 @@ import { PrismCaptureService } from './prism-capture.service.js';
  */
 @Injectable({ providedIn: 'root' })
 export class PrismSimulationService {
+    private readonly doc = inject(DOCUMENT);
+    private readonly destroyRef = inject(DestroyRef);
     private readonly capture = inject(PrismCaptureService);
-    private readonly colorSchemeHook = usableHook(inject(PRISM_CONFIG).colorScheme, inject(DOCUMENT));
+    private readonly colorSchemeHook = usableHook(inject(PRISM_CONFIG).colorScheme, this.doc);
 
     private readonly motion = signal<MotionSetting>(DEFAULT_SIMULATION.motion);
     private readonly scheme = signal<SchemeSetting>(DEFAULT_SIMULATION.scheme);
     private readonly forced = signal<ForcedSetting>(DEFAULT_SIMULATION.forced);
     private readonly vision = signal<VisionSetting>(DEFAULT_SIMULATION.vision);
+    /** The `prefers-color-scheme` of the operating system, which picks the forced palette under `System`. */
+    private readonly systemScheme = signal<ForcedPaletteName>('light');
+
+    constructor() {
+        this.followSystemScheme();
+    }
 
     /** The simulation in effect: what was set, or {@link DEFAULT_SIMULATION} while capture mode is active. */
     readonly state = computed<Simulation>(() =>
@@ -62,8 +71,11 @@ export class PrismSimulationService {
     /** The scheme the ground behind the component takes on, or `null` for the real one. */
     readonly schemeGround = computed(() => schemeGround(this.state()));
 
+    /** The palette forced colors are approximated in, `null` while they are off. Under `System`, the operating system's scheme picks it. */
+    readonly forcedPalette = computed(() => forcedPalette(this.state(), this.systemScheme()));
+
     /** Whether forced colors are approximated. */
-    readonly forcedActive = computed(() => this.state().forced === 'active');
+    readonly forcedActive = computed(() => this.forcedPalette() !== null);
 
     /** The condition a live accessibility audit runs under, or `null` for the real environment. */
     readonly auditCondition = computed(() => auditConditionLabel(this.state()));
@@ -82,13 +94,12 @@ export class PrismSimulationService {
         () => {
             if (!this.active()) return null;
 
-            const state = this.state();
             const scheme = this.emulated()['prefers-color-scheme'] ?? null;
             const hook = scheme ? this.colorSchemeHook[scheme] : undefined;
 
             return {
-                colorScheme: scheme ?? forcedPalette(state),
-                filter: visionFilter(state.vision),
+                colorScheme: scheme ?? this.forcedPalette(),
+                filter: visionFilter(this.state().vision),
                 themeClass: hook?.class ?? null,
                 themeAttributes: hook?.attributes ?? {}
             };
@@ -107,6 +118,26 @@ export class PrismSimulationService {
     /** Back to the real environment: every setting to its default. */
     reset(): void {
         this.set(DEFAULT_SIMULATION);
+    }
+
+    /**
+     * Keeps {@link systemScheme} on the operating system's answer. The list is
+     * asked for once, before the simulation can patch `matchMedia`: one asked
+     * for later would answer an emulated scheme, and a list keeps answering for
+     * the `matchMedia` it came from. Without `matchMedia` the scheme stays light,
+     * the one a browser assumes when nothing is preferred.
+     */
+    private followSystemScheme(): void {
+        const win = this.doc.defaultView;
+
+        if (typeof win?.matchMedia !== 'function') return;
+
+        const query = win.matchMedia('(prefers-color-scheme: dark)');
+        const onChange = (event: { matches: boolean }): void => this.systemScheme.set(event.matches ? 'dark' : 'light');
+
+        onChange(query);
+        query.addEventListener('change', onChange);
+        this.destroyRef.onDestroy(() => query.removeEventListener('change', onChange));
     }
 }
 

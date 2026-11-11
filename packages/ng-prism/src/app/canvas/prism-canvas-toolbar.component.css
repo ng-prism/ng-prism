@@ -443,16 +443,23 @@
     background: #0f172a;
 }
 
-/* Off: a page in colours of its own choosing. Active: the system's. */
+/* Off: a page in colours of its own choosing. Active: the system's, in
+   Chromium's dark forced palette: CanvasText on Canvas inside a ButtonBorder,
+   the text underlined in LinkText. */
 .tone[data-forced='off'] {
     color: #1d4ed8;
     background: #f8fafc;
 }
 
 .tone[data-forced='active'] {
-    color: #ff0;
+    color: #fff;
     background: #000;
     box-shadow: inset 0 0 0 1px #fff;
+}
+
+.tone[data-forced='active']::before {
+    text-decoration: underline 1px #ff0;
+    text-underline-offset: 1px;
 }
 
 /* Vision: a tile with a stripe of red, green, blue and yellow, run through

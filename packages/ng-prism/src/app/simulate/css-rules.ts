@@ -24,6 +24,11 @@ export function isMediaRule(rule: CSSRule): rule is CSSMediaRule {
     return isRuleGroup(rule) && 'media' in rule;
 }
 
+/** `@keyframes`: a name and keyframes, which take no `insertRule`, unlike `@layer`. */
+export function isKeyframesRule(rule: CSSRule): rule is CSSKeyframesRule {
+    return typeof (rule as Partial<CSSKeyframesRule>).name === 'string' && 'cssRules' in rule && !isRuleGroup(rule);
+}
+
 export function isImportRule(rule: CSSRule): rule is CSSImportRule {
     return 'styleSheet' in rule && 'href' in rule;
 }
@@ -86,18 +91,36 @@ export function valueOf(declaration: string): string {
         .trim();
 }
 
-/**
- * A block's text with only the declarations whose property `keep` accepts
- * (all, without it) and, of those, the ones whose property `important`
- * accepts `!important` (none, without it).
- */
-export function rewriteDeclarations(cssText: string, options: { keep?: (property: string) => boolean; important?: (property: string) => boolean }): string {
-    const { keep, important } = options;
+/** How {@link rewriteDeclarations} changes a block. */
+export interface DeclarationRewrite {
+    /** Which declarations stay, by property; all, without it. */
+    keep?: (property: string) => boolean;
+    /** The value a declaration takes, from its property and its value without the `!important`; the same, without it. */
+    value?: (property: string, value: string) => string;
+}
+
+/** A block's text with only the declarations whose property `keep` accepts, each with the value `value` makes of it. */
+export function rewriteDeclarations(cssText: string, options: DeclarationRewrite): string {
+    const { keep, value } = options;
 
     return declarationsOf(cssText)
         .filter((declaration) => !keep || keep(propertyOf(declaration)))
-        .map((declaration) => (important?.(propertyOf(declaration)) && !IMPORTANT.test(declaration) ? `${declaration} !important` : declaration))
+        .map((declaration) => (value ? withValue(declaration, value) : declaration))
         .join('; ');
+}
+
+/** `declaration` with the value `rewrite` makes of it and its priority; its text as it was where the value stays. */
+function withValue(declaration: string, rewrite: (property: string, value: string) => string): string {
+    const colon = declaration.indexOf(':');
+
+    if (colon < 0) return declaration;
+
+    const before = valueOf(declaration);
+    const after = rewrite(propertyOf(declaration), before);
+
+    if (after === before) return declaration;
+
+    return `${declaration.slice(0, colon).trim()}: ${after}${IMPORTANT.test(declaration) ? ' !important' : ''}`;
 }
 
 /** Inherited properties that may be set on the scope roots, besides custom properties. */

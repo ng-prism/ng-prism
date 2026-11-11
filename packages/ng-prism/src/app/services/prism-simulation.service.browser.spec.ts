@@ -15,6 +15,25 @@ function setSearch(search: string): void {
     window.history.replaceState({}, '', `/${search}`);
 }
 
+/** The browser's `matchMedia`, which jsdom lacks, with a `prefers-color-scheme` the test flips like the system would. */
+function installMatchMedia(dark: boolean) {
+    const listeners = new Set<(event: { matches: boolean }) => void>();
+    const query = {
+        matches: dark,
+        media: '(prefers-color-scheme: dark)',
+        addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => listeners.add(listener),
+        removeEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => listeners.delete(listener),
+        flip(next: boolean) {
+            query.matches = next;
+            listeners.forEach((listener) => listener({ matches: next }));
+        }
+    };
+    const matchMedia = jest.fn(() => query);
+
+    Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: matchMedia });
+    return { query, matchMedia, listeners };
+}
+
 function setUp(config: NgPrismConfig = CONFIG): PrismSimulationService {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({ providers: [{ provide: PRISM_CONFIG, useValue: config }] });
@@ -27,6 +46,7 @@ describe('PrismSimulationService', () => {
         setSearch('');
         document.documentElement.removeAttribute('data-prism-capture');
         document.getElementById('ng-prism-capture-styles')?.remove();
+        delete (window as { matchMedia?: unknown }).matchMedia;
     });
 
     it('simulates nothing at first', () => {
@@ -62,8 +82,13 @@ describe('PrismSimulationService', () => {
         sim.set({ motion: 'reduce', scheme: 'light', forced: 'active' });
         expect(sim.emulated()).toEqual({ 'prefers-reduced-motion': 'reduce', 'prefers-color-scheme': 'light', 'forced-colors': 'active' });
         expect(sim.schemeGround()).toBe('light');
+        expect(sim.forcedPalette()).toBe('light');
         expect(sim.forcedActive()).toBe(true);
         expect(sim.auditCondition()).toBe('Light scheme · Forced colors (approx.)');
+
+        sim.set({ forced: 'off' });
+        expect(sim.forcedPalette()).toBeNull();
+        expect(sim.forcedActive()).toBe(false);
     });
 
     it('puts the light hook on the scope root under a light scheme', () => {
@@ -81,6 +106,7 @@ describe('PrismSimulationService', () => {
     });
 
     it('forced colors pick the palette from the scheme', () => {
+        installMatchMedia(true);
         const sim = setUp();
 
         sim.set({ forced: 'active' });
@@ -88,7 +114,42 @@ describe('PrismSimulationService', () => {
         // The palette is no scheme of the component's: the hook stays off.
         expect(sim.scopeRoot()?.themeClass).toBeNull();
         sim.set({ scheme: 'light' });
+        expect(sim.forcedPalette()).toBe('light');
         expect(sim.scopeRoot()?.colorScheme).toBe('light');
+    });
+
+    it('follows the system scheme under System while forced colors are on', () => {
+        const { query, matchMedia } = installMatchMedia(false);
+        const sim = setUp();
+
+        expect(matchMedia).toHaveBeenCalledWith('(prefers-color-scheme: dark)');
+        sim.set({ forced: 'active' });
+        expect(sim.forcedPalette()).toBe('light');
+        expect(sim.scopeRoot()?.colorScheme).toBe('light');
+
+        query.flip(true);
+        expect(sim.forcedPalette()).toBe('dark');
+        expect(sim.scopeRoot()?.colorScheme).toBe('dark');
+
+        // An emulated scheme decides over the system's.
+        sim.set({ scheme: 'light' });
+        expect(sim.forcedPalette()).toBe('light');
+    });
+
+    it('takes the light palette under System where there is no matchMedia', () => {
+        const sim = setUp();
+
+        sim.set({ forced: 'active' });
+        expect(sim.forcedPalette()).toBe('light');
+    });
+
+    it('stops listening to the system scheme when the app is destroyed', () => {
+        const { listeners } = installMatchMedia(false);
+
+        setUp();
+        expect(listeners.size).toBe(1);
+        TestBed.resetTestingModule();
+        expect(listeners.size).toBe(0);
     });
 
     it('emulates the scheme without a hook when the config has none', () => {
@@ -141,12 +202,13 @@ describe('PrismSimulationService', () => {
         setSearch('?capture=1');
         const sim = setUp();
 
-        sim.set({ motion: 'reduce', scheme: 'dark' });
+        sim.set({ motion: 'reduce', scheme: 'dark', forced: 'active' });
         expect(sim.state()).toEqual(DEFAULT_SIMULATION);
         expect(sim.active()).toBe(false);
         expect(sim.labels()).toEqual([]);
         expect(sim.emulated()).toEqual({});
         expect(sim.schemeGround()).toBeNull();
+        expect(sim.forcedPalette()).toBeNull();
         expect(sim.auditCondition()).toBeNull();
         expect(sim.scopeRoot()).toBeNull();
     });

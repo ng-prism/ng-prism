@@ -60,12 +60,18 @@ describe('simulation', () => {
         expect(sameMedia({}, { 'prefers-reduced-motion': 'reduce' })).toBe(false);
     });
 
-    it('scheme ground and forced palette', () => {
+    it('scheme ground', () => {
         expect(schemeGround({ ...DEFAULT_SIMULATION, scheme: 'dark' })).toBe('dark');
         expect(schemeGround(DEFAULT_SIMULATION)).toBeNull();
-        expect(forcedPalette({ ...DEFAULT_SIMULATION, forced: 'active' })).toBe('dark');
-        expect(forcedPalette({ ...DEFAULT_SIMULATION, forced: 'active', scheme: 'light' })).toBe('light');
-        expect(forcedPalette({ ...DEFAULT_SIMULATION, scheme: 'light' })).toBeNull();
+    });
+
+    it('forced palette: the emulated scheme, under System the system one', () => {
+        expect(forcedPalette({ ...DEFAULT_SIMULATION, forced: 'active' }, 'light')).toBe('light');
+        expect(forcedPalette({ ...DEFAULT_SIMULATION, forced: 'active' }, 'dark')).toBe('dark');
+        expect(forcedPalette({ ...DEFAULT_SIMULATION, forced: 'active', scheme: 'dark' }, 'light')).toBe('dark');
+        expect(forcedPalette({ ...DEFAULT_SIMULATION, forced: 'active', scheme: 'light' }, 'dark')).toBe('light');
+        expect(forcedPalette({ ...DEFAULT_SIMULATION, scheme: 'light' }, 'dark')).toBeNull();
+        expect(forcedPalette(DEFAULT_SIMULATION, 'dark')).toBeNull();
     });
 
     it('round-trips URL params, writing only non-defaults', () => {

@@ -34,3 +34,13 @@ describe('prism-overview-cell layout', () => {
         expect(rule('.cell__stage[data-sim-vision]::before')).toMatch(/clip-path:\s*inset\(1px round calc\(var\(--radius-sm\) - 1px\)\)/);
     });
 });
+
+describe('prism-overview-cell forced ground', () => {
+    // The keyword `Canvas` would resolve against the browser's normal palette, not the forced one.
+    it("should paint the ground in the forced palette's Canvas, which the cell binds", () => {
+        const html = readFileSync(join(__dirname, 'prism-overview-cell.component.html'), 'utf8');
+
+        expect(rule('.cell__stage[data-sim-forced]')).toMatch(/background-color:\s*var\(--prism-sim-canvas\)/);
+        expect(html.slice(html.indexOf('<div'), html.indexOf('>'))).toContain('[style.--prism-sim-canvas]="ground().canvas"');
+    });
+});

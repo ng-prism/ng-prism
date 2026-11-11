@@ -45,16 +45,17 @@
 /* Forced colors paint the ground Canvas, over a background the variant
    recommends or the user picked, as the real mode does: the component's text
    turns CanvasText and would otherwise stand on a ground it never meets
-   there. The stage carries the palette's color-scheme meanwhile (the
-   renderer binds it), so this Canvas is the one the component is forced
-   against. The class outweighs the [data-bg] rules of CANVAS_BG_STYLES,
-   which come later. The edge stays: it is chrome.
+   there. It is the palette's Canvas as a value (--prism-sim-canvas, which the
+   renderer binds): the keyword would resolve against the browser's normal
+   palette, not the forced one the component is forced against. The class
+   outweighs the [data-bg] rules of CANVAS_BG_STYLES, which come later. The
+   edge stays: it is chrome.
 
    The measurement colours follow the ground, not the background: the canvas
    wrap carries the overlay tokens of the palette then (overlayGround), and
    inherit takes them back from the [data-bg] rules that re-point them. */
 .prism-canvas-stage[data-sim-forced] {
-    background-color: Canvas;
+    background-color: var(--prism-sim-canvas);
     background-image: none;
 
     --prism-measure: inherit;
@@ -63,7 +64,8 @@
 
 /* The ground under a vision setting: a copy of the stage's background, drawn
    with the filter that is on the component, so that what shows through the
-   component is filtered with it. Under forced colors it copies Canvas.
+   component is filtered with it. Under forced colors it copies the
+   palette's Canvas.
 
    It is the stage's first box and positioned without a z-index, so every
    child of the stage paints over it, unfiltered: all of them are positioned

@@ -40,6 +40,11 @@ jobs:
             - run: npm run check:docs
             - run: npm run style
             - run: npx nx run-many -t lint test build typecheck e2e-ci
+            # The specs that compare the simulation with Chromium need a browser, which the agents
+            # lack. `--no-agents` runs them here on the main job instead of distributing them; see
+            # NX_CLOUD_DISTRIBUTED_EXECUTION in https://nx.dev/docs/reference/environment-variables
+            - run: npx playwright install --with-deps chromium
+            - run: npx nx run ng-prism:test-chromium --no-agents
             # Nx Cloud recommends fixes for failures to help you get CI green faster. Learn more: https://nx.dev/ci/features/self-healing-ci
             - run: npx nx fix-ci
               if: always()

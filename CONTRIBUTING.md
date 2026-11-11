@@ -48,10 +48,10 @@ npm install
 #### 2. Verify the core builds and tests
 
 ```bash
-npm run check       # Format + declared-deps check + docs check + style + lint + test + build + typecheck for all packages
+npm run check       # Format + declared-deps check + docs check + style + lint + test + test-chromium + build + typecheck for all packages
 ```
 
-CI runs these same steps (see [Run the Check Suite](#3-run-the-check-suite)). It must pass before continuing, because the test-workspace setup depends on a working core build.
+`test-chromium` drives a real browser, so install Chromium once with `npx playwright install chromium`. CI runs these same steps (see [Run the Check Suite](#3-run-the-check-suite)). It must pass before continuing, because the test-workspace setup depends on a working core build.
 
 #### 3. Start the local registry (separate terminal)
 
@@ -234,13 +234,14 @@ Use a descriptive branch name with a prefix:
 Before opening a PR, run the checks CI runs on GitHub:
 
 ```bash
-npm run check       # nx format:check + check-declared-deps + check-docs + stylelint + lint + test + build + typecheck for all packages
+npm run check       # nx format:check + check-declared-deps + check-docs + stylelint + lint + test + test-chromium + build + typecheck for all packages
 ```
 
-CI runs step for step the same list. The one difference is that CI appends
-`e2e-ci` to the final `nx run-many`, a target no project currently defines.
-It predates this toolchain and is skipped silently, so it changes nothing
-either way.
+CI runs the same list. It runs `test-chromium` as a step of its own on the main
+job, after installing Chromium, because the Nx Cloud agents that run the other
+targets have no browser. It also appends `e2e-ci` to the final `nx run-many`, a
+target no project currently defines. That one predates this toolchain and is
+skipped silently, so it changes nothing either way.
 
 If `check` fails on formatting, lint, or style, auto-fix what can be auto-fixed with:
 
@@ -441,6 +442,7 @@ Tests use **Jest 30** with **SWC** for fast TypeScript transformation.
 - Helpers that several specs share go in `__test-utils__/` directories. Both are left out of the library build and of the declared-dependencies check (`npm run check:deps`), so a fixture or helper may import a package that only the root `package.json` declares, as a devDependency
 - Test environment is `node` (not `jsdom`) unless specifically required
 - In `packages/ng-prism`, a spec whose `Date`s depend on the time zone is named `*.tz.spec.ts`: `jest.config.cjs` runs it in two projects, `America/New_York` and `Europe/Berlin`, through `jest.timezone-environment.cjs`, which sets `TZ` before the spec runs and gives the zone to the spec as `__PRISM_TIMEZONE__`
+- In `packages/ng-prism`, a spec that checks the canvas simulation against a real browser is named `*.chromium.spec.ts`. It runs in Node and drives Chromium through Playwright (`src/app/simulate/__test-utils__/chromium.ts`), in a target of its own, `test-chromium` (`jest.chromium.config.cjs`), and not in `test`: in CI, `test` runs on Nx Cloud agents, which have no browser. `npm run check` runs it as well, so install Chromium once with `npx playwright install chromium`
 
 ### Running Tests
 
@@ -450,6 +452,9 @@ npx nx test ng-prism
 
 # Single test file
 npx nx test ng-prism -- --testPathPatterns=scanner
+
+# The specs against real Chromium (*.chromium.spec.ts)
+npx nx run ng-prism:test-chromium
 
 # All packages
 npx nx run-many -t test

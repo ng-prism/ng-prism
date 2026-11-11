@@ -1,20 +1,15 @@
 import { TestBed } from '@angular/core/testing';
 import { PrismSimulationService } from '../services/prism-simulation.service.js';
 import { PRISM_CONFIG } from '../tokens/prism-tokens.js';
-import { collectForcedColorRules, forcedColorsCss } from './forced-colors.js';
+import { type ForcedColorRules, forcedColorsCss } from './forced-colors.js';
 import { MEDIA_TRUE } from './media-condition.js';
 import { MediaStyleSheets } from './media-stylesheets.js';
 import { PrismSimulationRuntimeService } from './prism-simulation-runtime.service.js';
 
+const NO_FORCED_RULES: ForcedColorRules = { exempt: [], reenabled: [], gradientVars: [], layerVars: [] };
+
 /** Lets pending MutationObserver callbacks run. */
 const flushMutations = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
-
-function addStyle(css: string): void {
-    const style = document.createElement('style');
-
-    style.textContent = css;
-    document.head.appendChild(style);
-}
 
 function addOverlayContainer(): HTMLElement {
     const container = document.createElement('div');
@@ -85,13 +80,13 @@ describe('PrismSimulationRuntimeService', () => {
 
         sim.set({ motion: 'reduce' });
         TestBed.tick();
-        expect(apply).toHaveBeenLastCalledWith({ 'prefers-reduced-motion': 'reduce' });
+        expect(apply).toHaveBeenLastCalledWith({ 'prefers-reduced-motion': 'reduce' }, null);
         expect(window.matchMedia).not.toBe(browser);
         expect(window.matchMedia('(prefers-reduced-motion: reduce)').matches).toBe(true);
 
         sim.set({ scheme: 'dark' });
         TestBed.tick();
-        expect(apply).toHaveBeenLastCalledWith({ 'prefers-reduced-motion': 'reduce', 'prefers-color-scheme': 'dark' });
+        expect(apply).toHaveBeenLastCalledWith({ 'prefers-reduced-motion': 'reduce', 'prefers-color-scheme': 'dark' }, null);
         expect(window.matchMedia('(prefers-color-scheme: dark)').matches).toBe(true);
 
         clear.mockClear();
@@ -112,107 +107,36 @@ describe('PrismSimulationRuntimeService', () => {
         expect(window.matchMedia).toBe(browser);
     });
 
-    it('adopts the forced colors sheet, ignored by the media engine, and removes it on reset', () => {
-        const { adopt, textOf } = stubAdoptedSheets();
-        const apply = jest.spyOn(MediaStyleSheets.prototype, 'apply');
-        const ignore = jest.spyOn(MediaStyleSheets.prototype, 'ignore');
+    it('adopts the forced colors sheet while forced colors are simulated and takes it away on reset', () => {
+        stubAdoptedSheets();
         const { sim } = setUp();
 
-        addStyle('.dot { forced-color-adjust: none }');
         sim.set({ forced: 'active' });
         TestBed.tick();
-
-        const [sheet] = document.adoptedStyleSheets;
-
         expect(document.adoptedStyleSheets).toHaveLength(1);
-        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: ['.dot'], gradients: [] }));
-        expect(ignore).toHaveBeenCalledWith(sheet);
-        // The engine has rewritten the sheets before the forced one arrives, and never gets to see it unignored.
-        expect(apply.mock.invocationCallOrder[0]).toBeLessThan(adopt.mock.invocationCallOrder[0]);
-        expect(ignore.mock.invocationCallOrder[0]).toBeLessThan(adopt.mock.invocationCallOrder[0]);
 
         sim.reset();
         TestBed.tick();
         expect(document.adoptedStyleSheets).toEqual([]);
     });
 
-    it('collects the exemptions anew each time forced colors turn on', () => {
+    it('writes the stylesheets in the forced palette, and again when it changes', () => {
         const { textOf } = stubAdoptedSheets();
-        const { sim } = setUp();
-
-        sim.set({ forced: 'active' });
-        TestBed.tick();
-        sim.reset();
-        TestBed.tick();
-
-        addStyle('.late { forced-color-adjust: none }');
-        sim.set({ forced: 'active' });
-        TestBed.tick();
-        expect(textOf(document.adoptedStyleSheets[0])).toBe(forcedColorsCss(collectForcedColorRules(document)));
-        expect(textOf(document.adoptedStyleSheets[0])).toContain('.late');
-    });
-
-    it('keeps the other adopted sheets', () => {
-        stubAdoptedSheets();
-        const own = new CSSStyleSheet();
-
-        document.adoptedStyleSheets = [own];
-        const { sim } = setUp();
-
-        sim.set({ forced: 'active' });
-        TestBed.tick();
-        expect(document.adoptedStyleSheets).toHaveLength(2);
-        expect(document.adoptedStyleSheets[0]).toBe(own);
-        sim.reset();
-        TestBed.tick();
-        expect(document.adoptedStyleSheets).toEqual([own]);
-    });
-
-    it('goes without the forced colors sheet where the document cannot adopt one, and emulates the rest', () => {
         const apply = jest.spyOn(MediaStyleSheets.prototype, 'apply');
-        const browser = stubMatchMedia();
-        const { sim } = setUp();
 
-        sim.set({ forced: 'active' });
-        expect(() => TestBed.tick()).not.toThrow();
-        expect(apply).toHaveBeenLastCalledWith({ 'forced-colors': 'active' });
-        expect(window.matchMedia).not.toBe(browser);
-        expect(window.matchMedia('(forced-colors: active)').matches).toBe(true);
-    });
-
-    it('takes the forced colors sheet away and keeps emulating the scheme when only forced colors go', () => {
-        stubAdoptedSheets();
-        const apply = jest.spyOn(MediaStyleSheets.prototype, 'apply');
-        const clear = jest.spyOn(MediaStyleSheets.prototype, 'clear');
-        const { sim } = setUp();
-
-        sim.set({ forced: 'active', scheme: 'dark' });
-        TestBed.tick();
-        expect(document.adoptedStyleSheets).toHaveLength(1);
-        clear.mockClear();
-
-        sim.set({ forced: 'off' });
-        TestBed.tick();
-        expect(document.adoptedStyleSheets).toEqual([]);
-        expect(apply).toHaveBeenLastCalledWith({ 'prefers-color-scheme': 'dark' });
-        expect(clear).not.toHaveBeenCalled();
-    });
-
-    it('collects the exemptions of styles that arrive while forced colors are on', async () => {
-        const { textOf } = stubAdoptedSheets();
+        // The system's scheme is light: only `MEDIA_TRUE` matches.
+        stubMatchMedia();
         const { sim } = setUp();
 
         sim.set({ forced: 'active' });
         TestBed.tick();
-        const [sheet] = document.adoptedStyleSheets;
+        expect(apply).toHaveBeenLastCalledWith({ 'forced-colors': 'active' }, { palette: 'light', rules: NO_FORCED_RULES });
+        expect(textOf(document.adoptedStyleSheets[0])).toBe(forcedColorsCss(NO_FORCED_RULES, 'light'));
 
-        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: [], gradients: [] }));
-
-        addStyle('.dot { forced-color-adjust: none }');
-        await flushMutations();
-        // Rewritten in place: the same sheet, still the only one adopted.
-        expect(document.adoptedStyleSheets).toEqual([sheet]);
-        expect(textOf(sheet)).toBe(forcedColorsCss({ exempt: ['.dot'], gradients: [] }));
+        sim.set({ scheme: 'dark' });
+        TestBed.tick();
+        expect(apply).toHaveBeenLastCalledWith({ 'forced-colors': 'active', 'prefers-color-scheme': 'dark' }, { palette: 'dark', rules: NO_FORCED_RULES });
+        expect(textOf(document.adoptedStyleSheets[0])).toBe(forcedColorsCss(NO_FORCED_RULES, 'dark'));
     });
 
     it('treats a .cdk-overlay-container that is there already as a scope root and follows the simulation', () => {
