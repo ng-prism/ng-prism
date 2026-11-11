@@ -1,4 +1,4 @@
-import type { CanvasBg } from './canvas-bg.type.js';
+import { CANVAS_BGS, type CanvasBg } from './canvas-bg.type.js';
 import { declaredVariantBg, DEFAULT_VARIANT_BG, resolveVariantBg } from './variant-bg.js';
 
 /**
@@ -12,6 +12,12 @@ import { declaredVariantBg, DEFAULT_VARIANT_BG, resolveVariantBg } from './varia
 function variant(name: string, bg?: CanvasBg) {
     return { name, bg };
 }
+
+describe('CANVAS_BGS', () => {
+    it('no longer lists the removed checker background', () => {
+        expect(CANVAS_BGS).not.toContain('checker');
+    });
+});
 
 describe('declaredVariantBg', () => {
     it('returns null when neither level declares a bg', () => {
@@ -44,7 +50,7 @@ describe('declaredVariantBg', () => {
     });
 
     it('handles a config with no variants at all', () => {
-        expect(declaredVariantBg({ bg: 'checker' }, 0)).toBe('checker');
+        expect(declaredVariantBg({ bg: 'plain' }, 0)).toBe('plain');
         expect(declaredVariantBg({}, 0)).toBeNull();
     });
 });

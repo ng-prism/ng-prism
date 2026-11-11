@@ -102,9 +102,9 @@ describe('PrismCaptureService', () => {
         const colouring = rules.filter((rule) => rule.style.getPropertyValue('background-color'));
 
         // A declared `@Showcase({ bg })` survives capture mode: `light`, `dark`,
-        // `dots`, `plain` and `checker` keep their colour and lose only the
-        // non-deterministic pattern. `transparent` is the sole value whose colour
-        // capture mode is allowed to touch.
+        // `dots` and `plain` keep their colour and lose only the non-deterministic
+        // pattern. `transparent` is the sole value whose colour capture mode is
+        // allowed to touch.
         expect(colouring).toHaveLength(1);
         expect(colouring[0].selectorText).toContain("data-bg='transparent'");
         expect(colouring[0].style.getPropertyValue('background-color')).toBe('transparent');

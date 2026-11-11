@@ -61,7 +61,7 @@ describe('canvasOverlayTokens', () => {
         expect(contrast(t['--prism-measure'], t['--prism-canvas-overlay-bg'])).toBeGreaterThanOrEqual(4.5);
     });
 
-    it.each(['dots', 'plain', 'checker', 'transparent'] satisfies CanvasBg[])('leaves the theme-following %s ground to the theme', (bg) => {
+    it.each(['dots', 'plain', 'transparent'] satisfies CanvasBg[])('leaves the theme-following %s ground to the theme', (bg) => {
         expect(canvasOverlayTokens(bg)).toEqual({});
     });
 });

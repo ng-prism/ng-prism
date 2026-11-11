@@ -187,10 +187,10 @@
 }
 
 /* While the live a11y audit runs (withCanvasChromeHidden in canvas-audit.ts),
-   the stage drops its dot or checker pattern: axe decides no colour contrast
-   over a background image. The colour stays, so the subject is judged against
-   the ground it sits on. The overlays and tools around the subject are hidden
-   inline by the same function. */
+   the stage drops its dot or checkerboard pattern: axe decides no colour
+   contrast over a background image. The colour stays, so the subject is judged
+   against the ground it sits on. The overlays and tools around the subject are
+   hidden inline by the same function. */
 .prism-canvas-stage[data-prism-auditing] {
     background-image: none;
 }

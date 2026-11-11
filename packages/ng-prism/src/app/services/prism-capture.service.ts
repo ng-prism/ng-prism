@@ -60,9 +60,9 @@ const CAPTURE_CANVAS_ONLY_SELECTOR =
  * reaching the dynamically created showcase component's transitions and
  * animations.
  *
- * `background-image` is stripped because the dot/checker pattern's phase shifts
- * whenever the centred component resizes; the declared colour is deterministic
- * and stays. `!important` is required to beat the component-scoped stage rules.
+ * `background-image` is stripped because the dot/checkerboard pattern's phase
+ * shifts whenever the centred component resizes; the declared colour is
+ * deterministic and stays. `!important` is required to beat the component-scoped stage rules.
  * `transparent` also drops the colour, across the layers in
  * {@link CAPTURE_TRANSPARENT_SELECTOR}; alpha is per-pixel and does not shift.
  * The rules from {@link CAPTURE_CANVAS_ONLY_SELECTOR} down give the canvas the

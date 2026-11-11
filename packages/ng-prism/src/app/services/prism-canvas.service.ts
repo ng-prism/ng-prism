@@ -119,12 +119,20 @@ export class PrismCanvasService {
             if (!raw) return;
             const d = JSON.parse(raw) as Record<string, unknown>;
 
-            if (CANVAS_BGS.includes(d['bg'] as CanvasBg)) {
+            const known = CANVAS_BGS.includes(d['bg'] as CanvasBg);
+
+            if (known) {
                 this.bg.set(d['bg'] as CanvasBg);
             }
+            // A stored background that no longer exists (a removed value) falls
+            // back to the default, and the pick goes with it: nobody chose the
+            // default, so it must not outrank a declared background or the
+            // emulated scheme.
+            const stale = d['bg'] !== undefined && !known;
+
             // Storage from before the flag existed has none: any background but
             // the default can only have been picked.
-            this._bgChosen.set(typeof d['bgChosen'] === 'boolean' ? d['bgChosen'] : this.bg() !== 'dots');
+            this._bgChosen.set(!stale && (typeof d['bgChosen'] === 'boolean' ? d['bgChosen'] : this.bg() !== 'dots'));
             if (typeof d['zoom'] === 'number') this.zoom.set(d['zoom']);
             if (typeof d['guides'] === 'boolean') this.guides.set(d['guides']);
             if (typeof d['rulers'] === 'boolean') this.rulers.set(d['rulers']);

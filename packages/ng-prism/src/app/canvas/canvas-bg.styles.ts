@@ -58,10 +58,9 @@ export const CANVAS_BG_STYLES = `
     --prism-measure-plate: var(--prism-void-dark, #07050f);
   }
 
-  /* "transparent" shares the checkerboard. In the app the checkerboard is
-     already the UI's sign for "no surface", and a see-through stage would only
-     show the shell behind it. Only CAPTURE_STYLES tells the two apart. */
-  [data-bg="checker"],
+  /* "transparent" paints a checkerboard. In the app the checkerboard is already
+     the UI's sign for "no surface", and a see-through stage would only show the
+     shell behind it. Only CAPTURE_STYLES makes the stage see-through. */
   [data-bg="transparent"] {
     background-image:
       linear-gradient(45deg, var(--prism-border) 25%, transparent 25%),

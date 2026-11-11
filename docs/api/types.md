@@ -685,7 +685,7 @@ Strings, not a class reference, so that `ng-prism-strip` leaves no import behind
 A canvas background, the type of [`ShowcaseConfig.bg`](api/showcase-config.md#bg) and `Variant.bg`.
 
 ```typescript
-type CanvasBg = 'dots' | 'plain' | 'light' | 'dark' | 'checker' | 'transparent';
+type CanvasBg = 'dots' | 'plain' | 'light' | 'dark' | 'transparent';
 ```
 
 | Value         | Paints                                                                                                                                                                                                                     |
@@ -694,7 +694,6 @@ type CanvasBg = 'dots' | 'plain' | 'light' | 'dark' | 'checker' | 'transparent';
 | `plain`       | The themed surface, no pattern                                                                                                                                                                                             |
 | `light`       | A flat light surface in an absolute colour, `--prism-void-light`                                                                                                                                                           |
 | `dark`        | A flat dark surface in an absolute colour, `--prism-void-dark`                                                                                                                                                             |
-| `checker`     | **Deprecated** since 22.2.0, removed in 23.0.0. A checkerboard over the themed surface, captured as that surface's colour                                                                                                  |
 | `transparent` | A checkerboard while browsing, real transparency in a capture. What a variant resolves to in discovery, capture and the Overview when nothing declares a background; the Playground keeps the canvas's own background then |
 
 Which background applies where, and which to declare under visual regression, is described under [`bg`](api/showcase-config.md#bg). `CANVAS_BGS` lists every value, `DEFAULT_VARIANT_BG` is `'transparent'`, and `resolveVariantBg()` resolves the background of a variant as the styleguide does, see [Plugin UI Kit](api/plugin-ui.md#constants-and-helpers).

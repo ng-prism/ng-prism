@@ -242,7 +242,6 @@
     background-size: 5px 5px;
 }
 
-.swatch[data-bg='checker'],
 .swatch[data-bg='transparent'] {
     background-position:
         0 0,

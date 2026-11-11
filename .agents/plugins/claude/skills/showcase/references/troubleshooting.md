@@ -227,7 +227,9 @@ out`): the scanner failed on the class and skipped it, so that the rest of the l
 - **`<Class>: no part of the selector "<selector>" fits the host <tag>, so only its first attribute is set.`**: the host
   element isn't one the directive's selector names, so the directive may not match. Use a host that fits the selector.
 
-- **`<Class> declares bg "checker", which is deprecated and will be removed in 23.0.0; use 'transparent' for the same look with a capture that keeps its alpha, or 'light'/'dark' for an absolute colour.`**
+- **`<Class> declares bg "checker", which was removed in 22.8.0; use 'transparent' for the same look while browsing, or run ng update @ng-prism/core to rewrite it. Skipping.`**,
+  also per variant: `checker` is no longer a background and the `bg` is dropped. Use `transparent` (the same
+  checkerboard, and a capture without a colour) or `light` / `dark` for an absolute colour.
 - **`<Class> uses @Input() decorators which are not fully supported. …`** or
   **`<Class> inherits @Input() decorators from <Base>, …`**: migrate the inputs to `input()` / `model()`.
 - **`<Class> inherits <inputs> from <Base>, which only exists as a declaration (…); without its source these inputs cannot be read, …`**:

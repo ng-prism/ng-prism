@@ -114,6 +114,17 @@ describe('PrismCanvasService', () => {
             expect(createService().bgChosen()).toBe(false);
         });
 
+        it('should fall back from a stored background that no longer exists', () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ bg: 'checker', bgChosen: true }));
+
+            const service = createService();
+
+            // The pick went with the value: nobody chose `dots`, so a declared
+            // background and the emulated scheme may still win over it.
+            expect(service.bg()).toBe('dots');
+            expect(service.bgChosen()).toBe(false);
+        });
+
         it('treats storage without a background or flag as not chosen', () => {
             localStorage.setItem(STORAGE_KEY, JSON.stringify({ zoom: 2 }));
             expect(createService().bgChosen()).toBe(false);

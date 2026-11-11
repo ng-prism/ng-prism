@@ -210,7 +210,7 @@ All three are optional and the panel degrades gracefully:
 | `bg`         | no       | The canvas background this run captured on         |
 | `baselineBg` | no       | The background the stored baseline was captured on |
 
-Both take a `CanvasBg` value (`light`, `dark`, `dots`, `plain`, `checker`, `transparent`). A runner already has `bg`: it is the resolved [`bg` on the variant](guide/external-tooling.md#reading-the-background) it read from `__PRISM_MANIFEST__` to drive the app. `baselineBg` requires the runner to store the background next to the baseline image.
+Both take a `CanvasBg` value (`light`, `dark`, `dots`, `plain`, `transparent`). A runner already has `bg`: it is the resolved [`bg` on the variant](guide/external-tooling.md#reading-the-background) it read from `__PRISM_MANIFEST__` to drive the app. `baselineBg` requires the runner to store the background next to the baseline image.
 
 The panel uses them for two things:
 

@@ -56,7 +56,7 @@ A variant declares `bg` because that is the surface it has to work on. A screens
 Two consequences for a runner:
 
 - **Record it next to the baseline.** A variant whose `bg` changes compares a capture on one surface against a baseline on another: every pixel differs while the component is untouched. Storing the background alongside the baseline image lets you tell that apart from a regression, and the plugin's report has fields for both (`bg`, `baselineBg`).
-- **Declare a background on anything you baseline.** `light` or `dark` when the component was designed against a surface, since their colours are absolute. [`transparent`](#capturing-transparency) when the component's own transparency is the thing under test. Avoid `dots`, `plain` and `checker`: they follow the theme, so a capture on one of them is only as stable as the browser profile's theme, see [`bg`](api/showcase-config.md#bg).
+- **Declare a background on anything you baseline.** `light` or `dark` when the component was designed against a surface, since their colours are absolute. [`transparent`](#capturing-transparency) when the component's own transparency is the thing under test. Avoid `dots` and `plain`: they follow the theme, so a capture on one of them is only as stable as the browser profile's theme, see [`bg`](api/showcase-config.md#bg).
 
 With nothing declared a variant resolves to `transparent`. An undeclared variant has no opinion about its surface, so it is captured without one.
 

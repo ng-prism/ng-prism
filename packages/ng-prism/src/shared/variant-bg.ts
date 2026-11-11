@@ -4,11 +4,10 @@ import type { CanvasBg } from './canvas-bg.type.js';
  * The surface a variant is reported to render on when nothing declares one.
  *
  * `transparent`, because an undeclared variant has no opinion about its
- * surface. `checker` patterns over `--prism-bg-surface`, a theme token, and
- * capture mode keeps the colour, so the runner's theme would leak into the
- * baseline. Alpha has no such dependency and, unlike a pattern, does not shift
- * when a centred component resizes. In the app both render the same
- * checkerboard; the difference only shows in a capture.
+ * surface. A colour from a theme token (`--prism-bg-surface` under `dots` and
+ * `plain`) would be kept by capture mode, so the runner's theme would leak into
+ * the baseline. Alpha has no such dependency and, unlike a pattern, does not
+ * shift when a centred component resizes.
  *
  * A runner must pass `omitBackground: true`, otherwise the capture is opaque
  * over whatever the browser painted. See
@@ -21,8 +20,8 @@ import type { CanvasBg } from './canvas-bg.type.js';
  * - `transparent` when the component's own transparency is under test (an
  *   outlined button, an icon, a divider). On an opaque colour a transparent
  *   fill and a painted fill produce the same pixels.
- * - `dots`, `plain` or `checker` for browsing. They follow the active theme, so
- *   a baseline recorded on one is only as stable as the theme.
+ * - `dots` or `plain` for browsing. They follow the active theme, so a baseline
+ *   recorded on one is only as stable as the theme.
  */
 export const DEFAULT_VARIANT_BG: CanvasBg = 'transparent';
 

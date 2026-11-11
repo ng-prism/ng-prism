@@ -25,7 +25,7 @@ describe('playgroundGround', () => {
     });
 
     it('keeps the override over everything', () => {
-        expect(playgroundGround({ ...base, override: 'checker', recommended: 'light' })).toBe('checker');
+        expect(playgroundGround({ ...base, override: 'transparent', recommended: 'light' })).toBe('transparent');
         expect(playgroundGround({ ...base, override: 'plain', chosen: true })).toBe('plain');
     });
 });
@@ -97,6 +97,6 @@ describe('overlayGround', () => {
         expect(overlayGround('light', 'dark')).toBe('dark');
         expect(overlayGround('dots', 'dark')).toBe('dark');
         expect(overlayGround('dark', 'light')).toBe('light');
-        expect(overlayGround('checker', 'dark')).toBe('dark');
+        expect(overlayGround('transparent', 'dark')).toBe('dark');
     });
 });

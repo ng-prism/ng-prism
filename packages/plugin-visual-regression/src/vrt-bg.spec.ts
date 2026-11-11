@@ -1,3 +1,4 @@
+import type { CanvasBg } from '@ng-prism/core/plugin';
 import type { VrtVariantResult } from './visual-regression.types.js';
 import { bgChange, shotSurfaceStyle } from './vrt-bg.js';
 
@@ -26,12 +27,17 @@ describe('shotSurfaceStyle', () => {
     });
 
     it('keeps the checkerboard for theme-dependent backgrounds', () => {
-        // `dots`, `plain` and `checker` all paint `--prism-bg-surface`, a theme
-        // token. The panel cannot know which theme the runner's browser was in, so
-        // claiming a colour here would be a guess painted as fact.
+        // `dots` and `plain` both paint `--prism-bg-surface`, a theme token. The
+        // panel cannot know which theme the runner's browser was in, so claiming
+        // a colour here would be a guess painted as fact.
         expect(shotSurfaceStyle('dots')).toEqual({});
         expect(shotSurfaceStyle('plain')).toEqual({});
-        expect(shotSurfaceStyle('checker')).toEqual({});
+    });
+
+    it('keeps the checkerboard for a background that no longer exists', () => {
+        // A report from before 22.8.0 can still say `checker`, and it is read
+        // from disk long after the value left the type.
+        expect(shotSurfaceStyle('checker' as CanvasBg)).toEqual({});
     });
 
     it('keeps the checkerboard when the report recorded no background', () => {

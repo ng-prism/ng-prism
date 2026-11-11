@@ -22,10 +22,10 @@ const SURFACE: Partial<Record<CanvasBg, string>> = {
  * readable.
  *
  * Only `light` and `dark` produce a colour; everything else keeps the
- * checkerboard. `dots`, `plain` and `checker` paint `--prism-bg-surface`, a
- * *theme* token, and the panel cannot know which theme the runner's browser
- * used. A `transparent` capture has a real alpha channel, which the
- * checkerboard shows. A report without a background is treated the same way.
+ * checkerboard. `dots` and `plain` paint `--prism-bg-surface`, a *theme*
+ * token, and the panel cannot know which theme the runner's browser used. A
+ * `transparent` capture has a real alpha channel, which the checkerboard shows.
+ * A report without a background is treated the same way.
  */
 export function shotSurfaceStyle(bg: CanvasBg | undefined): Record<string, string> {
     const surface = bg ? SURFACE[bg] : undefined;

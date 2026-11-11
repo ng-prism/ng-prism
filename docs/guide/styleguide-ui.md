@@ -126,12 +126,12 @@ The width is a preference like zoom and lives in the browser's `localStorage`, n
 
 ## Background
 
-The **Background** group of the tools menu has a chip for each background: **Dots**, **Plain**, **Light**, **Dark**, **Checker** and **Transparent**. Its swatch is painted by the canvas's own rules, so a theme that changes the ground or the dot colour shows in it. The filled chip is what the canvas paints right now. What each value means, and which follow the theme, is under [`bg`](api/showcase-config.md#bg).
+The **Background** group of the tools menu has a chip for each background: **Dots**, **Plain**, **Light**, **Dark** and **Transparent**. Its swatch is painted by the canvas's own rules, so a theme that changes the ground or the dot colour shows in it. The filled chip is what the canvas paints right now. What each value means, and which follow the theme, is under [`bg`](api/showcase-config.md#bg).
 
 - **The recommended background.** A component or a variant can declare the background it is designed for with [`bg`](api/showcase-config.md#bg). Its chip carries a border in the primary colour and the tooltip `Recommended background for this variant`, whenever the variant on screen has a recommendation. The recommended and the filled chip can be the same.
 - **Picking another one** while a recommendation exists changes the background for this variant only. A pill `Recommended: dark` with a **Reset** button appears at the top left of the canvas, and Reset goes back to the recommendation. The pick goes with the next variant or component, so coming back to a variant always shows its recommendation.
 - **Without a recommendation** your pick is the canvas background for every component and variant that declares none. It starts as Dots and is kept across visits, in the browser's `localStorage`. Until you pick one, a [simulated](#the-ground) Light or Dark color scheme takes the canvas to Light or Dark.
-- **Transparent and Checker** look the same on the canvas, a checkerboard. Their tooltips say the difference: `Checkerboard here, a real alpha channel in a capture` for Transparent, and that Checker is deprecated and keeps the themed colour in a capture.
+- **Transparent** is a checkerboard on the canvas, but has no colour in a capture. Its tooltip says so: `Checkerboard here, a real alpha channel in a capture`.
 
 The Overview does not use your pick: it paints the declared background, or a checkerboard where nothing is declared. Simulated forced colors paint the ground in the palette's `Canvas` whatever is declared or picked, see [The ground](#the-ground). Capture mode ignores your pick as well and paints the declared background; where nothing is declared, the capture is transparent, with a real alpha channel. See [`bg`](api/showcase-config.md#bg).
 
