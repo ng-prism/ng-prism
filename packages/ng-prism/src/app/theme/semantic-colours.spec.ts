@@ -579,6 +579,26 @@ describe('role contrast', () => {
         expect(PRISM_LIGHT_THEME['--prism-brand-gradient']).toBe(PRISM_DARK_THEME['--prism-brand-gradient']);
     });
 
+    // The text a component inherits on a fixed ground, as its own tokens: a project that retunes a ground retunes it too, against this floor.
+    it.each([
+        ['--prism-void-light-text', 'bg:light', PRISM_BASE_TOKENS['--prism-void-light']],
+        ['--prism-void-light-text', 'bg:transparent, square', CHECKER_SQUARE],
+        ['--prism-void-dark-text', 'bg:dark', PRISM_BASE_TOKENS['--prism-void-dark']]
+    ] as const)('each fixed ground keeps its text at 4.5:1: %s on %s', (token, _ground, surface) => {
+        expect(contrast(PRISM_BASE_TOKENS[token], surface)).toBeGreaterThanOrEqual(4.5);
+    });
+
+    // The stylesheet states the default beside the token, as it does for the grounds; a drift would show on a project that sets neither.
+    it.each([
+        ['light', '--prism-void-light-text'],
+        ['transparent', '--prism-void-light-text'],
+        ['dark', '--prism-void-dark-text']
+    ] as const)('bg:%s hands the component var(%s) with its default as the fallback', (bg, token) => {
+        const found = /--prism-ground-text:\s*var\((--[a-z-]+),\s*(#[0-9a-f]{6})\)/i.exec(ruleOf(bg));
+
+        expect(found?.slice(1)).toEqual([token, PRISM_BASE_TOKENS[token]]);
+    });
+
     it('keeps the absolute canvas grounds every VRT baseline was taken on', () => {
         expect(PRISM_BASE_TOKENS['--prism-void-light']).toBe('#f7f5fc');
         expect(PRISM_BASE_TOKENS['--prism-void-dark']).toBe('#07050f');

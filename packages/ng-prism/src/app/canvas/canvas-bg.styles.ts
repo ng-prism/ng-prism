@@ -9,8 +9,9 @@
  *
  * The consuming element supplies its own `background-color`; only `light`,
  * `dark` and `transparent` override it, and those three do not follow the
- * styleguide's theme. Capture mode is unaffected: `CAPTURE_STYLES` is a global
- * stylesheet using `!important`.
+ * styleguide's theme, nor does the text colour they hand to the component.
+ * Capture mode is unaffected: `CAPTURE_STYLES` is a global stylesheet using
+ * `!important`, and it leaves that text colour in place.
  */
 export const CANVAS_BG_STYLES = `
   [data-bg="dots"] {
@@ -45,18 +46,30 @@ export const CANVAS_BG_STYLES = `
 
      Literal values because this file is theme-independent, like the two
      grounds below. Keep them in step with --prism-measure in canvas-overlay-tokens.ts and
-     prism-default-theme.ts; semantic-colours.spec.ts fails if they drift. */
+     prism-default-theme.ts; semantic-colours.spec.ts fails if they drift.
+
+     --prism-ground-text is the text colour a component inherits on the ground,
+     taken from --prism-void-light-text and --prism-void-dark-text. Without it
+     the component would inherit the shell's --prism-text, which follows the
+     theme: white on the light ground in the dark theme, so an icon painted
+     with currentColor vanished on it. It is a relay and not a "color" on the
+     stage, because the stage also holds the crosshair, the pills and the
+     measurement label, which are chrome and keep the theme's text. Only
+     .demo-wrap and .cell__mount read it, and fall back to --prism-text on the
+     grounds that do not set it ("dots" and "plain"). */
   [data-bg="light"] {
     background-color: var(--prism-void-light, #f7f5fc);
     background-image: none;
     --prism-measure: #ca00c1;
     --prism-measure-plate: var(--prism-void-light, #f7f5fc);
+    --prism-ground-text: var(--prism-void-light-text, #0f172a);
   }
   [data-bg="dark"] {
     background-color: var(--prism-void-dark, #07050f);
     background-image: none;
     --prism-measure: #f632ff;
     --prism-measure-plate: var(--prism-void-dark, #07050f);
+    --prism-ground-text: var(--prism-void-dark-text, #f1f5f9);
   }
 
   /* "transparent" is the surface of a page the component stands on without a
@@ -77,6 +90,7 @@ export const CANVAS_BG_STYLES = `
     --prism-checker-square: color-mix(in srgb, var(--prism-void-light, #f7f5fc) 94%, #0f172a);
     --prism-measure: #ca00c1;
     --prism-measure-plate: var(--prism-void-light, #f7f5fc);
+    --prism-ground-text: var(--prism-void-light-text, #0f172a);
     background-color: var(--prism-void-light, #f7f5fc);
     background-image:
       linear-gradient(45deg, var(--prism-checker-square) 25%, transparent 25%),

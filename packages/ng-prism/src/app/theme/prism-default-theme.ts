@@ -210,6 +210,16 @@ export const PRISM_BASE_TOKENS: Record<string, string> = {
 
     '--prism-void-light': '#f7f5fc',
     '--prism-void-dark': '#07050f',
+
+    /**
+     * The text a component inherits on a fixed ground: `light` and
+     * `transparent` set the first, `dark` the second. They are the themes' own
+     * text colours, kept as tokens of their own because the grounds do not
+     * follow the theme, and a project that retunes a ground retunes its text
+     * with it, to 4.5:1 on that ground.
+     */
+    '--prism-void-light-text': '#0f172a',
+    '--prism-void-dark-text': '#f1f5f9',
     '--prism-text-light': '#f1f5f9',
 
     /**

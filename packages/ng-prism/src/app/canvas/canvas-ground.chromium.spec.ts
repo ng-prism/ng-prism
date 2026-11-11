@@ -57,7 +57,10 @@ const COMPONENT_STYLES = [
 
 const escapeAttribute = (value: string): string => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 
-/** The paint of the three surfaces on a page that holds the theme tokens and the component styles, `bg` on each. */
+/**
+ * The paint of the three surfaces on a page that holds the theme tokens and the component styles, `bg` on each.
+ * The body has the text colour the shell gives the styleguide, which is what the stage and its overlays inherit.
+ */
 async function renderGround(page: Page, o: GroundOptions): Promise<GroundProbe> {
     const { tokens } = resolveThemeTokens(o.theme, { theme: o.tokens });
     const custom = Object.entries(tokens)
@@ -66,7 +69,7 @@ async function renderGround(page: Page, o: GroundOptions): Promise<GroundProbe> 
     const capture = o.capture ? ` ${CAPTURE_ATTRIBUTE}` : '';
 
     await page.setContent(
-        `<!doctype html><html style="${escapeAttribute(custom)}"${capture}><head><style>${[...COMPONENT_STYLES, CANVAS_BG_STYLES, ...(o.capture ? [CAPTURE_STYLES] : [])].join('\n')}</style></head><body>` +
+        `<!doctype html><html style="${escapeAttribute(custom)}"${capture}><head><style>${[...COMPONENT_STYLES, CANVAS_BG_STYLES, ...(o.capture ? [CAPTURE_STYLES] : [])].join('\n')}</style></head><body style="color: var(--prism-text)">` +
             `<div class="prism-canvas-stage" data-bg="${o.bg}"><span class="on-stage">x</span><div class="demo-wrap"><span class="probe">Aa</span></div></div>` +
             `<div class="cell__stage" data-bg="${o.bg}"><div class="cell__mount"><span class="probe">Aa</span></div></div>` +
             `<span class="swatch" data-bg="${o.bg}"></span>` +
@@ -175,5 +178,63 @@ describe('the transparent ground', () => {
         const light = await renderGround(page, { theme: 'light', bg });
 
         for (const surface of SURFACES) expect(dark[surface].backgroundColor).not.toBe(light[surface].backgroundColor);
+    });
+});
+
+describe('text colour of the ground', () => {
+    const INK = 'rgba(15, 23, 42, 1)';
+    const SNOW = 'rgba(241, 245, 249, 1)';
+
+    // A component inherits its colour, and an icon that paints with currentColor is white on the light ground in the dark theme otherwise.
+    it.each(THEMES.flatMap((theme) => (['light', 'transparent'] satisfies CanvasBg[]).map((bg) => [theme, bg] as const)))(
+        'in the %s theme, the %s ground sets dark text',
+        async (theme, bg) => {
+            const probe = await renderGround(page, { theme, bg });
+
+            expect(probe.text).toMatchObject({ wrap: INK, mount: INK });
+        }
+    );
+
+    it.each(THEMES)('in the %s theme, the dark ground sets light text', async (theme) => {
+        const probe = await renderGround(page, { theme, bg: 'dark' });
+
+        expect(probe.text).toMatchObject({ wrap: SNOW, mount: SNOW });
+    });
+
+    it.each(THEMES.flatMap((theme) => (['dots', 'plain'] satisfies CanvasBg[]).map((bg) => [theme, bg] as const)))(
+        'in the %s theme, %s leaves the text at --prism-text',
+        async (theme, bg) => {
+            const probe = await renderGround(page, { theme, bg });
+            const text = await tokenColour(page, theme, '--prism-text');
+
+            expect(probe.text).toMatchObject({ wrap: text, mount: text });
+            expect(text).toBe(theme === 'dark' ? SNOW : INK);
+        }
+    );
+
+    it.each(THEMES)("takes a project's --prism-void-light-text in the %s theme", async (theme) => {
+        const probe = await renderGround(page, { theme, bg: 'light', tokens: { '--prism-void-light-text': '#0e0f1b' } });
+
+        expect(probe.text).toMatchObject({ wrap: 'rgba(14, 15, 27, 1)', mount: 'rgba(14, 15, 27, 1)' });
+    });
+
+    it.each(THEMES)("takes a project's --prism-void-dark-text in the %s theme", async (theme) => {
+        const probe = await renderGround(page, { theme, bg: 'dark', tokens: { '--prism-void-dark-text': '#e2e8f0' } });
+
+        expect(probe.text).toMatchObject({ wrap: 'rgba(226, 232, 240, 1)', mount: 'rgba(226, 232, 240, 1)' });
+    });
+
+    // The capture has no ground, but the component still stands on the one it was built for.
+    it('keeps it in a capture, also on transparent', async () => {
+        const probe = await renderGround(page, { theme: 'dark', bg: 'transparent', capture: true });
+
+        expect(probe.text).toMatchObject({ wrap: INK, mount: INK });
+    });
+
+    // The relay is read by .demo-wrap and .cell__mount only: a bare `color` on the stage would turn the crosshair, the pills and the measurement label dark too.
+    it('does not reach the overlays on the stage', async () => {
+        const probe = await renderGround(page, { theme: 'dark', bg: 'light' });
+
+        expect(probe.text.onStage).toBe(SNOW);
     });
 });

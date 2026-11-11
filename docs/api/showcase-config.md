@@ -284,6 +284,8 @@ Where it applies:
 
 `light` and `dark` are absolute colours (`--prism-void-light`, `--prism-void-dark`), while `dots` and `plain` follow the active theme. `transparent` is a checkerboard drawn from `--prism-void-light` while browsing, the same in both themes, and nothing at all in a capture. A baseline under visual regression is only as stable as its background, so declare `light` or `dark` for a component designed against a surface, and `transparent` when its own transparency is under test.
 
+The three absolute grounds also set the text colour a component inherits, in both themes and in a capture: `--prism-void-light-text` on `light` and `transparent`, `--prism-void-dark-text` on `dark`. `dots` and `plain` leave the theme's text. A component that colours its own text is not affected; one that inherits it, an icon in `currentColor` for instance, is dark on `light` and light on `dark` under either theme. See [Base Tokens](guide/theming.md#base-tokens-theme-independent).
+
 A value outside the five is dropped with a warning that counts for `strictShowcase`. On a part, `bg` is dropped with a notice.
 
 ```typescript

@@ -60,6 +60,8 @@ Two consequences for a runner:
 
 With nothing declared a variant resolves to `transparent`. An undeclared variant has no opinion about its surface, so it is captured without one.
 
+A capture keeps the text colour of the ground, also on `transparent`, which paints nothing there: a component that inherits its colour is dark ink on `light` and `transparent` and light ink on `dark`, whatever theme the runner's browser started in. It is the same colour as while browsing, see [Base Tokens](guide/theming.md#base-tokens-theme-independent).
+
 ### Capturing transparency
 
 `light` and `dark` flatten the component onto an opaque colour. That is wrong for a component whose own transparency is under test, such as an outlined button, an icon or a divider: on an opaque surface, a transparent fill and a fill painted in the surface colour produce identical pixels, so that regression can never show up.

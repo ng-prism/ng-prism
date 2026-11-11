@@ -696,6 +696,8 @@ type CanvasBg = 'dots' | 'plain' | 'light' | 'dark' | 'transparent';
 | `dark`        | A flat dark surface in an absolute colour, `--prism-void-dark`                                                                                                                                                                                                                              |
 | `transparent` | A light checkerboard while browsing, the same in both themes (drawn from `--prism-void-light`), real transparency in a capture. What a variant resolves to in discovery, capture and the Overview when nothing declares a background; the Playground keeps the canvas's own background then |
 
+`light`, `dark` and `transparent` also set the text colour a component inherits, to dark ink on the first and the last and to light ink on `dark`, whatever the theme. `dots` and `plain` leave the theme's text.
+
 Which background applies where, and which to declare under visual regression, is described under [`bg`](api/showcase-config.md#bg). `CANVAS_BGS` lists every value, `DEFAULT_VARIANT_BG` is `'transparent'`, and `resolveVariantBg()` resolves the background of a variant as the styleguide does, see [Plugin UI Kit](api/plugin-ui.md#constants-and-helpers).
 
 ### `CanvasLayout`

@@ -172,12 +172,18 @@ Every status colour holds 4.5:1 on every surface and on its own `-bg` tint. Warn
 
 These tokens are set once and do not change between dark/light mode.
 
-| Property                | Default              | Description                                                             |
-| ----------------------- | -------------------- | ----------------------------------------------------------------------- |
-| `--prism-void-light`    | `#f7f5fc`            | Fixed light canvas background (for explicit `light` canvas mode)        |
-| `--prism-void-dark`     | `#07050f`            | Fixed dark canvas background (for explicit `dark` canvas mode)          |
-| `--prism-text-light`    | `#f1f5f9`            | Light text for overlays on dark backgrounds                             |
-| `--prism-header-height` | `var(--band-header)` | Alias of `--band-header`; see [Band Heights](#band-heights-and-density) |
+| Property                  | Default              | Description                                                             |
+| ------------------------- | -------------------- | ----------------------------------------------------------------------- |
+| `--prism-void-light`      | `#f7f5fc`            | Fixed light canvas background (for explicit `light` canvas mode)        |
+| `--prism-void-dark`       | `#07050f`            | Fixed dark canvas background (for explicit `dark` canvas mode)          |
+| `--prism-void-light-text` | `#0f172a`            | Text colour a component inherits on `light` and `transparent`           |
+| `--prism-void-dark-text`  | `#f1f5f9`            | Text colour a component inherits on `dark`                              |
+| `--prism-text-light`      | `#f1f5f9`            | Light text for overlays on dark backgrounds                             |
+| `--prism-header-height`   | `var(--band-header)` | Alias of `--band-header`; see [Band Heights](#band-heights-and-density) |
+
+The canvas hands a component the text colour of its ground, not the theme's. `light` and `transparent` do not follow the theme, so on them the component inherits `--prism-void-light-text`, and on `dark` `--prism-void-dark-text`, in both themes. Without it, text the component leaves uncoloured, and an icon painted in `currentColor`, took the theme's text and was white on the light ground under the dark theme. `dots` and `plain` follow the theme and keep `--prism-text`. The colour reaches the component and nothing else on the canvas: the tool rail, the pills and the measurement keep the theme's colours. A capture keeps it too, also on `transparent`, which paints no ground there. Under simulated [forced colors](guide/styleguide-ui.md#forced-colors) the text is the palette's `CanvasText`, as in the real mode.
+
+A project that retunes a ground retunes its text with it. Keep `--prism-void-light-text` at 4.5:1 on `--prism-void-light` and on the squares of `transparent`, which are that ground mixed 6% towards `#0f172a`, and `--prism-void-dark-text` at 4.5:1 on `--prism-void-dark`.
 
 ### Measurement and Stage Tokens
 

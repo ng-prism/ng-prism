@@ -179,9 +179,15 @@
     }
 }
 
+/* The text colour the component inherits is the ground's (CANVAS_BG_STYLES),
+   --prism-text on grounds without one. Read here, not set on the stage as
+   `color`: the stage also holds the overlays, which keep the theme's text. It
+   holds in a capture too, the stage being see-through there and the component
+   still the one built for that ground. */
 .demo-wrap {
     position: relative;
     display: inline-block;
+    color: var(--prism-ground-text, var(--prism-text));
     transform: scale(var(--zoom, 1));
     transition: transform 0.18s;
 }
