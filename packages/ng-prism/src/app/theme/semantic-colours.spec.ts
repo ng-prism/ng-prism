@@ -23,6 +23,9 @@ import { PRISM_BASE_TOKENS, PRISM_DARK_THEME, PRISM_LIGHT_THEME } from './prism-
 
 type Rgb = [number, number, number];
 
+/** The canvas backgrounds whose colour is not a theme token. */
+type AbsoluteBg = 'light' | 'dark' | 'transparent';
+
 const rgb = (hex: string): Rgb => {
     const h = hex.replace('#', '');
 
@@ -63,6 +66,39 @@ const lab = (hex: string): [number, number, number] => {
 const deltaE = (a: string, b: string): number => Math.hypot(...lab(a).map((v, i) => v - lab(b)[i]));
 
 const lightnessGap = (a: string, b: string): number => Math.abs(lab(a)[0] - lab(b)[0]);
+
+/** The declarations of the `[data-bg]` rule of `bg` in canvas-bg.styles.ts. */
+const ruleOf = (bg: AbsoluteBg): string => {
+    const rule = CANVAS_BG_STYLES.slice(CANVAS_BG_STYLES.indexOf(`[data-bg="${bg}"]`));
+
+    return rule.slice(0, rule.indexOf('}'));
+};
+
+/** `color-mix(... N%, transparent)` composited over an opaque ground. */
+const atAlpha = (fg: string, bg: string, alpha: number): string => {
+    const [fr, fg_, fb] = rgb(fg);
+    const [br, bg_, bb] = rgb(bg);
+    const ch = (f: number, b: number) =>
+        Math.round(f * alpha + b * (1 - alpha))
+            .toString(16)
+            .padStart(2, '0');
+
+    return `#${ch(fr, br)}${ch(fg_, bg_)}${ch(fb, bb)}`;
+};
+
+/**
+ * The darker square of the checkerboard `transparent` draws, read out of the
+ * stylesheet rather than copied (see `overrideFor` below): a `color-mix` of the
+ * light ground with ink, in sRGB, both as the stylesheet falls back to them. The
+ * measurement is drawn across squares and ground alike, so the square is a
+ * surface to hold it to as well, and so is the text a component inherits.
+ */
+const CHECKER_SQUARE = ((): string => {
+    const found = /color-mix\(in srgb,\s*var\(--prism-void-light,\s*(#[0-9a-f]{6})\)\s+(\d+(?:\.\d+)?)%,\s*(#[0-9a-f]{6})\)/i.exec(ruleOf('transparent'));
+
+    if (!found) throw new Error('[data-bg="transparent"] mixes no square out of --prism-void-light');
+    return atAlpha(found[1], found[3], Number(found[2]) / 100);
+})();
 
 const THEMES = [
     ['light', PRISM_LIGHT_THEME],
@@ -136,14 +172,15 @@ describe('semantic colours', () => {
      *
      * `--prism-measure` carries the viewport grips, their guide lines and the
      * dimension line, and it is the one colour on the canvas whose ground is not
-     * a theme surface. Two of the six canvas backgrounds are absolute: `light`
-     * stays near-white while the app runs the dark theme, and `dark` stays
-     * near-black while it runs the light one. So the theme's own value is only
-     * ever half the story, and the half that was wrong. Measured on the value
-     * this replaced, the dark theme's cyan reached 1.81:1 on the light
+     * a theme surface. Three of the five canvas backgrounds are absolute: `light`
+     * stays near-white while the app runs the dark theme, `dark` stays
+     * near-black while it runs the light one, and `transparent` is a
+     * checkerboard drawn from the light ground in both. So the theme's own value
+     * is only ever half the story, and the half that was wrong. Measured on the
+     * value this replaced, the dark theme's cyan reached 1.81:1 on the light
      * background, which is an overlay you cannot see.
      *
-     * canvas-bg.styles.ts answers that by re-pointing the token on those two
+     * canvas-bg.styles.ts answers that by re-pointing the token on those
      * backgrounds. The literals there cannot import from this file, so this is
      * what stops the two copies drifting apart: each pair is checked against the
      * ground it is meant for, at the alpha the faintest layer that matters
@@ -171,9 +208,8 @@ describe('semantic colours', () => {
          * the contrast floors below and no test would notice. Reading the real
          * declaration is what turns these into a guard on canvas-bg.styles.ts.
          */
-        const overrideFor = (bg: 'light' | 'dark'): string => {
-            const rule = CANVAS_BG_STYLES.slice(CANVAS_BG_STYLES.indexOf(`[data-bg="${bg}"]`));
-            const found = /--prism-measure:\s*(#[0-9a-f]{6})/i.exec(rule.slice(0, rule.indexOf('}')));
+        const overrideFor = (bg: AbsoluteBg): string => {
+            const found = /--prism-measure:\s*(#[0-9a-f]{6})/i.exec(ruleOf(bg));
 
             if (!found) throw new Error(`[data-bg="${bg}"] declares no --prism-measure`);
             return found[1];
@@ -181,18 +217,7 @@ describe('semantic colours', () => {
 
         const ON_LIGHT_GROUND = overrideFor('light');
         const ON_DARK_GROUND = overrideFor('dark');
-
-        /** `color-mix(... N%, transparent)` composited over an opaque ground. */
-        const atAlpha = (fg: string, bg: string, alpha: number): string => {
-            const [fr, fg_, fb] = rgb(fg);
-            const [br, bg_, bb] = rgb(bg);
-            const ch = (f: number, b: number) =>
-                Math.round(f * alpha + b * (1 - alpha))
-                    .toString(16)
-                    .padStart(2, '0');
-
-            return `#${ch(fr, br)}${ch(fg_, bg_)}${ch(fb, bb)}`;
-        };
+        const ON_TRANSPARENT_GROUND = overrideFor('transparent');
 
         /**
          * The ground under forced colors is `Canvas` in the simulated palette,
@@ -217,17 +242,30 @@ describe('semantic colours', () => {
          * file agree with itself. Change `--prism-stage` and the
          * suite would stay green while measuring a surface that no longer exists.
          */
+        const SQUARE = ['bg:transparent, square', ON_TRANSPARENT_GROUND, CHECKER_SQUARE] as const;
+
         const GROUNDS = [
             ['dark theme stage', PRISM_DARK_THEME['--prism-measure'], PRISM_DARK_THEME['--prism-stage']],
             ['light theme stage', PRISM_LIGHT_THEME['--prism-measure'], PRISM_LIGHT_THEME['--prism-stage']],
             ['bg:dark, any theme', ON_DARK_GROUND, ABSOLUTE_DARK],
             ['bg:light, any theme', ON_LIGHT_GROUND, ABSOLUTE_LIGHT],
+            ['bg:transparent, ground', ON_TRANSPARENT_GROUND, ABSOLUTE_LIGHT],
+            SQUARE,
             FORCED_LIGHT,
             FORCED_DARK_CHROMIUM
         ] as const;
 
         /** The grounds the readout and the 3:1 layers are held to: WebKit's dark `Canvas` as well. */
         const READ_GROUNDS = [...GROUNDS, FORCED_DARK_WEBKIT] as const;
+
+        /**
+         * The grounds the 9px readout is held to 4.5:1 on: all but a square of the
+         * checkerboard. The ground of `transparent` reaches 4.54:1 with this
+         * colour, so a square that shows against it, as the squares have to,
+         * cannot; it reads 4.03:1, and has a floor of its own below. The readout
+         * is drawn straight on the stage, so a part of its glyphs does sit on squares.
+         */
+        const READOUT_GROUNDS = READ_GROUNDS.filter((ground) => ground !== SQUARE);
 
         /**
          * The alphas the renderer actually paints this colour at.
@@ -260,10 +298,18 @@ describe('semantic colours', () => {
             return Number(found[1]) / 100;
         };
 
-        it.each(READ_GROUNDS)('%s reads the solid value at 9px', (_l, colour, ground) => {
+        it.each(READOUT_GROUNDS)('%s reads the solid value at 9px', (_l, colour, ground) => {
             // The readout is 9px monospace, so AA's 4.5:1 for body text is the right
             // floor, not the 3:1 that large text or a bare UI edge would take.
             expect(contrast(colour, ground)).toBeGreaterThanOrEqual(4.5);
+        });
+
+        it('reads the solid value on a square of the checkerboard at 4:1', () => {
+            // What is left of the floor above where it cannot hold (see
+            // READOUT_GROUNDS): the ground of the checkerboard has 4.54:1, so any
+            // square that is visible has less. 4:1 keeps a paler measurement
+            // colour, or a darker square, from taking it further down unnoticed.
+            expect(contrast(SQUARE[1], SQUARE[2])).toBeGreaterThanOrEqual(4);
         });
 
         it.each(GROUNDS)('%s keeps every painted layer visible', (_l, colour, ground) => {
@@ -297,6 +343,7 @@ describe('semantic colours', () => {
             // fault rather than as the two-source bug it is.
             expect(ON_DARK_GROUND).toBe(PRISM_DARK_THEME['--prism-measure']);
             expect(ON_LIGHT_GROUND).toBe(PRISM_LIGHT_THEME['--prism-measure']);
+            expect(ON_TRANSPARENT_GROUND).toBe(ON_LIGHT_GROUND);
         });
 
         /**
@@ -314,9 +361,8 @@ describe('semantic colours', () => {
          */
         describe('--prism-measure-plate', () => {
             /** The plate each absolute background declares, read out of the stylesheet. */
-            const plateFor = (bg: 'light' | 'dark'): string => {
-                const rule = CANVAS_BG_STYLES.slice(CANVAS_BG_STYLES.indexOf(`[data-bg="${bg}"]`));
-                const found = /--prism-measure-plate:[^;]*?(#[0-9a-f]{6})/i.exec(rule.slice(0, rule.indexOf('}')));
+            const plateFor = (bg: AbsoluteBg): string => {
+                const found = /--prism-measure-plate:[^;]*?(#[0-9a-f]{6})/i.exec(ruleOf(bg));
 
                 if (!found) throw new Error(`[data-bg="${bg}"] declares no --prism-measure-plate`);
                 return found[1];
@@ -324,6 +370,7 @@ describe('semantic colours', () => {
 
             const PLATES = [
                 ['bg:light, any theme', ON_LIGHT_GROUND, plateFor('light'), ABSOLUTE_LIGHT],
+                ['bg:transparent, any theme', ON_TRANSPARENT_GROUND, plateFor('transparent'), ABSOLUTE_LIGHT],
                 ['bg:dark, any theme', ON_DARK_GROUND, plateFor('dark'), ABSOLUTE_DARK]
             ] as const;
 

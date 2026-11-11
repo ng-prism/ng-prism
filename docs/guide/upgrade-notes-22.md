@@ -49,6 +49,7 @@ Everything deprecated in 22.x is removed in 23.0.0, see [Removed in 23.0.0](#rem
 - **A tools menu that shows what each choice does:** a swatch per background, painted the way the canvas paints it, an icon per pseudo-class, a bar to scale over each width, and a preview of each simulated condition.
 - **Four more icons** in `ICON_NAMES`, for a plugin: `mouse-pointer`, `mouse-pointer-click`, `scan` and `keyboard`, see [Plugin UI Kit: Icons](api/plugin-ui.md#icons).
 - **A narrower edge around pages on a phone.** In the phone layout a component page and a custom page keep 16 px to the sides instead of 24 px, and the title lines up with the page. A stylesheet of your own that narrowed this edge for phones can go, see [On a phone](guide/styleguide-ui.md#on-a-phone).
+- **The checkerboard of `transparent` is light in both themes.** It was drawn from the theme's stage and border, so it was dark under the dark theme. It is now `--prism-void-light` with squares 6% towards dark ink, whatever the theme, and the tools and the measurement on it take the colours of the light ground. A capture of `transparent` is still see-through, and the Overview and the swatch in the tools menu show the same checkerboard. See [`bg`](api/showcase-config.md#bg).
 
 ## Upgrading to 22.7.0
 

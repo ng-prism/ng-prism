@@ -61,7 +61,13 @@ describe('canvasOverlayTokens', () => {
         expect(contrast(t['--prism-measure'], t['--prism-canvas-overlay-bg'])).toBeGreaterThanOrEqual(4.5);
     });
 
-    it.each(['dots', 'plain', 'transparent'] satisfies CanvasBg[])('leaves the theme-following %s ground to the theme', (bg) => {
+    // The checkerboard is light in both themes, so what sits on it follows it
+    // and not the theme, like on the light ground it is drawn from.
+    it('gives the transparent ground the overlays of the light ground', () => {
+        expect(canvasOverlayTokens('transparent')).toEqual(canvasOverlayTokens('light'));
+    });
+
+    it.each(['dots', 'plain'] satisfies CanvasBg[])('leaves the theme-following %s ground to the theme', (bg) => {
         expect(canvasOverlayTokens(bg)).toEqual({});
     });
 });

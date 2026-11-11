@@ -92,7 +92,7 @@ const CAPTURE_CANVAS_ONLY_SELECTOR =
  * variants: any other change to `.demo-wrap`'s box would move every existing
  * baseline.
  */
-const CAPTURE_STYLES = `
+export const CAPTURE_STYLES = `
 [${CAPTURE_ATTRIBUTE}] *,
 [${CAPTURE_ATTRIBUTE}] *::before,
 [${CAPTURE_ATTRIBUTE}] *::after {

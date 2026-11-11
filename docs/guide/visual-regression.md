@@ -76,7 +76,7 @@ With nothing declared a variant resolves to `transparent`. An undeclared variant
 })
 ```
 
-While browsing, `transparent` draws a checkerboard, because that is how the UI shows "no surface here". Only under `?capture=1` does it clear the canvas and every wrapper behind it, so nothing is composited into the shot.
+While browsing, `transparent` draws a checkerboard, because that is how the UI shows "no surface here". The checkerboard is light in both themes: a page without a surface of its own is a light one, so the ground is `--prism-void-light` and the squares are that colour mixed 6% towards dark ink, and a component sees the same ground under the dark theme as under the light one. Only under `?capture=1` does it clear the canvas and every wrapper behind it, so nothing is composited into the shot.
 
 #### The runner has to ask for it
 

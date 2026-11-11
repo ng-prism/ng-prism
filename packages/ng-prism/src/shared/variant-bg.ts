@@ -19,7 +19,8 @@ import type { CanvasBg } from './canvas-bg.type.js';
  *   colours are absolute, not theme tokens, so they are stable across runners.
  * - `transparent` when the component's own transparency is under test (an
  *   outlined button, an icon, a divider). On an opaque colour a transparent
- *   fill and a painted fill produce the same pixels.
+ *   fill and a painted fill produce the same pixels. While browsing it is a
+ *   light checkerboard in both themes, in a capture it is see-through.
  * - `dots` or `plain` for browsing. They follow the active theme, so a baseline
  *   recorded on one is only as stable as the theme.
  */

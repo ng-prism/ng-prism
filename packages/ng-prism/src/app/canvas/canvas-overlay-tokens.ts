@@ -1,14 +1,15 @@
 import type { CanvasBg } from '../../shared/canvas-bg.type.js';
 
 /**
- * Overlay colours for the two absolute canvas grounds.
+ * Overlay colours for the absolute canvas grounds.
  *
- * `light` and `dark` paint the same colour whatever the app theme is, so the
- * tool rail, the background pill and the pin row on top of them have to follow
- * the ground, not the theme: a dark rail on a light canvas under the dark theme
- * is the case this exists for. The values are the theme surfaces of the matching
- * theme, held to 4.5:1 for text and 3:1 for contours by the spec next to this.
- * The measurement colours repeat the ground's from `CANVAS_BG_STYLES`.
+ * `light` and `dark` paint the same colour whatever the app theme is, and so
+ * does the checkerboard of `transparent`, which is drawn from the light ground.
+ * The tool rail, the background pill and the pin row on top of them have to
+ * follow the ground, not the theme: a dark rail on a light canvas under the dark
+ * theme is the case this exists for. The values are the theme surfaces of the
+ * matching theme, held to 4.5:1 for text and 3:1 for contours by the spec next
+ * to this. The measurement colours repeat the ground's from `CANVAS_BG_STYLES`.
  */
 const ON_LIGHT: Record<string, string> = {
     '--prism-canvas-overlay-bg': '#ffffff',
@@ -35,12 +36,13 @@ const ON_DARK: Record<string, string> = {
 };
 
 /**
- * The overlay tokens for a ground, bound on `.prism-canvas-wrap`. The four
- * theme-following grounds get none: there the defaults in the stylesheet,
- * which point at the theme, apply.
+ * The overlay tokens for a ground, bound on `.prism-canvas-wrap`. The two
+ * theme-following grounds (`dots` and `plain`) get none: there the defaults in
+ * the stylesheet, which point at the theme, apply. `transparent` gets those of
+ * `light`, the ground its checkerboard is drawn from.
  */
 export function canvasOverlayTokens(bg: CanvasBg): Record<string, string> {
-    if (bg === 'light') return ON_LIGHT;
+    if (bg === 'light' || bg === 'transparent') return ON_LIGHT;
     if (bg === 'dark') return ON_DARK;
     return {};
 }

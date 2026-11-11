@@ -3,8 +3,9 @@
  *
  * Three groups, and the distinction only matters once a variant is under
  * visual regression. `light` and `dark` are absolute colours. `dots` and
- * `plain` follow the active theme. `transparent` has no colour at all and is
- * the only one whose capture carries an alpha channel.
+ * `plain` follow the active theme. `transparent` is a checkerboard in fixed
+ * light colours while browsing, the same in both themes, and has no colour at
+ * all in a capture: the only one whose capture carries an alpha channel.
  */
 export type CanvasBg = 'dots' | 'plain' | 'light' | 'dark' | 'transparent';
 

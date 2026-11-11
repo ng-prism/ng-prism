@@ -7,8 +7,9 @@
  * these attribute selectors have the same specificity as the `.some-stage`
  * class rule they override, so source order decides.
  *
- * The consuming element supplies its own `background-color`; only `light` and
- * `dark` override it. Capture mode is unaffected: `CAPTURE_STYLES` is a global
+ * The consuming element supplies its own `background-color`; only `light`,
+ * `dark` and `transparent` override it, and those three do not follow the
+ * styleguide's theme. Capture mode is unaffected: `CAPTURE_STYLES` is a global
  * stylesheet using `!important`.
  */
 export const CANVAS_BG_STYLES = `
@@ -58,15 +59,30 @@ export const CANVAS_BG_STYLES = `
     --prism-measure-plate: var(--prism-void-dark, #07050f);
   }
 
-  /* "transparent" paints a checkerboard. In the app the checkerboard is already
-     the UI's sign for "no surface", and a see-through stage would only show the
-     shell behind it. Only CAPTURE_STYLES makes the stage see-through. */
+  /* "transparent" is the surface of a page the component stands on without a
+     surface of its own, and that page is a light one. Its checkerboard is
+     therefore fixed and light in both themes, like "light", and not drawn from
+     the theme's stage and border, which turned it navy under the dark theme and
+     put a component's dark text on it. Only CAPTURE_STYLES makes the stage
+     see-through, in a capture.
+
+     The squares are the ground mixed 6% towards ink in sRGB (#e9e8ef by
+     default), so a project that retunes --prism-void-light retunes them too.
+     6% and not 8%, which would take the faintest layer of the measuring tool
+     (55%) under 2.5:1 on a square. The measurement colours are those of "light"
+     for the reason given there, and canvasOverlayTokens returns its overlays;
+     semantic-colours.spec.ts reads the square out of this rule and measures
+     both against them. --prism-checker-square is local to the rule. */
   [data-bg="transparent"] {
+    --prism-checker-square: color-mix(in srgb, var(--prism-void-light, #f7f5fc) 94%, #0f172a);
+    --prism-measure: #ca00c1;
+    --prism-measure-plate: var(--prism-void-light, #f7f5fc);
+    background-color: var(--prism-void-light, #f7f5fc);
     background-image:
-      linear-gradient(45deg, var(--prism-border) 25%, transparent 25%),
-      linear-gradient(-45deg, var(--prism-border) 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, var(--prism-border) 75%),
-      linear-gradient(-45deg, transparent 75%, var(--prism-border) 75%);
+      linear-gradient(45deg, var(--prism-checker-square) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--prism-checker-square) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--prism-checker-square) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--prism-checker-square) 75%);
     background-size: 16px 16px;
     background-position: 0 0, 0 8px, 8px -8px, -8px 0;
   }
