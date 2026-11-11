@@ -376,6 +376,22 @@ color: red;
             ]
         }));
 
+    // An inline declaration under a vendor prefix Chromium still takes: the shadow, and the old logical sides of a border.
+    it('inline-style-prefixes', () =>
+        expectSimulationToMatch({
+            html: scope(
+                '',
+                `<span class="shadow" style="-webkit-box-shadow: 0 0 2px red">a</span>
+                <span class="sides" style="-webkit-border-start: 2px solid red; -webkit-border-before: 2px solid red">b</span>
+                <span class="side-colors" style="border-style: solid; -webkit-border-end-color: red; -webkit-border-after-color: red">c</span>`
+            ),
+            probes: [
+                { name: 'shadow', selector: '.shadow', properties: ['box-shadow'] },
+                { name: 'sides', selector: '.sides', properties: ['border-inline-start-color', 'border-block-start-color'] },
+                { name: 'side-colors', selector: '.side-colors', properties: ['border-inline-end-color', 'border-block-end-color'] }
+            ]
+        }));
+
     it('toggle', () =>
         expectSimulationToMatch({
             html: scope(

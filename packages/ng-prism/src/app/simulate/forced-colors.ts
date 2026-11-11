@@ -389,13 +389,15 @@ function declares(stem: string, properties: readonly string[]): string {
     return `:where([style*="${stem}" i]):where(${names.join(', ')})`;
 }
 
+/** The borders that set a color, and the old logical sides Chromium still takes under a `-webkit-` prefix. */
 const BORDERS = [
     'border',
     'border-color',
     ...['top', 'right', 'bottom', 'left', 'block', 'inline', 'block-start', 'block-end', 'inline-start', 'inline-end'].flatMap((side) => [
         `border-${side}`,
         `border-${side}-color`
-    ])
+    ]),
+    ...['start', 'end', 'before', 'after'].flatMap((side) => [`-webkit-border-${side}`, `-webkit-border-${side}-color`])
 ];
 
 /**
@@ -406,13 +408,17 @@ const BORDERS = [
  * alpha and an inline system color is forced too. One rule for each forced property: an element with
  * an inline `color` gets no ground it does not have in the browser, and a selector the browser
  * rejects takes no other with it.
+ *
+ * A property that Chromium also takes under a vendor prefix is listed under both names: the attribute
+ * keeps the name the author wrote, and {@link declares} does not take `-webkit-box-shadow` for
+ * `box-shadow`.
  */
 const INLINE_NET: readonly (readonly [string, string])[] = [
     [declares('color', ['color']), 'color: var(--prism-sim-fg)'],
     [declares('background', ['background', 'background-color']), 'background-color: rgb(var(--prism-sim-bg-rgb))'],
     [declares('border', BORDERS), 'border-color: currentcolor'],
     [declares('outline', ['outline', 'outline-color']), 'outline-color: var(--prism-sim-outline, currentcolor)'],
-    [declares('box-shadow', ['box-shadow']), 'box-shadow: none'],
+    [declares('box-shadow', ['box-shadow', '-webkit-box-shadow']), 'box-shadow: none'],
     [declares('text-shadow', ['text-shadow']), 'text-shadow: none'],
     // A `url()` among the images keeps the whole value, as in the browser.
     [`:where([style*="-gradient(" i]:not([style*="url(" i]))${declares('background', ['background', 'background-image'])}`, 'background-image: none']
