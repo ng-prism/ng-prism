@@ -41,9 +41,10 @@ const CHECKER_IMAGE = [
  * readable.
  *
  * `light` and `dark` paint their flat surface. `transparent` gets the canvas's
- * fixed light checkerboard, and so does a report without a background: a
- * `transparent` capture has a real alpha channel and inherits dark text from the
- * canvas, which would sit on navy on the theme checkerboard in the dark theme.
+ * fixed light checkerboard, and so does a report without a background (absent,
+ * `null` or empty, since the report is JSON the runner wrote): a `transparent`
+ * capture has a real alpha channel and inherits dark text from the canvas, which
+ * would sit on navy on the theme checkerboard in the dark theme.
  * Everything else keeps the panel's theme checkerboard (an empty result).
  * `dots` and `plain` paint `--prism-bg-surface`, a *theme* token, and the panel
  * cannot know which theme the runner's browser used. A report from before
@@ -51,7 +52,7 @@ const CHECKER_IMAGE = [
  * the same way.
  */
 export function shotSurfaceStyle(bg: CanvasBg | undefined): Record<string, string> {
-    if (bg === undefined || bg === 'transparent') {
+    if (!bg || bg === 'transparent') {
         return { 'background-color': CHECKER_GROUND, 'background-image': CHECKER_IMAGE };
     }
 

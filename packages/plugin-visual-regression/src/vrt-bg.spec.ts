@@ -53,6 +53,14 @@ describe('shotSurfaceStyle', () => {
         expect(shotSurfaceStyle(undefined)).toEqual(shotSurfaceStyle('transparent'));
         expect(shotSurfaceStyle(undefined)['background-image']).toContain('linear-gradient(45deg');
     });
+
+    it('treats a null or empty bg from a hand-written report as no background', () => {
+        // The report is JSON from the runner, not typed data: a runner that
+        // writes `"bg": null` or `"bg": ""` for "unknown" must not get the theme
+        // checkerboard, which the docs promise only to an empty result.
+        expect(shotSurfaceStyle(null as unknown as CanvasBg)).toEqual(shotSurfaceStyle('transparent'));
+        expect(shotSurfaceStyle('' as unknown as CanvasBg)).toEqual(shotSurfaceStyle('transparent'));
+    });
 });
 
 describe('bgChange', () => {
