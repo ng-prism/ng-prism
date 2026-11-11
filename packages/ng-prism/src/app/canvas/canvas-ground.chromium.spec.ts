@@ -4,8 +4,10 @@ import type { Browser, Page } from 'playwright';
 import type { CanvasBg } from '../../shared/canvas-bg.type.js';
 import { CAPTURE_ATTRIBUTE, CAPTURE_STYLES } from '../services/prism-capture.service.js';
 import { launchChromium, normalizeColor } from '../simulate/__test-utils__/chromium.js';
+import type { ForcedPaletteName } from '../simulate/forced-palette.js';
 import { resolveThemeTokens } from '../theme/resolve-theme-tokens.js';
 import { CANVAS_BG_STYLES } from './canvas-bg.styles.js';
+import { canvasOverlayTokens } from './canvas-overlay-tokens.js';
 
 /**
  * What the grounds paint in Chromium, with the cascade and `var()` that jsdom
@@ -115,6 +117,47 @@ async function tokenColour(page: Page, theme: Theme, token: string): Promise<str
 
     await page.setContent(`<!doctype html><html style="${escapeAttribute(`${token}: ${tokens[token]}`)}"><body><i style="color: var(${token})">x</i></body></html>`);
     return normalizeColor(await page.evaluate(() => getComputedStyle(document.querySelector('i') as Element).color));
+}
+
+/** A custom property as the page resolves it: on the canvas wrap, which the shell binds the overlay tokens on, or on the stage inside it. */
+interface OverlayProbe {
+    wrap: Record<string, string>;
+    stage: Record<string, string>;
+}
+
+const OVERLAY_PROPERTIES = ['--prism-canvas-overlay-bg', '--prism-canvas-overlay-active', '--prism-measure', '--prism-measure-plate'] as const;
+
+/**
+ * The overlay tokens of a ground as the cascade resolves them: the wrap carries
+ * what `canvasOverlayTokens` returns, the stage the `data-bg` rule of its
+ * background and, under forced colors, `data-sim-forced`.
+ */
+async function renderOverlays(page: Page, o: { theme: Theme; bg: CanvasBg; palette?: ForcedPaletteName; tokens?: Record<string, string> }): Promise<OverlayProbe> {
+    const { tokens } = resolveThemeTokens(o.theme, { theme: o.tokens });
+    const custom = Object.entries(tokens)
+        .map(([name, value]) => `${name}: ${value}`)
+        .join('; ');
+    const wrapStyle = Object.entries(canvasOverlayTokens(o.bg, o.palette ?? null))
+        .map(([name, value]) => `${name}: ${value}`)
+        .join('; ');
+    const forced = o.palette ? ' data-sim-forced' : '';
+
+    await page.setContent(
+        `<!doctype html><html style="${escapeAttribute(custom)}"><head><style>${[...COMPONENT_STYLES, CANVAS_BG_STYLES].join('\n')}</style></head><body>` +
+            `<div class="prism-canvas-wrap" style="${escapeAttribute(wrapStyle)}"><div class="prism-canvas-stage" data-bg="${o.bg}"${forced}></div></div>` +
+            `</body></html>`
+    );
+
+    return page.evaluate((properties) => {
+        const read = (selector: string): Record<string, string> => {
+            const el = document.querySelector(selector);
+
+            if (!el) throw new Error(`No element matches ${selector}.`);
+            return Object.fromEntries(properties.map((name) => [name, getComputedStyle(el).getPropertyValue(name).trim()]));
+        };
+
+        return { wrap: read('.prism-canvas-wrap'), stage: read('.prism-canvas-stage') };
+    }, OVERLAY_PROPERTIES);
 }
 
 const THEMES: Theme[] = ['dark', 'light'];
@@ -236,5 +279,73 @@ describe('text colour of the ground', () => {
         const probe = await renderGround(page, { theme: 'dark', bg: 'light' });
 
         expect(probe.text.onStage).toBe(SNOW);
+    });
+});
+
+describe('the overlay colours of a fixed ground', () => {
+    // sg-ui-lib's dark ground is a mid-tone blue: what holds on it is the project's to set.
+    const MID_TONE = {
+        '--prism-void-dark': '#005fe3',
+        '--prism-void-dark-measure': '#ffffff',
+        '--prism-void-dark-overlay-bg': '#00389a',
+        '--prism-void-dark-overlay-primary': '#a5c8ff'
+    };
+
+    it.each(THEMES)('keeps the defaults of the grounds when a project sets no token, in the %s theme', async (theme) => {
+        const light = await renderOverlays(page, { theme, bg: 'light' });
+        const dark = await renderOverlays(page, { theme, bg: 'dark' });
+
+        expect(light.wrap['--prism-canvas-overlay-bg']).toBe('#ffffff');
+        expect(light.stage['--prism-measure']).toBe('#ca00c1');
+        expect(dark.wrap['--prism-canvas-overlay-bg']).toBe('#1a2335');
+        expect(dark.stage['--prism-measure']).toBe('#f632ff');
+    });
+
+    it.each(THEMES)("takes a project's tokens for the dark ground, and leaves the light ground alone, in the %s theme", async (theme) => {
+        const dark = await renderOverlays(page, { theme, bg: 'dark', tokens: MID_TONE });
+        const light = await renderOverlays(page, { theme, bg: 'light', tokens: MID_TONE });
+
+        expect(dark.wrap['--prism-canvas-overlay-bg']).toBe('#00389a');
+        expect(dark.wrap['--prism-canvas-overlay-active']).toContain('#a5c8ff 16%');
+        expect(dark.wrap['--prism-measure-plate']).toBe('#005fe3');
+        // The stage re-points --prism-measure from the token, the pin row on the wrap reads the same one.
+        expect(dark.stage['--prism-measure']).toBe('#ffffff');
+        expect(dark.wrap['--prism-measure']).toBe('#ffffff');
+        expect(light.wrap['--prism-canvas-overlay-bg']).toBe('#ffffff');
+        expect(light.stage['--prism-measure']).toBe('#ca00c1');
+    });
+
+    it('reads the light tokens on transparent too, since its checkerboard is drawn from the light ground', async () => {
+        const tokens = { '--prism-void-light-measure': '#6b0066', '--prism-void-light-overlay-bg': '#eef2ff' };
+        const probe = await renderOverlays(page, { theme: 'dark', bg: 'transparent', tokens });
+
+        expect(probe.stage['--prism-measure']).toBe('#6b0066');
+        expect(probe.wrap['--prism-measure']).toBe('#6b0066');
+        expect(probe.wrap['--prism-canvas-overlay-bg']).toBe('#eef2ff');
+        expect(probe.wrap['--prism-measure-plate']).toBe('#f7f5fc');
+    });
+
+    it.each(THEMES)('leaves the theme-following grounds to the theme, in the %s theme', async (theme) => {
+        const probe = await renderOverlays(page, { theme, bg: 'dots', tokens: MID_TONE });
+        const measure = resolveThemeTokens(theme, {}).tokens['--prism-measure'];
+
+        expect(probe.stage['--prism-measure']).toBe(measure);
+        expect(probe.wrap['--prism-canvas-overlay-bg']).toBe('');
+    });
+
+    // Under forced colors the ground is the palette's Canvas, which the tokens of a project do not tune.
+    it.each([
+        ['light', '#ffffff', '#ca00c1', '#ffffff'],
+        ['dark', '#000000', '#f632ff', '#1a2335']
+    ] as const)('paints the %s palette in fixed colours whatever the tokens say', async (palette, canvas, measure, overlay) => {
+        for (const bg of ['light', 'dark'] satisfies CanvasBg[]) {
+            const probe = await renderOverlays(page, { theme: 'dark', bg, palette, tokens: MID_TONE });
+
+            expect(probe.wrap['--prism-canvas-overlay-bg']).toBe(overlay);
+            expect(probe.wrap['--prism-measure-plate']).toBe(canvas);
+            // The stage takes the wrap's values back with `inherit` instead of the data-bg rule's token.
+            expect(probe.stage['--prism-measure']).toBe(measure);
+            expect(probe.stage['--prism-measure-plate']).toBe(canvas);
+        }
     });
 });

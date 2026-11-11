@@ -23,7 +23,6 @@ import { PrismUrlStateService } from '../services/prism-url-state.service.js';
 import { PrismVariantBgService } from '../services/prism-variant-bg.service.js';
 import { PrismLogoComponent } from '../shared/prism-logo.component.js';
 import { PrismSidebarComponent } from '../sidebar/prism-sidebar.component.js';
-import { overlayGround } from '../simulate/ground.js';
 import { PrismSimulationRuntimeService } from '../simulate/prism-simulation-runtime.service.js';
 import { PrismVisionFiltersComponent } from '../simulate/prism-vision-filters.component.js';
 import { PRISM_CONFIG } from '../tokens/prism-tokens.js';
@@ -79,9 +78,9 @@ export class PrismShellComponent {
     /**
      * Overlays on the canvas follow its ground: light and dark are absolute, the
      * others follow the theme, and under forced colors the ground is the
-     * palette's `Canvas`.
+     * palette's `Canvas` and the overlays take fixed colours for it.
      */
-    protected readonly overlayTokens = computed(() => canvasOverlayTokens(overlayGround(this.variantBg.effective(), this.simulation.forcedPalette())));
+    protected readonly overlayTokens = computed(() => canvasOverlayTokens(this.variantBg.effective(), this.simulation.forcedPalette()));
 
     protected readonly viewPanels = this.panelService.visibleViewPanels;
 

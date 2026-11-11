@@ -40,16 +40,6 @@ export function overviewGround(declared: CanvasBg | null, scheme: 'light' | 'dar
 }
 
 /**
- * The ground the overlays on the canvas are coloured for (`canvasOverlayTokens`):
- * the canvas background, or under forced colors their palette. The ground is
- * the palette's `Canvas` then, whatever the background, so a `light`
- * background under the dark palette is a dark ground.
- */
-export function overlayGround(bg: CanvasBg, palette: ForcedPaletteName | null): CanvasBg {
-    return palette ?? bg;
-}
-
-/**
  * How the simulation paints the ground of a stage: the Playground's
  * `.prism-canvas-stage` and an Overview cell's `.cell__stage`. The ground
  * belongs to what is simulated, the overlays on it do not.

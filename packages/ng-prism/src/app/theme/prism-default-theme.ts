@@ -220,6 +220,37 @@ export const PRISM_BASE_TOKENS: Record<string, string> = {
      */
     '--prism-void-light-text': '#0f172a',
     '--prism-void-dark-text': '#f1f5f9',
+
+    /**
+     * What the canvas draws on a fixed ground besides the component: the
+     * measurement (line, grips, label, the pin row's chips) and the surface,
+     * text, contours and active tool of the tool rail, the pills, the pin row
+     * and the rulers. `light` and `transparent` read the first set, `dark` the
+     * second, in both themes. A project whose ground is a mid-tone sets all of
+     * a ground's tokens together, since each is held against the ground or
+     * against `-overlay-bg`:
+     *
+     *   theme: { '--prism-void-dark': '#005fe3', '--prism-void-dark-measure': '#ffffff', ... }
+     *
+     * `-overlay-fg`, `-overlay-muted` and `-overlay-primary` need 4.5:1 on
+     * `-overlay-bg`, `-overlay-border` 3:1, `-measure` 4.5:1 on the ground and
+     * on `-overlay-bg`. The active tool's tint is mixed from `-overlay-primary`.
+     * The simulation of forced colors paints fixed values of its own, so these
+     * do not reach it.
+     */
+    '--prism-void-light-measure': '#ca00c1',
+    '--prism-void-light-overlay-bg': '#ffffff',
+    '--prism-void-light-overlay-fg': '#0f172a',
+    '--prism-void-light-overlay-muted': '#334155',
+    '--prism-void-light-overlay-border': '#7b8aa0',
+    '--prism-void-light-overlay-primary': '#1d4ed8',
+    '--prism-void-dark-measure': '#f632ff',
+    '--prism-void-dark-overlay-bg': '#1a2335',
+    '--prism-void-dark-overlay-fg': '#f1f5f9',
+    '--prism-void-dark-overlay-muted': '#cbd5e1',
+    '--prism-void-dark-overlay-border': '#64748b',
+    '--prism-void-dark-overlay-primary': '#60a5fa',
+
     '--prism-text-light': '#f1f5f9',
 
     /**

@@ -44,9 +44,15 @@ export const CANVAS_BG_STYLES = `
      work too, but this file already states both grounds literally, and one
      mechanism per decision is enough.
 
-     Literal values because this file is theme-independent, like the two
-     grounds below. Keep them in step with --prism-measure in canvas-overlay-tokens.ts and
-     prism-default-theme.ts; semantic-colours.spec.ts fails if they drift.
+     The measurement colour is read from a theme token of the ground,
+     --prism-void-light-measure and --prism-void-dark-measure, so that a project
+     whose ground is a mid-tone can set the one that holds on it. The literal
+     after each is its default, which this file states because it is a plain
+     stylesheet and has no theme to read: it is the value in PRISM_BASE_TOKENS
+     (prism-default-theme.ts), and semantic-colours.spec.ts fails if they drift.
+     The tool rail, the pills and the pin row read their own tokens of the
+     ground the same way (canvasOverlayTokens). Under forced colors the stage
+     takes the wrap's fixed values back with inherit instead.
 
      --prism-ground-text is the text colour a component inherits on the ground,
      taken from --prism-void-light-text and --prism-void-dark-text. Without it
@@ -56,18 +62,20 @@ export const CANVAS_BG_STYLES = `
      stage, because the stage also holds the crosshair, the pills and the
      measurement label, which are chrome and keep the theme's text. Only
      .demo-wrap and .cell__mount read it, and fall back to --prism-text on the
-     grounds that do not set it ("dots" and "plain"). */
+     grounds that do not set it ("dots" and "plain"). An overlay that a plugin
+     renders inside .demo-wrap sits below it and inherits it too, unless it
+     sets a colour of its own. */
   [data-bg="light"] {
     background-color: var(--prism-void-light, #f7f5fc);
     background-image: none;
-    --prism-measure: #ca00c1;
+    --prism-measure: var(--prism-void-light-measure, #ca00c1);
     --prism-measure-plate: var(--prism-void-light, #f7f5fc);
     --prism-ground-text: var(--prism-void-light-text, #0f172a);
   }
   [data-bg="dark"] {
     background-color: var(--prism-void-dark, #07050f);
     background-image: none;
-    --prism-measure: #f632ff;
+    --prism-measure: var(--prism-void-dark-measure, #f632ff);
     --prism-measure-plate: var(--prism-void-dark, #07050f);
     --prism-ground-text: var(--prism-void-dark-text, #f1f5f9);
   }
@@ -88,7 +96,7 @@ export const CANVAS_BG_STYLES = `
      both against them. --prism-checker-square is local to the rule. */
   [data-bg="transparent"] {
     --prism-checker-square: color-mix(in srgb, var(--prism-void-light, #f7f5fc) 94%, #0f172a);
-    --prism-measure: #ca00c1;
+    --prism-measure: var(--prism-void-light-measure, #ca00c1);
     --prism-measure-plate: var(--prism-void-light, #f7f5fc);
     --prism-ground-text: var(--prism-void-light-text, #0f172a);
     background-color: var(--prism-void-light, #f7f5fc);

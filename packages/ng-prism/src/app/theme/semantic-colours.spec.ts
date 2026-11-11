@@ -181,8 +181,9 @@ describe('semantic colours', () => {
      * background, which is an overlay you cannot see.
      *
      * canvas-bg.styles.ts answers that by re-pointing the token on those
-     * backgrounds. The literals there cannot import from this file, so this is
-     * what stops the two copies drifting apart: each pair is checked against the
+     * backgrounds, to the token of the ground with the default as the fallback.
+     * That stylesheet cannot import from this file, so this is what stops the
+     * fallback and the default drifting apart: each pair is checked against the
      * ground it is meant for, at the alpha the faintest layer that matters
      * actually uses.
      */
@@ -208,12 +209,14 @@ describe('semantic colours', () => {
          * the contrast floors below and no test would notice. Reading the real
          * declaration is what turns these into a guard on canvas-bg.styles.ts.
          */
-        const overrideFor = (bg: AbsoluteBg): string => {
-            const found = /--prism-measure:\s*(#[0-9a-f]{6})/i.exec(ruleOf(bg));
+        const overrideRead = (bg: AbsoluteBg): { token: string; fallback: string } => {
+            // The rule reads the colour from a token of its ground and states the default as the fallback: that fallback is what is measured.
+            const found = /--prism-measure:\s*var\((--prism-void-(?:light|dark)-measure),\s*(#[0-9a-f]{6})\)/i.exec(ruleOf(bg));
 
-            if (!found) throw new Error(`[data-bg="${bg}"] declares no --prism-measure`);
-            return found[1];
+            if (!found) throw new Error(`[data-bg="${bg}"] declares no --prism-measure read from the token of its ground`);
+            return { token: found[1], fallback: found[2] };
         };
+        const overrideFor = (bg: AbsoluteBg): string => overrideRead(bg).fallback;
 
         const ON_LIGHT_GROUND = overrideFor('light');
         const ON_DARK_GROUND = overrideFor('dark');
@@ -221,19 +224,20 @@ describe('semantic colours', () => {
 
         /**
          * The ground under forced colors is `Canvas` in the simulated palette,
-         * and the measurement colour there is the one the canvas wrap carries
-         * for that palette (the stage takes it over with `inherit`). `Canvas`
-         * is the browser's own, so it cannot be read from a source: these are
-         * the values measured in Chromium and WebKit, white in both for light.
+         * and the measurement colour there is the fixed one the canvas wrap
+         * carries for that palette (the stage takes it over with `inherit`),
+         * whatever the background is. `Canvas` is the browser's own, so it
+         * cannot be read from a source: these are the values measured in
+         * Chromium and WebKit, white in both for light.
          */
-        const FORCED_LIGHT = ['forced, light palette', canvasOverlayTokens('light')['--prism-measure'], '#ffffff'] as const;
-        const FORCED_DARK_CHROMIUM = ['forced, dark palette in Chromium', canvasOverlayTokens('dark')['--prism-measure'], '#121212'] as const;
+        const FORCED_LIGHT = ['forced, light palette', canvasOverlayTokens('light', 'light')['--prism-measure'], '#ffffff'] as const;
+        const FORCED_DARK_CHROMIUM = ['forced, dark palette in Chromium', canvasOverlayTokens('dark', 'dark')['--prism-measure'], '#121212'] as const;
         /**
          * A shade lighter than Chromium's. The readout and the 3:1 layers hold on
          * it; the faint 55% line of a hovered grip reads 2.43:1, just under the
          * 2.5 floor below, so it is left out of that one check.
          */
-        const FORCED_DARK_WEBKIT = ['forced, dark palette in WebKit', canvasOverlayTokens('dark')['--prism-measure'], '#1e1e1e'] as const;
+        const FORCED_DARK_WEBKIT = ['forced, dark palette in WebKit', canvasOverlayTokens('dark', 'dark')['--prism-measure'], '#1e1e1e'] as const;
 
         /**
          * Every ground the measurement colour is ever painted on.
@@ -332,6 +336,15 @@ describe('semantic colours', () => {
 
             expect(contrast(atAlpha(colour, ground, handle), ground)).toBeGreaterThanOrEqual(3);
             expect(contrast(atAlpha(colour, ground, rule), ground)).toBeGreaterThanOrEqual(3);
+        });
+
+        it.each([
+            ['light', '--prism-void-light-measure'],
+            ['transparent', '--prism-void-light-measure'],
+            ['dark', '--prism-void-dark-measure']
+        ] as const)('bg:%s reads the measurement colour from %s, with its default as the fallback', (bg, token) => {
+            // A project that retunes a ground retunes the colour drawn on it with this token; the default is held to the floors here.
+            expect(overrideRead(bg)).toEqual({ token, fallback: PRISM_BASE_TOKENS[token] });
         });
 
         it('declares the same colour on an absolute ground as the matching theme', () => {

@@ -1,5 +1,5 @@
 import { DEFAULT_VARIANT_BG } from '../../shared/variant-bg.js';
-import { groundSimulation, NO_GROUND_SIMULATION, overlayGround, overviewGround, playgroundGround } from './ground.js';
+import { groundSimulation, NO_GROUND_SIMULATION, overviewGround, playgroundGround } from './ground.js';
 import type { ScopeRootState } from './scope-root.js';
 
 describe('playgroundGround', () => {
@@ -83,20 +83,5 @@ describe('groundSimulation', () => {
             colorScheme: 'light',
             canvas: '#ffffff'
         });
-    });
-});
-
-describe('overlayGround', () => {
-    it('is the canvas background while forced colors are off', () => {
-        expect(overlayGround('light', null)).toBe('light');
-        expect(overlayGround('dots', null)).toBe('dots');
-    });
-
-    it('is the palette of forced colors over any background', () => {
-        // The ground is the palette's Canvas then, so a `light` background under the dark palette is a dark ground.
-        expect(overlayGround('light', 'dark')).toBe('dark');
-        expect(overlayGround('dots', 'dark')).toBe('dark');
-        expect(overlayGround('dark', 'light')).toBe('light');
-        expect(overlayGround('transparent', 'dark')).toBe('dark');
     });
 });
