@@ -418,6 +418,7 @@ const INLINE_NET: readonly (readonly [string, string])[] = [
     [declares('background', ['background', 'background-color']), 'background-color: rgb(var(--prism-sim-bg-rgb))'],
     [declares('border', BORDERS), 'border-color: currentcolor'],
     [declares('outline', ['outline', 'outline-color']), 'outline-color: var(--prism-sim-outline, currentcolor)'],
+    [declares('caret-color', ['caret-color']), 'caret-color: currentcolor'],
     [declares('box-shadow', ['box-shadow', '-webkit-box-shadow']), 'box-shadow: none'],
     [declares('text-shadow', ['text-shadow']), 'text-shadow: none'],
     // A `url()` among the images keeps the whole value, as in the browser.

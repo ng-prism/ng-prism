@@ -332,8 +332,15 @@ describe.each<Scheme>(['light', 'dark'])('forced colors in the %s palette', (sch
     // The net of the forced colors sheet for inline styles, `!important`, beats them.
     it('inline-style', () =>
         expectSimulationToMatch({
-            html: scope('', '<div class="inline" style="background: red; color: blue; border: 1px solid green">Inline</div>'),
-            probes: [{ name: 'inline', selector: '.inline', properties: ['background-color', 'color', 'border-top-color'] }]
+            html: scope(
+                '',
+                `<div class="inline" style="background: red; color: blue; border: 1px solid green">Inline</div>
+                <input class="caret" style="caret-color: red">`
+            ),
+            probes: [
+                { name: 'inline', selector: '.inline', properties: ['background-color', 'color', 'border-top-color'] },
+                { name: 'caret', selector: '.caret', properties: ['caret-color'] }
+            ]
         }));
 
     // Only an inline declaration of a forced property is forced, not one whose name merely contains it: a custom
