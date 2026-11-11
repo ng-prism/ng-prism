@@ -292,6 +292,8 @@ formatDateValue(new Date(2026, 3, 28)); // '2026-04-28'
 | `DEFAULT_VARIANT_BG` | `CanvasBg`                                                                                 | `'transparent'`: the background a variant without a declared `bg` reports and is captured on, unless the config sets `showcaseDefaults.bg`                                                                                                                                                                                                                                                                                            |
 | `resolveVariantBg`   | `(config: VariantBgSource, variantIndex: number, fallback?: CanvasBg \| null) => CanvasBg` | The background a variant renders on in the Overview, in capture mode and in `__PRISM_MANIFEST__`: the variant's `bg`, else the component's, else `fallback`, which is the config's [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults) (the argument is new in 22.8.0), else `DEFAULT_VARIANT_BG`. `VariantBgSource` is `{ bg?: CanvasBg; variants?: readonly { bg?: CanvasBg }[] }`, which a `ShowcaseConfig` satisfies |
 
+| `showcaseDefaultBg` | `(config: { showcaseDefaults?: { bg?: unknown } } \| null \| undefined) => CanvasBg \| null` | The config's [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults) (since 22.8.0), or `null` where it sets none or sets a value that is no `CanvasBg`. An `NgPrismConfig` satisfies the parameter. It is what `resolveVariantBg()` takes as `fallback` |
+
 Which background applies where, and which to declare under visual regression, is described under [`bg`](api/showcase-config.md#bg).
 
 ### Pseudo states

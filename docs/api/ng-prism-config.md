@@ -285,7 +285,7 @@ export default defineConfig({
 });
 ```
 
-`NgPrismShowcaseDefaults` is exported from `@ng-prism/core/plugin`.
+`NgPrismShowcaseDefaults` is exported from `@ng-prism/core/plugin`, and so is `showcaseDefaultBg(config)`, which returns the configured `bg`, or `null` where there is none or it is no `CanvasBg`. A runner that resolves backgrounds itself passes it to `resolveVariantBg()` as the third argument, see [Plugin UI Kit](api/plugin-ui.md#backgrounds).
 
 **Guide:** [Tour of the UI: Background](guide/styleguide-ui.md#background), [Visual Regression](guide/visual-regression.md#the-background-is-part-of-the-baseline)
 

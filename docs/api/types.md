@@ -698,7 +698,7 @@ type CanvasBg = 'dots' | 'plain' | 'light' | 'dark' | 'transparent';
 
 `light`, `dark` and `transparent` also set the text colour a component inherits, to dark ink on the first and the last and to light ink on `dark`, whatever the theme. `dots` and `plain` leave the theme's text.
 
-Which background applies where, and which to declare under visual regression, is described under [`bg`](api/showcase-config.md#bg). `CANVAS_BGS` lists every value, `DEFAULT_VARIANT_BG` is `'transparent'`, and `resolveVariantBg()` resolves the background of a variant as the styleguide does, with the config's [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults) as an optional third argument, see [Plugin UI Kit](api/plugin-ui.md#constants-and-helpers).
+Which background applies where, and which to declare under visual regression, is described under [`bg`](api/showcase-config.md#bg). `CANVAS_BGS` lists every value, `DEFAULT_VARIANT_BG` is `'transparent'`, and `resolveVariantBg()` resolves the background of a variant as the styleguide does, with the config's [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults) as an optional third argument (`showcaseDefaultBg()` reads it from the config), see [Plugin UI Kit](api/plugin-ui.md#constants-and-helpers).
 
 ### `CanvasLayout`
 
@@ -865,14 +865,14 @@ interface DiscoveryVariant {
 }
 ```
 
-| Field    | Description                                                                                                                                                                                                                                         |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`   | `Variant.name`                                                                                                                                                                                                                                      |
-| `index`  | 0-based position in the `variants` array, the `?variant=` URL value                                                                                                                                                                                 |
-| `bg`     | The background the variant renders on, already resolved: `Variant.bg`, else `ShowcaseConfig.bg`, else `'transparent'`. Always present, and what capture mode paints, see [Reading the background](guide/external-tooling.md#reading-the-background) |
-| `meta`   | `Variant.meta`, plain data only. Omitted when empty                                                                                                                                                                                                 |
-| `pseudo` | `Variant.pseudo`, as declared. Omitted when the variant forces no state. The render marker waits for the states, so a capture shows them without any action on the runner's side                                                                    |
-| `states` | `false` when the variant opts out of the component's states, omitted otherwise. Nothing is forced for a state on such a variant, and the render marker reports its cell as excluded                                                                 |
+| Field    | Description                                                                                                                                                                                                                                                                                                                             |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`   | `Variant.name`                                                                                                                                                                                                                                                                                                                          |
+| `index`  | 0-based position in the `variants` array, the `?variant=` URL value                                                                                                                                                                                                                                                                     |
+| `bg`     | The background the variant renders on, already resolved: `Variant.bg`, else `ShowcaseConfig.bg`, else the config's [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults), else `'transparent'`. Always present, and what capture mode paints, see [Reading the background](guide/external-tooling.md#reading-the-background) |
+| `meta`   | `Variant.meta`, plain data only. Omitted when empty                                                                                                                                                                                                                                                                                     |
+| `pseudo` | `Variant.pseudo`, as declared. Omitted when the variant forces no state. The render marker waits for the states, so a capture shows them without any action on the runner's side                                                                                                                                                        |
+| `states` | `false` when the variant opts out of the component's states, omitted otherwise. Nothing is forced for a state on such a variant, and the render marker reports its cell as excluded                                                                                                                                                     |
 
 ### `DiscoveryState`
 

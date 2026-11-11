@@ -1,3 +1,4 @@
+import * as pluginEntry from '../plugin/index.js';
 import { CANVAS_BGS, type CanvasBg } from './canvas-bg.type.js';
 import { declaredVariantBg, DEFAULT_VARIANT_BG, resolveVariantBg, showcaseDefaultBg } from './variant-bg.js';
 
@@ -103,5 +104,14 @@ describe('showcaseDefaultBg', () => {
         expect(showcaseDefaultBg({})).toBeNull();
         expect(showcaseDefaultBg(null)).toBeNull();
         expect(showcaseDefaultBg(undefined)).toBeNull();
+    });
+});
+
+describe('the @ng-prism/core/plugin entry point', () => {
+    it('exports the pair a runner resolves a background with', () => {
+        // `resolveVariantBg` documents the config's value as its `fallback`, so the helper that
+        // reads that value has to be reachable from the same place.
+        expect(pluginEntry.resolveVariantBg).toBe(resolveVariantBg);
+        expect(pluginEntry.showcaseDefaultBg).toBe(showcaseDefaultBg);
     });
 });
