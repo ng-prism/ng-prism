@@ -180,7 +180,7 @@ describe('migration v22-8-checker-bg', () => {
     });
 
     it('keeps a byte order mark and the line endings', async () => {
-        const source = ["﻿import { Showcase } from '@ng-prism/core';", "@Showcase({ title: 'A', bg: 'checker' })", 'export class A {}', ''].join('\r\n');
+        const source = ["\uFEFFimport { Showcase } from '@ng-prism/core';", "@Showcase({ title: 'A', bg: 'checker' })", 'export class A {}', ''].join('\r\n');
         const tree = createTree({ 'a.ts': source });
 
         const result = await run(tree);
