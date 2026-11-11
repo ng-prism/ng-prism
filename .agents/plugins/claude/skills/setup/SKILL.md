@@ -180,10 +180,13 @@ In Nx, a target with `"command": "npx ng-prism-strip dist/<path>"` and `"depends
   `--prism-primary-fill`, the `--prism-mark-*`, `--prism-spectrum` and `--prism-primary-from/-to` tokens are deprecated
   (the build names any override of them), and `PanelBadge.variant` gives way to `kind`. See
   `guide/upgrade-notes-22.md#upgrading-to-2270`.
-- 22.8.0 changes nothing in a config or a showcase. `data-theme` on `<html>` is deprecated: replace it with
-  `data-prism-theme` in the styleguide app's own styles and scripts (an attribute can't warn, so search for it). The
-  tools menu's first group is called Background now and its button `Background, state, zoom, width and simulate`,
-  which matters only to end-to-end tests that find them by name. See `guide/upgrade-notes-22.md#upgrading-to-2280`.
+- 22.8.0 changes nothing in a config. A `@Showcase` that declares `bg: 'checker'` has to change: the value is removed
+  and the build drops it with a warning. `ng update @ng-prism/core` rewrites it to `'transparent'` on the class and its
+  inline variants, and a visual regression baseline taken on `checker` needs recording again. `data-theme` on `<html>`
+  is deprecated: replace it with `data-prism-theme` in the styleguide app's own styles and scripts (an attribute can't
+  warn, so search for it). The tools menu's first group is called Background now and its button
+  `Background, state, zoom, width and simulate`, which matters only to end-to-end tests that find them by name. See
+  `guide/upgrade-notes-22.md#upgrading-to-2280`.
 - Update the core and all plugins in one call: `ng update @ng-prism/core @ng-prism/plugin-jsdoc …`.
 - The migrations to v22 (manifest moved to `ng-prism-cache/`, `.ng-prism/` renamed) read `angular.json` only; in an Nx
   workspace apply them by hand following `guide/migration-v22.md`. They need Angular CLI 22 and a Node version it
