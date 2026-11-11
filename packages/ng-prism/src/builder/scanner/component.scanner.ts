@@ -41,7 +41,7 @@ function isComponentStatus(value: unknown): value is ComponentStatus {
  */
 function invalidBgMessage(where: string, value: unknown): string {
     if (value === 'checker') {
-        return `${where} declares bg "checker", which was removed in 22.8.0; use 'transparent' for the same look while browsing, or run ng update @ng-prism/core to rewrite it. Skipping.`;
+        return `${where} declares bg "checker", which was removed in 22.8.0; use 'transparent' (a checkerboard while browsing, light in both themes, see-through in a capture), or run ng update @ng-prism/core to rewrite it. Skipping.`;
     }
     return `${where} declares invalid bg "${String(value)}", expected one of: ${CANVAS_BGS.join(', ')}. Skipping.`;
 }

@@ -13,7 +13,7 @@
         },
         "migration-v22-8-checker-bg": {
             "version": "22.8.0-beta.2",
-            "description": "Rewrite bg: 'checker', removed in 22.8.0, to 'transparent' in @Showcase decorators; 'transparent' paints the same checkerboard while browsing.",
+            "description": "Rewrite bg: 'checker', removed in 22.8.0, to 'transparent' in @Showcase decorators; 'transparent' is a checkerboard while browsing, light in both themes, and see-through in a capture.",
             "factory": "../dist/schematics/migrations/v22-8-checker-bg/index#migrate"
         }
     }

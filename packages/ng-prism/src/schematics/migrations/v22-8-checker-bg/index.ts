@@ -138,9 +138,11 @@ function collectTsFiles(dir: DirEntry, paths: string[]): void {
 }
 
 /**
- * `bg: 'checker'` was removed from `CanvasBg` in 22.8.0. `'transparent'` paints
- * the same checkerboard while browsing, so the rewrite keeps what the author
- * sees; only a capture changes (it is see-through now).
+ * `bg: 'checker'` was removed from `CanvasBg` in 22.8.0. `'transparent'` is the
+ * nearest value: a checkerboard while browsing, but a light one in both themes
+ * (`checker` drew the theme's own), and see-through in a capture (`checker`
+ * captured as the theme's surface colour). The rewrite keeps the intent, a
+ * checkerboard, and the migration says what moved.
  */
 export function migrate(): Rule {
     return (tree: Tree, context: SchematicContext) => {
@@ -175,7 +177,7 @@ export function migrate(): Rule {
 
         if (rewritten > 0) {
             context.logger.warn(
-                `ng-prism migration: captures on a rewritten background are see-through now. Record the visual regression baselines again, or pick 'light' or 'dark' for an absolute background.`
+                `ng-prism migration: 'transparent' is a light checkerboard in both themes, where 'checker' followed the theme, and a capture on it is see-through. Record the visual regression baselines again, or pick 'light' or 'dark' for an absolute background.`
             );
         }
 
