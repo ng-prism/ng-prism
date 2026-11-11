@@ -87,7 +87,7 @@ Results are matched to components by `className`. All three image paths are opti
 
 `status: "new"` (a variant with no baseline yet) renders as a **neutral** state, never as a failure.
 
-`bg` and `baselineBg` are optional and record the canvas background a capture was taken on: `bg` for this run, `baselineBg` for the stored baseline. A runner already has `bg`: it is the resolved `bg` on the variant it read from `__PRISM_MANIFEST__`. Given them, the panel frames the images in that surface instead of the transparency checkerboard (which is what makes a dark variant's diff mask readable), and when the two differ it names the background change instead of leaving a 100% diff unexplained.
+`bg` and `baselineBg` are optional and record the canvas background a capture was taken on: `bg` for this run, `baselineBg` for the stored baseline. A runner already has `bg`: it is the resolved `bg` on the variant it read from `__PRISM_MANIFEST__`. Given them, the panel frames the images in that surface instead of the theme's transparency checkerboard (which is what makes a dark variant's diff mask readable), and when the two differ it names the background change instead of leaving a 100% diff unexplained. `transparent` (and a report without `bg`) is framed on the same fixed light checkerboard the canvas draws for it, in both themes.
 
 ## Serving the Images
 

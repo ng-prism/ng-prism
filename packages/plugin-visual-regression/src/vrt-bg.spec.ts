@@ -26,30 +26,32 @@ describe('shotSurfaceStyle', () => {
         });
     });
 
-    it('keeps the checkerboard for theme-dependent backgrounds', () => {
+    it('keeps the theme checkerboard for dots, plain and an older checker report', () => {
         // `dots` and `plain` both paint `--prism-bg-surface`, a theme token. The
         // panel cannot know which theme the runner's browser was in, so claiming
-        // a colour here would be a guess painted as fact.
+        // a colour here would be a guess painted as fact. A report from before
+        // 22.8.0 can still say `checker`, and it is read from disk long after
+        // the value left the type.
         expect(shotSurfaceStyle('dots')).toEqual({});
         expect(shotSurfaceStyle('plain')).toEqual({});
-    });
-
-    it('keeps the checkerboard for a background that no longer exists', () => {
-        // A report from before 22.8.0 can still say `checker`, and it is read
-        // from disk long after the value left the type.
         expect(shotSurfaceStyle('checker' as CanvasBg)).toEqual({});
     });
 
-    it('keeps the checkerboard when the report recorded no background', () => {
-        expect(shotSurfaceStyle(undefined)).toEqual({});
+    it('lays a transparent capture on the fixed light checkerboard of the canvas', () => {
+        // The capture has a real alpha channel and dark inherited text, so the
+        // board behind it has to be the light one in both themes. Only colours
+        // come from here; the CSS keeps size and position.
+        const style = shotSurfaceStyle('transparent');
+        const square = 'color-mix(in srgb, var(--prism-void-light, #f7f5fc) 94%, #0f172a)';
+
+        expect(style['background-color']).toBe('var(--prism-void-light, #f7f5fc)');
+        expect(style['background-image'].split(square)).toHaveLength(5);
+        expect(Object.keys(style).sort()).toEqual(['background-color', 'background-image']);
     });
 
-    it('declares no background at all for a transparent capture', () => {
-        // This works by omission: `SURFACE` has no `transparent` entry, so the
-        // lookup falls through. Making `SURFACE` a total record or adding a
-        // default would paint over every transparent capture, and the panel
-        // would still look plausible.
-        expect(shotSurfaceStyle('transparent')).toEqual({});
+    it('lays a capture without a recorded background on the same checkerboard', () => {
+        expect(shotSurfaceStyle(undefined)).toEqual(shotSurfaceStyle('transparent'));
+        expect(shotSurfaceStyle(undefined)['background-image']).toContain('linear-gradient(45deg');
     });
 });
 

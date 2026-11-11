@@ -15,20 +15,47 @@ const SURFACE: Partial<Record<CanvasBg, string>> = {
 };
 
 /**
+ * The checkerboard the canvas draws for `transparent`, as colours only.
+ *
+ * Keep in step with `CANVAS_BG_STYLES` in `@ng-prism/core`: the plugin cannot
+ * import it, since only `@ng-prism/core/plugin` is public. The ground is
+ * `--prism-void-light` and the squares are that ground mixed 6% towards
+ * `#0f172a`, so a project that retunes the token retunes both boards. The four
+ * gradients are the canvas's own; `.vrt-cmp__shot` supplies the size and
+ * position (a 12px grid here, 16px on the canvas).
+ */
+const CHECKER_GROUND = 'var(--prism-void-light, #f7f5fc)';
+const CHECKER_SQUARE = `color-mix(in srgb, ${CHECKER_GROUND} 94%, #0f172a)`;
+const CHECKER_IMAGE = [
+    `linear-gradient(45deg, ${CHECKER_SQUARE} 25%, transparent 25%)`,
+    `linear-gradient(-45deg, ${CHECKER_SQUARE} 25%, transparent 25%)`,
+    `linear-gradient(45deg, transparent 75%, ${CHECKER_SQUARE} 75%)`,
+    `linear-gradient(-45deg, transparent 75%, ${CHECKER_SQUARE} 75%)`
+].join(', ');
+
+/**
  * Background declarations for the box that holds a capture.
  *
  * Visible through a diff mask (comparators leave unchanged pixels transparent)
  * and through a `transparent` capture, so it decides whether those images are
  * readable.
  *
- * Only `light` and `dark` produce a colour; everything else keeps the
- * checkerboard. `dots` and `plain` paint `--prism-bg-surface`, a *theme*
- * token, and the panel cannot know which theme the runner's browser used. A
- * `transparent` capture has a real alpha channel, which the checkerboard shows.
- * A report without a background is treated the same way.
+ * `light` and `dark` paint their flat surface. `transparent` gets the canvas's
+ * fixed light checkerboard, and so does a report without a background: a
+ * `transparent` capture has a real alpha channel and inherits dark text from the
+ * canvas, which would sit on navy on the theme checkerboard in the dark theme.
+ * Everything else keeps the panel's theme checkerboard (an empty result).
+ * `dots` and `plain` paint `--prism-bg-surface`, a *theme* token, and the panel
+ * cannot know which theme the runner's browser used. A report from before
+ * 22.8.0 can still say `checker`, which the type no longer has, and is treated
+ * the same way.
  */
 export function shotSurfaceStyle(bg: CanvasBg | undefined): Record<string, string> {
-    const surface = bg ? SURFACE[bg] : undefined;
+    if (bg === undefined || bg === 'transparent') {
+        return { 'background-color': CHECKER_GROUND, 'background-image': CHECKER_IMAGE };
+    }
+
+    const surface = SURFACE[bg];
 
     if (!surface) return {};
     return { 'background-color': surface, 'background-image': 'none' };
