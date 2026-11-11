@@ -155,6 +155,13 @@ The main tokens: `--prism-primary` (text and indicators; overriding it alone als
 with the dark set, `darkTheme` included; a custom `title` replaces the wordmark and is shown in neutral text.
 `--prism-brand-motion` (default `24s`) is the cycle of the header's slow brand light (glow swell, then a light along
 the top edge); `'none'` in `theme` holds it still, and `prefers-reduced-motion` always does.
+The canvas grounds `light`, `dark` and `transparent` do not follow the theme: `--prism-void-light` and
+`--prism-void-dark` are fixed (`transparent` draws its checkerboard from the light one), and `--prism-void-light-text`
+and `--prism-void-dark-text` are the text a component inherits on them.
+`--prism-void-{light,dark}-{measure,overlay-bg,overlay-fg,overlay-muted,overlay-border,overlay-primary}` colour the
+measurement and the overlays (tool rail, pills, rulers) on a ground. The defaults suit a near-black dark ground; a
+mid-tone `--prism-void-dark` must at least change `--prism-void-dark-measure`, which fails on it. Floors and a worked
+example: `guide/theming.md#base-tokens-theme-independent`.
 Deprecated since 22.7 (removed in 23.0): `--prism-primary-from`, `--prism-primary-to`, `--prism-spectrum` and
 `--prism-mark-nominal|attention|critical` (aliases of success, warn and danger; an override still carries over, with a
 console warning). Don't suggest them in new config.
@@ -185,8 +192,13 @@ In Nx, a target with `"command": "npx ng-prism-strip dist/<path>"` and `"depends
   `--prism-primary-fill`, the `--prism-mark-*`, `--prism-spectrum` and `--prism-primary-from/-to` tokens are deprecated
   (the build names any override of them), and `PanelBadge.variant` gives way to `kind`. See
   `guide/upgrade-notes-22.md#upgrading-to-2270`.
-- 22.8.0 changes nothing in a config. A `@Showcase` that declares `bg: 'checker'` has to change: the value is removed
-  and the build drops it with a warning. `ng update @ng-prism/core` rewrites it to `'transparent'` on the class and its
+- 22.8.0 changes nothing in a config. A component on `light`, `dark` or `transparent` now inherits the text colour of
+  its ground (`--prism-void-light-text`, `--prism-void-dark-text`) in both themes, so an icon in `currentColor` changes
+  with it: record the baselines of the affected variants again, those without a `bg` included (a capture resolves them
+  to `transparent`). A colour workaround on `.demo-wrap` or `.cell__mount` in a global stylesheet no longer takes
+  effect: delete it, or move its colour to those two tokens. A `@Showcase` that declares `bg: 'checker'` has to
+  change: the value is removed and the build drops it with a warning. `ng update @ng-prism/core` rewrites it to
+  `'transparent'` (a checkerboard that is light in both themes and see-through in a capture) on the class and its
   inline variants, and a visual regression baseline taken on `checker` needs recording again. `data-theme` on `<html>`
   is deprecated: replace it with `data-prism-theme` in the styleguide app's own styles and scripts (an attribute can't
   warn, so search for it). The tools menu's first group is called Background now and its button

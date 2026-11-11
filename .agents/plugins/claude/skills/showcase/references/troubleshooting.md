@@ -36,9 +36,9 @@ These count for `strictShowcase: true`, which ends the build with
   listed value.
 - **`<Class> declares invalid bg "<value>", expected one of: …. Skipping.`**, also per variant as
   `<Class> variant "<name>" declares invalid bg …`: use `dots`, `plain`, `light`, `dark` or `transparent`.
-- **`<Class> declares bg "checker", which was removed in 22.8.0; use 'transparent' for the same look while browsing, or run ng update @ng-prism/core to rewrite it. Skipping.`**,
-  also per variant: `checker` is no longer a background and the `bg` is dropped. Use `transparent` (the same
-  checkerboard, and a capture without a colour) or `light` / `dark` for an absolute colour.
+- **`<Class> declares bg "checker", which was removed in 22.8.0; use 'transparent' (a checkerboard while browsing, light in both themes, see-through in a capture), or run ng update @ng-prism/core to rewrite it. Skipping.`**,
+  also per variant: `checker` is no longer a background and the `bg` is dropped. Use `transparent` (a checkerboard,
+  light in both themes, and a capture without a colour) or `light` / `dark` for an absolute colour.
 - **`<Class> declares invalid canvasLayout "<value>", …`**, also per variant: use `fit` or `stretch`.
 - **`<Class> variant "<name>" declares invalid pseudo <json>, expected an object mapping pseudo states to true or selectors. Skipping.`**:
   write `pseudo: { hover: true }` or `pseudo: { hover: '.btn' }`.

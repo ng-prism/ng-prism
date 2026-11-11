@@ -204,7 +204,7 @@ Hold your values to the floors the defaults keep:
 - `-overlay-fg`, `-overlay-muted` and `-overlay-primary` of a ground reach 4.5:1 on its `-overlay-bg`.
 - `-overlay-border` of a ground reaches 3:1 on its `-overlay-bg`.
 
-As an example, a mid-tone dark ground such as `#005fe3` needs the whole `dark` set, because the defaults are tuned for a near-black ground (the measurement colour reaches 1.8:1 on this blue). White text and measurement, with a navy surface for the overlays:
+As an example, take a mid-tone dark ground such as `#005fe3`. Of the defaults only `--prism-void-dark-measure` fails on it, at 1.8:1, so that is the one token it has to change: the default `-text` reaches 5.1:1 and the overlay defaults hold their floors against their own `-overlay-bg`. The configuration below sets the rest as well, as a matching look of white text and measurement with a navy surface for the overlays:
 
 ```typescript
 // ng-prism.config.ts
