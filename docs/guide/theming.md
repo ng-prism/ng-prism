@@ -204,6 +204,28 @@ Hold your values to the floors the defaults keep:
 - `-overlay-fg`, `-overlay-muted` and `-overlay-primary` of a ground reach 4.5:1 on its `-overlay-bg`.
 - `-overlay-border` of a ground reaches 3:1 on its `-overlay-bg`.
 
+As an example, a mid-tone dark ground such as `#005fe3` needs the whole `dark` set, because the defaults are tuned for a near-black ground (the measurement colour reaches 1.8:1 on this blue). White text and measurement, with a navy surface for the overlays:
+
+```typescript
+// ng-prism.config.ts
+import { defineConfig } from '@ng-prism/core/config';
+
+export default defineConfig({
+    theme: {
+        '--prism-void-dark': '#005fe3',
+        '--prism-void-dark-text': '#ffffff',
+        '--prism-void-dark-measure': '#ffffff',
+        '--prism-void-dark-overlay-bg': '#091e42',
+        '--prism-void-dark-overlay-fg': '#f4f5f9',
+        '--prism-void-dark-overlay-muted': '#bbc5d5',
+        '--prism-void-dark-overlay-border': '#67758c',
+        '--prism-void-dark-overlay-primary': '#4d97ff'
+    }
+});
+```
+
+The ratios: text and measurement 5.6:1 on the ground, the measurement 16.5:1 on `-overlay-bg`, `-overlay-fg` 15.1:1, `-overlay-muted` 9.5:1, `-overlay-primary` 5.6:1 and `-overlay-border` 3.5:1, all on `-overlay-bg`. The faintest layer the measurement paints (55%) still reaches 2.7:1 on the ground.
+
 Under simulated [forced colors](guide/styleguide-ui.md#forced-colors) the ground is the palette's `Canvas`, `#ffffff` or `#000000`, whatever the ground tokens are. The overlays take fixed values there, the defaults of the `light` set on the light palette and of the `dark` set on the dark palette, and the plate of the measurement is the palette's `Canvas`. The tokens do not reach them: a `--prism-void-dark` that you tuned to a mid-tone blue is not the black the simulation paints.
 
 ### Measurement and Stage Tokens

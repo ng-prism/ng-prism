@@ -228,9 +228,10 @@ export const PRISM_BASE_TOKENS: Record<string, string> = {
      * and the rulers. `light` and `transparent` read the first set, `dark` the
      * second, in both themes. A project whose ground is a mid-tone sets all of
      * a ground's tokens together, since each is held against the ground or
-     * against `-overlay-bg`:
-     *
-     *   theme: { '--prism-void-dark': '#005fe3', '--prism-void-dark-measure': '#ffffff', ... }
+     * against `-overlay-bg`. For `#005fe3` that is white text and measurement
+     * (5.6:1), a navy `-overlay-bg` of `#091e42`, `-overlay-fg` `#f4f5f9`,
+     * `-overlay-muted` `#bbc5d5`, `-overlay-border` `#67758c` and
+     * `-overlay-primary` `#4d97ff`; docs/guide/theming.md lists it in full.
      *
      * `-overlay-fg`, `-overlay-muted` and `-overlay-primary` need 4.5:1 on
      * `-overlay-bg`, `-overlay-border` 3:1, `-measure` 4.5:1 on the ground and
