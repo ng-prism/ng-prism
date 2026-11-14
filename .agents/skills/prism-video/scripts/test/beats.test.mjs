@@ -82,6 +82,13 @@ test('code types its line at 34 cps', () => {
     assert.match(html, /id="c-w1" class="win"[^>]*opacity:0/);
 });
 
+test('code keeps its glow off a light window', () => {
+    const card = (veil) => code({ id: 'c', dur: 7, file: 'f.ts', src: ['x'], typedLine: 0, t0: 1, cap: 'x', veil }, ctx).html;
+    assert.match(card(true), /class="k-glow"/);
+    assert.doesNotMatch(card(false), /class="k-glow"/);
+    assert.doesNotMatch(card(false), /#c-glow/);
+});
+
 test('tourCode types its block', () => {
     const { html, sfx } = tourCode(
         { id: 't', dur: 10, file: 'button.component.ts', src: ['@Showcase({', "    title: 'Button'", '})'], typed: 3, t0: 1.4, seconds: 2, cap: 'Annotate **it.**' },

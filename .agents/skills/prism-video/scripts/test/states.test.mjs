@@ -23,6 +23,13 @@ test('prefixIds', () => {
     assert.match(html, /url\(#w1-g\)/);
 });
 
+test('prefixIds reaches a quoted url(), as an inline style holds it', () => {
+    const html = prefixIds(`<i style="filter: url(&quot;#f&quot;);"></i><b style='filter: url("#f")'></b><s style="filter: url('#f')"></s>`, 'w1');
+    assert.match(html, /url\(&quot;#w1-f&quot;\)/);
+    assert.match(html, /url\("#w1-f"\)/);
+    assert.match(html, /url\('#w1-f'\)/);
+});
+
 test('loadState sets the scope and prefixes ids', () => {
     const dir = mkdtempSync(join(tmpdir(), 'states-'));
     mkdirSync(join(dir, 'video'));
