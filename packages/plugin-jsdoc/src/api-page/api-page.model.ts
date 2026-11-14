@@ -5,7 +5,7 @@ import {
     type ApiSetupEntry,
     type ApiTypeDoc,
     type ApiTypeRef,
-    type InputMeta,
+    formatDefaultValue,
     partKeys,
     type ScannedComponent,
     type ScannedPipe,
@@ -181,7 +181,7 @@ export function componentApiPage(component: ScannedComponent): ApiPageModel {
         inputs: inputs.map((input) => ({
             name: input.alias ?? input.name,
             type: api?.inputTypes[input.name] ?? { text: input.rawType ?? input.type },
-            defaultValue: input.defaultValue === undefined ? undefined : formatDefault(input.defaultValue),
+            defaultValue: input.defaultValue === undefined ? undefined : formatDefaultValue(input.defaultValue),
             required: input.required,
             description: input.doc,
             tags: memberTags[input.name] ?? {}
@@ -214,15 +214,6 @@ function deprecationChip({ deprecated }: ApiDocTags): ApiPageChip[] {
 
 function valueChip(label: string, value: string | undefined): ApiPageChip[] {
     return value ? [{ label, value }] : [];
-}
-
-/**
- * As the code writes a default: a string in single quotes with its quotes and backslashes escaped, an array or object
- * as JSON (`String()` would give `a,b` and `[object Object]`), anything else by its `String()`.
- */
-function formatDefault(value: InputMeta['defaultValue']): string {
-    if (typeof value === 'string') return `'${value.replace(/[\\']/g, '\\$&')}'`;
-    return typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
 }
 
 /** A method of the jsdoc plugin's data as a signature: it knows no more of the types than their names. */

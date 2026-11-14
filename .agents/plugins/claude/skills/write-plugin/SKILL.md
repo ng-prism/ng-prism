@@ -73,10 +73,11 @@ export function notesPlugin(): NgPrismPlugin {
   a hook that rewrites the parent, its selector or class name included, keeps its parts on it.
 - Store per-component results in `component.showcaseConfig.meta[<your key>]`, as the official plugins do. Data for the
   whole library goes into `manifest.meta`, read in the browser with `inject(PRISM_MANIFEST).meta`.
-- The manifest that carries these results to the browser is generated source code: only JSON-like data survives. In
-  a component's showcase meta a function becomes `undefined`, and a `Date`, `Map`, `Set` or class instance becomes a
-  plain object of its own enumerable fields (`{}` for the built-ins). `manifest.meta` is written with `JSON.stringify`:
-  functions are dropped, a `Date` becomes an ISO string.
+- The manifest that carries these results to the browser is generated source code: only plain data survives, in a
+  component's showcase meta and in `manifest.meta` alike. Strings, numbers, booleans, arrays and plain objects arrive
+  as written, and a `Date` as a `Date` (since 22.8.0; before, it became `{}` in showcase meta and an ISO string in
+  `manifest.meta`). A function becomes `undefined`, and a `Map`, `Set` or other class instance becomes a plain object
+  of its own enumerable fields (`{}` for the built-ins).
 - Import Node-only modules inside the hook (`const { readFile } = await import('node:fs/promises')`), never at the top
   of the file: the same file is bundled for the browser.
 - **Services have their own hook and list** (since 22.7.0). A class with `@Showcase` and `@Injectable` or `@Service`
@@ -157,12 +158,22 @@ export function notesPlugin(): NgPrismPlugin {
 - Grade a figure with `statusFor(value, { ok, warn, direction? })` or `thresholdFromTarget(target)` from
   `@ng-prism/core/plugin` (warn down to 75 % of the target, danger below), and `worstTone()` for several. The header
   badge, the sidebar and the built-in panels grade the same way, so a plugin that does too never disagrees with them.
+- Show a `Date` (an input default, a payload, a value) with `formatDateValue(date)` from `@ng-prism/core/plugin`
+  (since 22.8.0): the local day, plus the time when there is one, as the Events panel and the API page show it. An
+  input's default as code writes it, its `Date`s included, comes from `formatDefaultValue(value)` (since 22.8.0), and
+  the checkerboard of `transparent` from `checkerboardStyle()` (since 22.8.0).
 
 - Panel ids are not deduplicated: prefix yours and avoid the built-in `overview`, `controls`, `events` and `a11y`.
 - Decoration ids are deduplicated: built-ins first (only `a11y`), then plugins in registration order. The first
   definition of an id wins, later ones are dropped silently. The orders 10, 20 and 30 belong to a11y, visual regression
   and coverage.
-- The first control whose `matchType` matches wins, in registration order.
+- The first control whose `matchType` matches wins, in registration order. A control that keeps text of its own while
+  someone types drops it when `rendererService().variantApplied()` changes (since 22.8.0): Reset and another variant
+  can hand back the value it shows.
+- `InputMeta.type` is `'string' | 'number' | 'boolean' | 'union' | 'date' | 'array' | 'object' | 'unknown'`. `'date'`
+  (since 22.8.0) is a `Date` input, also with `null` or `undefined`, which up to 22.7.x was `'object'`: a control that
+  matches `'object'` no longer gets it. For a `'date'`, `emptyValue` (`'null' | 'undefined'`) is what an emptied control
+  writes, and it is missing when the input allows neither.
 - `wrapComponent` and a panel's `position` are in the typings, but nothing has ever read them; they are deprecated
   (removed in 23.0.0). Don't use them. Where a panel appears is `placement`.
 
@@ -185,7 +196,9 @@ follow the rules the built-ins follow:
 - Background `--prism-bg-surface`, embeds too. Actions right in the toolbar, `prismButton` `sm`, secondary before
   primary.
 - Colours only through `--prism-*` tokens, so the panel works in both themes; `plugins/panel-design.md` has a full
-  example.
+  example. A style that has to differ per theme keys on the attribute `data-prism-theme` (`dark` or `light`, since
+  22.8.0) on `<html>`, for example `:host-context(html[data-prism-theme='light'])`. `data-theme` is
+  deprecated (removed in 23.0.0); a core older than 22.8.0 sets only that one.
 - On a phone (since 22.7.0) a panel is about 390 px wide. Lay it out with container queries on its own width
   (`container-type: inline-size` on its root), not with media queries on the viewport.
 - Header widgets sit in a strip that scrolls sideways on a phone: keep one to a compact pill, as
@@ -216,7 +229,8 @@ runtime contributions only:
   without the hooks. Both export the same names, since they share one `index.d.ts`.
 - Angular and `@ng-prism/core` are `peerDependencies`, never bundled. Start the `@ng-prism/core` range at the release
   whose APIs the plugin uses: `statusFor`, the UI primitives and `PanelBadge.kind` exist from 22.7.0, so a plugin that
-  follows this skill needs `^22.7.0-0`.
+  follows this skill needs `^22.7.0-0`, and `^22.8.0-0` once it uses `formatDateValue`, `formatDefaultValue`, `checkerboardStyle`,
+  `InputMeta`'s `'date'` or `data-prism-theme`.
 - Optional `ng add`: a schematic that calls `addPluginToConfig(tree, path, { importName, importFrom, call })` from
   `@ng-prism/core/schematics/utils`, with `path` pointing at `ng-prism.config.ts`.
 

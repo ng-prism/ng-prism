@@ -10,6 +10,9 @@ import { Showcase } from '@ng-prism/core';
  * The track is a `<button role="switch">` with `aria-checked`, so it is reachable with the keyboard and announces its state.
  * `checked` is a model: bind it with `[(checked)]`, or listen to `changed`.
  *
+ * In forced colors mode the browser replaces the fills of the track and the thumb with its own palette, so the track
+ * gets an outline in `Highlight` and the thumb the text colour, which stand out in any palette.
+ *
  * @since 1.0.0
  * @example
  * ```html
@@ -95,6 +98,15 @@ import { Showcase } from '@ng-prism/core';
             font-size: 14px;
             color: #374151;
             user-select: none;
+        }
+        @media (forced-colors: active) {
+            .sg-toggle__track {
+                outline: 2px solid Highlight;
+                outline-offset: 1px;
+            }
+            .sg-toggle__thumb {
+                background: CanvasText;
+            }
         }
     `
 })

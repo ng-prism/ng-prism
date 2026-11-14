@@ -76,7 +76,7 @@ import { PrismIconComponent } from '@ng-prism/core';
 
 `ICON_NAMES` (`readonly string[]`) lists the valid names. It comes from a module without dependencies, so a plugin's Node entry can import it from `@ng-prism/core/plugin` to check or name an icon without loading Angular components. The names:
 
-`search`, `refresh-cw`, `bell`, `sun`, `moon`, `more-horizontal`, `more-vertical`, `chevron-down`, `chevron-right`, `pin`, `box`, `sliders-horizontal`, `zap`, `accessibility`, `file-text`, `figma`, `box-select`, `activity`, `shield-check`, `camera`, `move`, `crosshair`, `ruler-dimension`, `ruler`, `copy`, `maximize-2`, `eye`, `code`, `x`, `menu`, `check`, `info`, `circle-dashed`, `plug`, `pipette`.
+`search`, `refresh-cw`, `bell`, `sun`, `moon`, `more-horizontal`, `more-vertical`, `chevron-down`, `chevron-right`, `pin`, `box`, `sliders-horizontal`, `zap`, `accessibility`, `file-text`, `figma`, `box-select`, `mouse-pointer`, `mouse-pointer-click`, `scan`, `keyboard`, `activity`, `shield-check`, `camera`, `move`, `crosshair`, `ruler-dimension`, `ruler`, `copy`, `maximize-2`, `eye`, `code`, `x`, `menu`, `check`, `info`, `circle-dashed`, `plug`, `pipette`.
 
 ## UI primitives
 
@@ -272,13 +272,40 @@ The key of each part of a component (since 22.7.0, experimental until 23.0.0), f
 const keys = partKeys((activeComponent()?.parts ?? []).map((part) => part.meta.className));
 ```
 
+### `formatDateValue`
+
+```typescript
+function formatDateValue(date: Date): string;
+```
+
+A `Date` as the styleguide shows it (since 22.8.0): in the local time of the browser, the day alone at midnight, `2026-04-28`, else with the time, `2026-04-28 14:30`, seconds and milliseconds only when there are some, and `Invalid Date` for an invalid one. The Events panel, the parts popover and the API page of the JSDoc plugin show a `Date` with it; a plugin that shows a default or a payload shows one the same way.
+
+```typescript
+formatDateValue(new Date(2026, 3, 28)); // '2026-04-28'
+```
+
+### `formatDefaultValue`
+
+```typescript
+function formatDefaultValue(value: unknown): string;
+```
+
+The default of an input as the code that sets it writes it, as the parts popover shows it (since 22.8.0): a string in single quotes with its quotes and backslashes escaped, a `Date` as `formatDateValue` shows it, also inside an array or an object, which are JSON, and anything else by its `String()`. The API page of `@ng-prism/plugin-jsdoc` shows defaults with it.
+
+```typescript
+formatDefaultValue("it's"); // "'it\\'s'"
+formatDefaultValue({ from: new Date(2026, 3, 28) }); // '{"from":"2026-04-28"}'
+```
+
 ### Backgrounds
 
-| Export               | Type                                                          | Description                                                                                                                                                                                                                                                                                  |
-| -------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CANVAS_BGS`         | `readonly CanvasBg[]`                                         | Every [`CanvasBg`](api/types.md#canvasbg) value, the deprecated `checker` included, in the order of the canvas tools menu: `dots`, `plain`, `light`, `dark`, `checker`, `transparent`                                                                                                        |
-| `DEFAULT_VARIANT_BG` | `CanvasBg`                                                    | `'transparent'`: the background a variant without a declared `bg` reports and is captured on                                                                                                                                                                                                 |
-| `resolveVariantBg`   | `(config: VariantBgSource, variantIndex: number) => CanvasBg` | The background a variant renders on in the Overview, in capture mode and in `__PRISM_MANIFEST__`: the variant's `bg`, else the component's, else `DEFAULT_VARIANT_BG`. `VariantBgSource` is `{ bg?: CanvasBg; variants?: readonly { bg?: CanvasBg }[] }`, which a `ShowcaseConfig` satisfies |
+| Export               | Type                                                                                         | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CANVAS_BGS`         | `readonly CanvasBg[]`                                                                        | Every [`CanvasBg`](api/types.md#canvasbg) value, in the order of the canvas tools menu: `dots`, `plain`, `light`, `dark`, `transparent`                                                                                                                                                                                                                                                                              |
+| `DEFAULT_VARIANT_BG` | `CanvasBg`                                                                                   | `'transparent'`: the background a variant without a declared `bg` reports and is captured on, unless the config sets `showcaseDefaults.bg`                                                                                                                                                                                                                                                                           |
+| `resolveVariantBg`   | `(config: VariantBgSource, variantIndex: number, fallback?: CanvasBg \| null) => CanvasBg`   | The background a variant renders on in the Overview, in capture mode and in `__PRISM_MANIFEST__`: the variant's `bg`, else the component's, else `fallback`, which is the config's [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults) (since 22.8.0), else `DEFAULT_VARIANT_BG`. `VariantBgSource` is `{ bg?: CanvasBg; variants?: readonly { bg?: CanvasBg }[] }`, which a `ShowcaseConfig` satisfies |
+| `showcaseDefaultBg`  | `(config: { showcaseDefaults?: { bg?: unknown } } \| null \| undefined) => CanvasBg \| null` | The config's [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults) (since 22.8.0), or `null` where it sets none or sets a value that is no `CanvasBg`. An `NgPrismConfig` satisfies the parameter. It is what `resolveVariantBg()` takes as `fallback`                                                                                                                                                    |
+| `checkerboardStyle`  | `() => { 'background-color': string; 'background-image': string }`                           | The checkerboard the canvas draws for `transparent` while browsing (since 22.8.0): the light ground `--prism-void-light` with squares mixed 6% towards ink, in both themes. Size and position are the caller's; the canvas uses 16px squares. The visual regression panel lays a capture on it                                                                                                                       |
 
 Which background applies where, and which to declare under visual regression, is described under [`bg`](api/showcase-config.md#bg).
 

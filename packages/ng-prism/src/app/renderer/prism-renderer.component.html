@@ -1,8 +1,14 @@
 <div
+    #stage
     class="prism-canvas-stage"
     [attr.data-bg]="variantBg.effective()"
     [attr.data-rulers]="canvasService.rulers() && desktopTools() ? '' : null"
     [attr.data-viewport]="viewportWidth() !== null ? '' : null"
+    [attr.data-sim-forced]="ground().forced"
+    [attr.data-sim-vision]="ground().vision"
+    [style.--prism-sim-filter]="ground().filter"
+    [style.color-scheme]="ground().colorScheme"
+    [style.--prism-sim-canvas]="ground().canvas"
     [style.--prism-vp-w.px]="viewportWidth()"
     [style.--zoom]="canvasService.zoom()">
     @if (!capture.active()) {
@@ -15,7 +21,10 @@
                 <prism-canvas-measure />
             }
         }
-        <prism-canvas-bg-pill />
+        <div class="stage-pills">
+            <prism-canvas-bg-pill />
+            <prism-sim-pill />
+        </div>
         @if (viewportWidth() !== null) {
             <!-- Grips and the dimension line are siblings of .demo-wrap, never
        children of it: .demo-wrap is what plugin-visual-regression
@@ -61,6 +70,7 @@
     }
 
     <div
+        #demoWrap
         class="demo-wrap"
         [style.--zoom]="canvasService.zoom()"
         [attr.data-prism-rendered]="renderedKey()"

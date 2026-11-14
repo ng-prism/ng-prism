@@ -17,7 +17,7 @@ import { join } from 'node:path';
  * The naive repair trades that for a different bug, which is why the ceiling
  * below is asserted as hard as the floor: this is the only overlay on the
  * stage that takes pointer events across its whole area. Raised past the
- * background pill it covers that pill's Reset button, the failure `.vp-grip`
+ * pills it covers their Reset buttons, the failure `.vp-grip`
  * already documents; raised past the toolrail it covers the very button that
  * switches the tool off again.
  *
@@ -26,7 +26,6 @@ import { join } from 'node:path';
  * and `canvas-overlay-offsets.spec.ts` assert their own CSS invariants.
  */
 const MEASURE_CSS = join(__dirname, 'prism-canvas-measure.component.css');
-const PILL_CSS = join(__dirname, 'prism-canvas-bg-pill.component.css');
 const RULERS_CSS = join(__dirname, 'prism-canvas-rulers.component.css');
 const TOOLBAR_CSS = join(__dirname, 'prism-canvas-toolbar.component.css');
 const RENDERER_CSS = join(__dirname, '../renderer/prism-renderer.component.css');
@@ -136,7 +135,7 @@ describe('measuring overlay layering', () => {
     });
 
     it.each([
-        ['the background pill', PILL_CSS, ':host {'],
+        ['the pills', RENDERER_CSS, '.stage-pills {'],
         ['the rulers', RULERS_CSS, '.ruler-wrap {'],
         ['the viewport grips', RENDERER_CSS, '.vp-grip {'],
         ['the viewport dimension line', RENDERER_CSS, '.vp-dim {'],

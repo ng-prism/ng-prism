@@ -230,6 +230,40 @@ describe('buildDiscoveryManifest', () => {
         expect(result.components[0].variants[0].bg).toBe(DEFAULT_VARIANT_BG);
     });
 
+    describe('with a project fallback', () => {
+        it('reports it for a variant that declares no bg, and keeps the declared ones', () => {
+            const result = buildDiscoveryManifest(
+                manifestOf(
+                    {
+                        className: 'ButtonComponent',
+                        showcaseConfig: { title: 'Button', variants: [{ name: 'Filled' }, { name: 'Outlined', bg: 'dark' }] }
+                    },
+                    { className: 'CardComponent', showcaseConfig: { title: 'Card', bg: 'plain', variants: [{ name: 'Default' }] } }
+                ),
+                'light'
+            );
+
+            expect(result.components[0].variants).toEqual([
+                { name: 'Filled', index: 0, bg: 'light' },
+                { name: 'Outlined', index: 1, bg: 'dark' }
+            ]);
+            expect(result.components[1].variants).toEqual([{ name: 'Default', index: 0, bg: 'plain' }]);
+        });
+
+        it('reports it for the synthetic Default variant of a component without variants', () => {
+            const result = buildDiscoveryManifest(manifestOf({ className: 'IconComponent', showcaseConfig: { title: 'Icon' } }), 'light');
+
+            expect(result.components[0].variants).toEqual([{ name: 'Default', index: 0, bg: 'light' }]);
+        });
+
+        it('reports transparent as before without one, and for null', () => {
+            const manifest = manifestOf({ className: 'IconComponent', showcaseConfig: { title: 'Icon' } });
+
+            expect(buildDiscoveryManifest(manifest).components[0].variants[0].bg).toBe('transparent');
+            expect(buildDiscoveryManifest(manifest, null).components[0].variants[0].bg).toBe('transparent');
+        });
+    });
+
     it('gives the synthetic Default variant the component background', () => {
         const result = buildDiscoveryManifest(
             manifestOf({

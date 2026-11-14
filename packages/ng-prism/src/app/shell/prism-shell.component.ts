@@ -17,11 +17,14 @@ import { PrismMobileLayoutService } from '../services/prism-mobile-layout.servic
 import { PrismNavigationService } from '../services/prism-navigation.service.js';
 import { PrismPanelService } from '../services/prism-panel.service.js';
 import { PrismPersistenceService } from '../services/prism-persistence.service.js';
+import { PrismSimulationService } from '../services/prism-simulation.service.js';
 import { PrismThemeService } from '../services/prism-theme.service.js';
 import { PrismUrlStateService } from '../services/prism-url-state.service.js';
 import { PrismVariantBgService } from '../services/prism-variant-bg.service.js';
 import { PrismLogoComponent } from '../shared/prism-logo.component.js';
 import { PrismSidebarComponent } from '../sidebar/prism-sidebar.component.js';
+import { PrismSimulationRuntimeService } from '../simulate/prism-simulation-runtime.service.js';
+import { PrismVisionFiltersComponent } from '../simulate/prism-vision-filters.component.js';
 import { PRISM_CONFIG } from '../tokens/prism-tokens.js';
 import { PrismVariantRibbonComponent } from '../variant-ribbon/prism-variant-ribbon.component.js';
 import { nextViewId } from '../view-tab-bar/next-view-id.js';
@@ -50,7 +53,8 @@ import { shouldSelectFirst } from './should-select-first.js';
         PrismCanvasToolbarComponent,
         PrismTemplatePopoverComponent,
         PrismCanvasPinRowComponent,
-        PrismLogoComponent
+        PrismLogoComponent,
+        PrismVisionFiltersComponent
     ],
     templateUrl: './prism-shell.component.html',
     styleUrl: './prism-shell.component.css'
@@ -67,10 +71,16 @@ export class PrismShellComponent {
     protected readonly panelService = inject(PrismPanelService);
     private readonly urlStateService = inject(PrismUrlStateService);
     private readonly persistenceService = inject(PrismPersistenceService);
+    private readonly simulationRuntime = inject(PrismSimulationRuntimeService);
+    private readonly simulation = inject(PrismSimulationService);
     private readonly variantBg = inject(PrismVariantBgService);
 
-    /** Overlays on the canvas follow its ground: light and dark are absolute, the others follow the theme. */
-    protected readonly overlayTokens = computed(() => canvasOverlayTokens(this.variantBg.effective()));
+    /**
+     * Overlays on the canvas follow its ground: light and dark are absolute, the
+     * others follow the theme, and under forced colors the ground is the
+     * palette's `Canvas` and the overlays take fixed colours for it.
+     */
+    protected readonly overlayTokens = computed(() => canvasOverlayTokens(this.variantBg.effective(), this.simulation.forcedPalette()));
 
     protected readonly viewPanels = this.panelService.visibleViewPanels;
 
@@ -121,6 +131,8 @@ export class PrismShellComponent {
         this.navigationService.selectFirst();
         this.urlStateService.init();
         this.persistenceService.init();
+        // After the URL and the session, which restore the simulation it carries into the page.
+        this.simulationRuntime.init();
 
         // The active view must be one the page offers. Every component starts on
         // the Playground (`PrismPanelService.activeViewId`), so what this effect

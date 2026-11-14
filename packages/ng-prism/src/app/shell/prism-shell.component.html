@@ -1,3 +1,7 @@
+<!-- Outside every @if, so that the filters are there for the canvas and every
+     Overview cell alike. Before the full-height shell, so that the empty SVG
+     sits at the top left and cannot reach past the bottom of the page. -->
+<prism-vision-filters />
 <div
     class="prism-shell"
     [class.prism-shell--mobile]="mobileLayout.mobile()"

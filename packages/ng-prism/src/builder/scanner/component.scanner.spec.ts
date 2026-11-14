@@ -184,31 +184,25 @@ describe('scanComponents', () => {
         warnSpy.mockRestore();
     });
 
-    it('should warn that a checker background is deprecated', () => {
+    it('should drop a checker background and name its replacement', () => {
         const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        const components = scanComponents(findShowcasedClasses(exports, checker), checker);
+        const removed = components.find((c) => c.className === 'DeprecatedBgComponent')!;
 
-        scanComponents(findShowcasedClasses(exports, checker), checker);
+        // The value is gone, not deprecated: the component and its variant fall
+        // back to what an undeclared background does.
+        expect(removed.showcaseConfig.bg).toBeUndefined();
+        expect(removed.showcaseConfig.variants?.[0].bg).toBeUndefined();
 
         // Once for the component and once for the variant that declares its own:
-        // a reviewer fixing this has to find both, and only the variant warning
+        // a reviewer fixing this has to find both, and only the variant message
         // says which variant.
         const messages = warnSpy.mock.calls.map((call) => String(call[0])).filter((message) => message.includes('DeprecatedBgComponent'));
 
-        expect(messages.filter((m) => m.includes('deprecated'))).toHaveLength(2);
+        expect(messages).toHaveLength(2);
+        expect(messages.every((m) => m.includes('removed in 22.8.0') && m.includes("'transparent'"))).toBe(true);
         expect(messages.some((m) => m.includes('Also checker'))).toBe(true);
-
-        warnSpy.mockRestore();
-    });
-
-    it('should keep a checker background despite deprecating it', () => {
-        const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
-        const components = scanComponents(findShowcasedClasses(exports, checker), checker);
-        const deprecated = components.find((c) => c.className === 'DeprecatedBgComponent')!;
-
-        // Deprecated is not invalid. Dropping the value would change what the
-        // component renders on, which is a break dressed up as a warning.
-        expect(deprecated.showcaseConfig.bg).toBe('checker');
-        expect(deprecated.showcaseConfig.variants?.[0].bg).toBe('checker');
+        expect(messages.some((m) => m.includes('deprecated'))).toBe(false);
 
         warnSpy.mockRestore();
     });
@@ -300,7 +294,7 @@ describe('scanComponents', () => {
         expect(sectioned.showcaseConfig.componentOrder).toBe(2);
     });
 
-    it('counts the values it rejects as diagnostics, but not deprecations or @Input() hints', () => {
+    it('counts the values it rejects as diagnostics, a removed checker background included, but not @Input() hints', () => {
         const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
         const diagnostics: string[] = [];
 
@@ -309,7 +303,9 @@ describe('scanComponents', () => {
         expect(diagnostics).toEqual([
             expect.stringContaining('MissingTitleComponent has @Showcase without a "title" field'),
             expect.stringContaining('InvalidBgComponent declares invalid bg "rainbow"'),
-            expect.stringContaining('InvalidStatusComponent declares invalid status "banana"')
+            expect.stringContaining('InvalidStatusComponent declares invalid status "banana"'),
+            expect.stringContaining('DeprecatedBgComponent declares bg "checker", which was removed in 22.8.0'),
+            expect.stringContaining('DeprecatedBgComponent variant "Also checker" declares bg "checker", which was removed in 22.8.0')
         ]);
 
         warnSpy.mockRestore();
@@ -678,6 +674,57 @@ describe('scanComponents with @Showcase values it cannot evaluate', () => {
 
         expect(diagnostics).toHaveLength(10);
         expect(warnSpy.mock.calls.filter(([message]) => String(message).includes('megabytes(5)'))).toHaveLength(1);
+    });
+});
+
+describe('scanComponents with Date values', () => {
+    let checker: ts.TypeChecker;
+    let exports: ts.Symbol[];
+    let warnSpy: jest.SpyInstance;
+
+    beforeAll(() => {
+        const entryFile = path.join(FIXTURES_DIR, 'date-api.ts');
+        const result = resolveEntryPointExports([{ entryFile, importPath: 'fixture' }], compilerOptions);
+
+        checker = result.program.getTypeChecker();
+        exports = result.entries[0].exports;
+    });
+
+    beforeEach(() => {
+        warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+    });
+
+    afterEach(() => {
+        warnSpy.mockRestore();
+    });
+
+    function scan() {
+        const diagnostics: string[] = [];
+        const [component] = scanComponents(findShowcasedClasses(exports, checker), checker, { diagnostics });
+
+        return { component, diagnostics };
+    }
+
+    it('keeps a Date with static arguments in a variant, with the arguments as written', () => {
+        const variants = scan().component.showcaseConfig.variants!;
+        const args = (name: string, input = 'value') => (variants.find((v) => v.name === name)!.inputs![input] as { args: unknown }).args;
+
+        expect(args('Local')).toEqual([2026, 3, 28]);
+        expect(args('UTC string')).toEqual(['2026-04-28']);
+        expect(args('Timestamp')).toEqual([1777334400000]);
+        expect(args('Constant')).toEqual([2026, 3, 28]);
+        expect(args('Constant', 'min')).toEqual([2026, 3, 28]);
+    });
+
+    it('drops new Date() as the current time and says how to write it instead', () => {
+        const { component, diagnostics } = scan();
+
+        expect(component.showcaseConfig.variants!.find((v) => v.name === 'Now')!.inputs).toEqual({});
+        expect(diagnostics).toEqual([
+            expect.stringMatching(
+                /^DateValuesComponent › variants\[4\] "Now" › inputs\.value — "new Date\(\)" \(.*date-values\.component\.ts:16:41\) is the current time, which differs in every build and every visual regression run, so it was dropped; write the date out instead, such as new Date\(2026, 3, 28\)\.$/
+            )
+        ]);
     });
 });
 

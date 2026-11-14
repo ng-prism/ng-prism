@@ -1,5 +1,6 @@
 import ts from 'typescript';
 import { evaluateExpression, evaluateStatic, findDecorator, getDecoratorArgument, getJsDocComment, UNEVALUABLE, type UnevaluableIssue } from './ast-utils.js';
+import { StaticDate } from './static-date.js';
 
 // --- Helpers ---
 
@@ -281,7 +282,7 @@ describe('evaluateStatic', () => {
         ['an arrow function', '({ a: () => 1 })'],
         ['a function expression', '({ a: function () { return 1; } })'],
         ['a class expression', '({ a: class {} })'],
-        ['an instance', '({ a: new Date() })'],
+        ['an instance', '({ a: new Map() })'],
         ['a method', '({ a() { return 1; } })'],
         ['an accessor', '({ get a() { return 1; } })']
     ])('marks %s as a runtime value', (_, code) => {
@@ -489,6 +490,118 @@ describe('evaluateStatic with a type checker', () => {
         expect(evaluateInProgram({ '/main.ts': 'const T = { a: 1 };\nexport const subject = { b: T.b };' }).issues).toEqual([
             { path: ['b'], text: 'T.b', file: '/main.ts', cause: undefined }
         ]);
+    });
+});
+
+// --- new Date ---
+
+/** Evaluates `subject` in a program with the default lib, where `Date` is the global one. */
+function evaluateWithLib(source: string) {
+    const { checker, sourceFile } = createProgramFromSource(source);
+    const subject = sourceFile.statements
+        .filter(ts.isVariableStatement)
+        .flatMap((statement) => [...statement.declarationList.declarations])
+        .find((declaration) => declaration.name.getText() === 'subject')!;
+    const issues: UnevaluableIssue[] = [];
+    const value = evaluateStatic(subject.initializer!, { checker, report: (issue) => issues.push(issue) });
+
+    return {
+        value,
+        issues: issues.map((issue) => ({
+            path: issue.path,
+            text: issue.node.getText(),
+            reason: issue.reason,
+            cause: issue.cause && { text: issue.cause.node.getText(), kind: issue.cause.kind }
+        }))
+    };
+}
+
+describe('evaluateStatic with new Date', () => {
+    it.each([
+        ['a string', "new Date('2026-04-28')", ['2026-04-28']],
+        ['numbers', 'new Date(2026, 3, 28)', [2026, 3, 28]],
+        ['a timestamp', 'new Date(1777334400000)', [1777334400000]],
+        ['arithmetic', 'new Date(2000 + 26, 4 - 1, 28)', [2026, 3, 28]],
+        ['seven numbers', 'new Date(2026, 3, 28, 14, 30, 0, 0)', [2026, 3, 28, 14, 30, 0, 0]]
+    ])('reads a Date from %s, keeping its arguments', (_, code, args) => {
+        const value = evaluateStatic(parseExpression(code));
+
+        expect(value).toBeInstanceOf(StaticDate);
+        expect(value).toBeInstanceOf(Date);
+        expect((value as StaticDate).args).toEqual(args);
+    });
+
+    it.each([
+        ['a string among several arguments', "new Date(2026, 3, '28')"],
+        ['eight arguments', 'new Date(2026, 3, 28, 14, 30, 0, 0, 0)']
+    ])('drops %s as unsupported', (_, code) => {
+        expect(evaluateWithIssues(`({ value: ${code} })`)).toEqual({ value: {}, issues: [{ path: ['value'], text: code, reason: 'unsupported' }] });
+    });
+
+    it('drops new Date() without arguments as the current time', () => {
+        expect(evaluateWithIssues('({ value: new Date() })')).toEqual({ value: {}, issues: [{ path: ['value'], text: 'new Date()', reason: 'current-time' }] });
+    });
+
+    it('drops an invalid date', () => {
+        expect(evaluateWithIssues("({ value: new Date('not a date') })")).toEqual({
+            value: {},
+            issues: [{ path: ['value'], text: "new Date('not a date')", reason: 'invalid-date' }]
+        });
+    });
+
+    it('gives each reference to a Date constant a copy of its own, with the arguments', () => {
+        const { value, issues } = evaluateWithLib('const RELEASE = new Date(2026, 3, 28);\nexport const subject = { a: RELEASE, b: RELEASE };');
+        const { a, b } = value as { a: StaticDate; b: StaticDate };
+
+        expect(issues).toEqual([]);
+        expect(a).toBeInstanceOf(StaticDate);
+        expect(b).toBeInstanceOf(StaticDate);
+        expect(a.args).toEqual([2026, 3, 28]);
+        expect(b.args).toEqual([2026, 3, 28]);
+        expect(a).not.toBe(b);
+        a.setDate(1);
+        expect(b.getDate()).toBe(28);
+    });
+
+    it('keeps the arguments of a Date constant that is imported and spread', () => {
+        const files = {
+            '/dates.ts': 'export const RELEASE = new Date(2026, 3, 28);',
+            '/main.ts': "import { RELEASE } from './dates';\nconst BASE = { at: RELEASE };\nexport const subject = { ...BASE, again: RELEASE };"
+        };
+        const { value, issues } = evaluateInProgram(files);
+        const { at, again } = value as { at: StaticDate; again: StaticDate };
+
+        expect(issues).toEqual([]);
+        expect(at.args).toEqual([2026, 3, 28]);
+        expect(again.args).toEqual([2026, 3, 28]);
+    });
+
+    it('takes the arguments of a Date constant passed to new Date', () => {
+        const { value } = evaluateWithLib('const RELEASE = new Date(2026, 3, 28);\nexport const subject = new Date(RELEASE);');
+
+        expect((value as StaticDate).args).toEqual([2026, 3, 28]);
+    });
+
+    it('names a constant holding new Date() as the current time', () => {
+        expect(evaluateWithLib('const NOW = new Date();\nexport const subject = { value: NOW };').issues).toEqual([
+            { path: ['value'], text: 'NOW', reason: 'unsupported', cause: { text: 'new Date()', kind: 'current-time' } }
+        ]);
+    });
+
+    it('names the argument that failed', () => {
+        expect(evaluateWithLib('let year = 2026;\nexport const subject = { value: new Date(year, 3, 28) };').issues).toEqual([
+            { path: ['value'], text: 'new Date(year, 3, 28)', reason: 'unsupported', cause: { text: 'year', kind: 'let' } }
+        ]);
+    });
+
+    it('treats a class of its own named Date as a runtime value', () => {
+        const source = 'class Date { constructor(..._: unknown[]) {} }\nexport const subject = { value: new Date(2026, 3, 28) };';
+
+        expect(evaluateWithLib(source).issues).toEqual([{ path: ['value'], text: 'new Date(2026, 3, 28)', reason: 'runtime-value', cause: undefined }]);
+    });
+
+    it('leaves any other new expression a runtime value', () => {
+        expect(evaluateWithIssues('({ value: new Map() })').issues).toEqual([{ path: ['value'], text: 'new Map()', reason: 'runtime-value' }]);
     });
 });
 

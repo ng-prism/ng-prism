@@ -157,6 +157,9 @@ The scanner evaluates the config statically via the TypeScript Compiler API:
 
 - Literals, `const` declarations (also imported from other files), enum members,
   arithmetic on them and spreads of such constants are resolved
+- `new Date(…)` with such arguments is resolved too, and the manifest repeats the
+  arguments; for a day use the local form `new Date(2026, 3, 28)`, since
+  `new Date('2026-04-28')` is UTC midnight. `new Date()` without arguments is dropped
 - Function calls and `let` references cannot be evaluated: the value is dropped
   and the build prints a warning naming the reference and its location.
   `defineConfig({ strictShowcase: true })` turns those warnings into a build error

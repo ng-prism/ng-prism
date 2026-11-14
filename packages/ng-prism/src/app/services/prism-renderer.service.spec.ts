@@ -652,6 +652,58 @@ describe('PrismRendererService', () => {
             expect(renderer.activeVariantIndex()).toBe(1);
         });
 
+        // A model() the component set, on an input no variant sets and without a default: it started out undefined,
+        // so Reset has to say so to the component, not just drop the key.
+        it('sets an input without a default that no variant sets back to undefined', () => {
+            const comp = createComponent({
+                inputs: [
+                    { name: 'selected', type: 'string', required: false, model: true },
+                    { name: 'options', type: 'array', defaultUnreadable: true, required: false }
+                ],
+                variants: [{ name: 'Default' }]
+            });
+            const { renderer, navigation } = setup({ components: [comp] });
+
+            navigation.select(comp);
+            renderer.resetForComponent(comp);
+            renderer.updateInput('selected', 'b');
+            renderer.updateInput('options', ['x']);
+            expect(renderer.dirtyInputCount()).toBe(2);
+
+            renderer.resetInputsToVariantDefaults();
+
+            expect(renderer.inputValues()).toEqual({ selected: undefined });
+            expect('selected' in renderer.inputValues()).toBe(true);
+            expect(renderer.dirtyInputCount()).toBe(0);
+        });
+
+        // A control that keeps text of its own, such as the JSON control with text that does not parse, lets go of it
+        // when this changes, also where the value it shows stays the same.
+        it('counts every time the inputs of a variant replace the values, and not an input change', () => {
+            const comp = createComponent({
+                inputs: [{ name: 'data', type: 'object', required: false }],
+                variants: [{ name: 'One' }, { name: 'Two' }]
+            });
+            const other = { ...createComponent(), meta: { ...createComponent().meta, className: 'Other' } };
+            const { renderer, navigation } = setup({ components: [comp, other] });
+
+            navigation.select(comp);
+            renderer.resetForComponent(comp);
+            const start = renderer.variantApplied();
+
+            renderer.updateInput('data', { a: 1 });
+            expect(renderer.variantApplied()).toBe(start);
+
+            renderer.resetInputsToVariantDefaults();
+            expect(renderer.variantApplied()).toBe(start + 1);
+
+            renderer.selectVariant(0);
+            expect(renderer.variantApplied()).toBe(start + 2);
+
+            renderer.reconcileForComponent(other);
+            expect(renderer.variantApplied()).toBe(start + 3);
+        });
+
         it('should treat deep-equal objects as not dirty', () => {
             const comp = createComponent({
                 inputs: [{ name: 'data', type: 'object', defaultValue: { a: 1 }, required: false }]

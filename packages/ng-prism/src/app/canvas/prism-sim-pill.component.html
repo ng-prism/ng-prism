@@ -1,0 +1,21 @@
+@if (conditions(); as text) {
+    <div class="sim-pill">
+        <prism-icon
+            name="eye"
+            [size]="12"
+            aria-hidden="true" />
+        <span
+            class="label"
+            role="status"
+            >{{ text }}</span
+        >
+        <button
+            type="button"
+            class="reset"
+            title="Reset the simulated conditions"
+            aria-label="Reset simulation"
+            (click)="reset()">
+            Reset
+        </button>
+    </div>
+}

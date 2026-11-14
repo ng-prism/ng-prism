@@ -12,6 +12,12 @@
     border-radius: 4px;
 }
 
+.gauge__marker {
+    padding-left: 5px;
+    font-weight: 400;
+    border-left: 1px solid color-mix(in srgb, currentcolor 35%, transparent);
+}
+
 .gauge:focus-visible {
     outline: 2px solid var(--prism-primary);
     outline-offset: 2px;

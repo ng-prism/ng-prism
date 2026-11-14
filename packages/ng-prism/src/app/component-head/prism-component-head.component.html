@@ -14,7 +14,8 @@
             [variantCount]="variantCount()"
             [stateCount]="stateCount()"
             [facts]="facts()"
-            [dot]="compact() ? infoDot() : null">
+            [dot]="compact() ? infoDot() : null"
+            [dotReason]="compact() ? infoDotReason() : null">
             @if (compact()) {
                 @if (hasParts()) {
                     <prism-head-parts />

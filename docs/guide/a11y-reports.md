@@ -44,7 +44,7 @@ for (const comp of manifest.components) {
 }
 ```
 
-- **Pass `capture=1`.** axe-core cannot decide a colour contrast over a background image, and the canvas paints a dot or checker pattern while browsing. [Capture mode](guide/external-tooling.md#capture-isolation-mode) removes it, keeps the background the variant declares and leaves out the overlays and tools the canvas draws around the component, as the A11y tab does for its own audit.
+- **Pass `capture=1`.** axe-core cannot decide a colour contrast over a background image, and the canvas paints a dot or checkerboard pattern while browsing. [Capture mode](guide/external-tooling.md#capture-isolation-mode) removes it, keeps the background the variant declares and leaves out the overlays and tools the canvas draws around the component, as the A11y tab does for its own audit.
 - **Use the component's `rules`.** `meta.a11y.rules` is in the format of axe-core's own `rules` option, and the A11y tab passes it to axe-core unchanged.
 - **Leave accepted violations out of the counts.** An [accepted violation](guide/accessibility.md#accepted-violations) is matched by the axe rule id. The acceptances of a variant are the component's and the variant's own, both under `meta` in `__PRISM_MANIFEST__`, as the live audit applies them:
 

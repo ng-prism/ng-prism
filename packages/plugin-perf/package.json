@@ -1,6 +1,6 @@
 {
     "name": "@ng-prism/plugin-perf",
-    "version": "22.7.0",
+    "version": "22.8.0-beta.1",
     "description": "Performance profiling panel for ng-prism: bundle size, render time, memory footprint.",
     "ng-add": {
         "save": "devDependencies"
@@ -36,7 +36,7 @@
     "peerDependencies": {
         "@angular/core": ">=20.0.0",
         "typescript": ">=5.0.0",
-        "@ng-prism/core": "^22.7.0-0",
+        "@ng-prism/core": "^22.8.0-0",
         "@angular-devkit/schematics": ">=20.0.0"
     },
     "devDependencies": {

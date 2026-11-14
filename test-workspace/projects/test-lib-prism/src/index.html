@@ -4,9 +4,13 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>ng-prism Styleguide</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+        <!-- crossorigin: the canvas simulation reads every stylesheet, and a cross-origin one only with CORS -->
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+            rel="stylesheet"
+            crossorigin />
         <script>
             (function () {
                 var t = 'dark';
@@ -14,6 +18,7 @@
                     t = localStorage.getItem('ng-prism-theme') || 'dark';
                 } catch (e) {}
                 if (t !== 'light') t = 'dark';
+                document.documentElement.dataset.prismTheme = t;
                 document.documentElement.dataset.theme = t;
             })();
         </script>

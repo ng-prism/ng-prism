@@ -313,9 +313,15 @@ export interface InputMeta {
     name: string;
     /** The public name Angular binds the input by, when an `alias` makes it differ from `name`. */
     alias?: string;
-    type: 'string' | 'number' | 'boolean' | 'union' | 'array' | 'object' | 'unknown';
+    /** `'date'` is the runtime's `Date`, also with `null` or `undefined` (`Date | null`), since 22.8.0. */
+    type: 'string' | 'number' | 'boolean' | 'union' | 'date' | 'array' | 'object' | 'unknown';
     rawType?: string;
     values?: string[];
+    /**
+     * For a `'date'`: what an emptied date control writes, `'null'` when the type allows `null`, else `'undefined'` when
+     * it allows `undefined`. Not set when it allows neither, so the date cannot be emptied. Since 22.8.0.
+     */
+    emptyValue?: 'null' | 'undefined';
     defaultValue?: unknown;
     /**
      * The input starts out with a value the scan could not evaluate, such as the result of a function call: it has a
@@ -452,7 +458,8 @@ export interface DiscoveryVariant {
     index: number;
     /**
      * The canvas background this variant renders on, already resolved:
-     * `Variant.bg`, else `ShowcaseConfig.bg`, else `DEFAULT_VARIANT_BG`.
+     * `Variant.bg`, else `ShowcaseConfig.bg`, else the project's
+     * `showcaseDefaults.bg`, else `DEFAULT_VARIANT_BG`.
      *
      * Always present, because a screenshot runner cannot act on "nothing
      * declared". It is also the background capture mode paints, so the value
@@ -492,6 +499,48 @@ export interface DiscoveryPage {
 }
 
 // --- defineConfig types ---
+
+/**
+ * What a theme switched by a class or an attribute needs on the shown
+ * component for one color scheme. Since 22.8.0.
+ */
+export interface NgPrismColorSchemeTarget {
+    /** A class such as `'dark'`, or several separated by spaces. */
+    class?: string;
+    /**
+     * Attributes and their values, such as `{ 'data-mode': 'dark' }`. `class`,
+     * `style` and `data-prism-sim` are the simulation's own and left out, as is
+     * a name the DOM rejects, with a warning in dev mode.
+     */
+    attributes?: Readonly<Record<string, string>>;
+}
+
+/** The {@link NgPrismColorSchemeTarget} per emulated color scheme, see {@link NgPrismConfig.colorScheme}. Since 22.8.0. */
+export interface NgPrismColorSchemeConfig {
+    light?: NgPrismColorSchemeTarget;
+    dark?: NgPrismColorSchemeTarget;
+}
+
+/**
+ * What the project sets for every showcase that does not decide it, see
+ * {@link NgPrismConfig.showcaseDefaults}. Since 22.8.0.
+ */
+export interface NgPrismShowcaseDefaults {
+    /**
+     * The canvas background of a variant that declares no `bg`, in place of the
+     * built-in one: `dots` in the Playground, `transparent` in the Overview, in
+     * capture mode and in `__PRISM_MANIFEST__`.
+     *
+     * Only a fallback. It loses to everything someone decided: the override set
+     * for the variant in the toolbar, a `bg` the variant or the component
+     * declares, the background picked for the whole canvas and an emulated color
+     * scheme. It is not marked as recommended in the background pill or the tools
+     * menu, and a pick on a variant without `bg` stays a pick for the whole canvas.
+     *
+     * A value that is not a {@link CanvasBg} is ignored.
+     */
+    bg?: CanvasBg;
+}
 
 export interface NgPrismConfig {
     plugins?: NgPrismPlugin[];
@@ -533,6 +582,43 @@ export interface NgPrismConfig {
     };
     /** Accessibility (build-time audit + runtime live audit) configuration. */
     a11y?: import('../app/panels/a11y/a11y.types.js').NgPrismA11yConfig;
+    /**
+     * Switches a theme that hangs on a class or an attribute along with the
+     * color scheme the canvas simulates. While it emulates `light` or `dark`,
+     * the shown component's host element and the CDK overlay container get the
+     * class and the attributes named for that scheme, on top of the emulated
+     * `prefers-color-scheme` and `color-scheme`. Under `System` they get
+     * neither, and the component has its own classes and attributes back.
+     *
+     * Selectors such as `.dark .btn`, `:host-context(.dark)` or
+     * `[data-mode='dark'] .btn` follow it. A theme keyed on `:root`, `html` or
+     * `body` does not work: setting it there would hit the styleguide's own UI
+     * too. Avoid `data-theme` as well: the shell still sets it on `<html>`
+     * (deprecated since 22.8.0, removed in 23.0.0; its own theme is
+     * `data-prism-theme`), so the rules of both themes would match.
+     *
+     * ```ts
+     * colorScheme: {
+     *     dark: { class: 'dark' },
+     *     light: { attributes: { 'data-mode': 'light' } }
+     * }
+     * ```
+     *
+     * Since 22.8.0.
+     */
+    colorScheme?: NgPrismColorSchemeConfig;
+    /**
+     * Fallbacks for what a `@Showcase` does not declare. Only `bg` so far: the
+     * canvas background of the variants without one, say `light` for a library
+     * whose components are all designed against a light surface.
+     *
+     * ```ts
+     * showcaseDefaults: { bg: 'light' }
+     * ```
+     *
+     * Without it nothing changes. Since 22.8.0.
+     */
+    showcaseDefaults?: NgPrismShowcaseDefaults;
     /**
      * When true, the build fails instead of warning whenever the scanner has
      * to drop a `@Showcase` value: one it cannot evaluate statically, an

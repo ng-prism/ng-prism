@@ -87,7 +87,7 @@ The nesting also decides what the pipeline counts: the `Generated manifest with 
 
 ### 6. Runtime Manifest Generation
 
-`generateRuntimeManifest()` converts the `PrismManifest` (plain JSON-safe data) into a TypeScript source string that the styleguide app can import. The generated file contains real `import` statements:
+`generateRuntimeManifest()` converts the `PrismManifest` (plain data, `Date`s included) into a TypeScript source string that the styleguide app can import. The generated file contains real `import` statements:
 
 ```typescript
 // ng-prism-cache/<prism-project>/prism-manifest.ts (generated)
@@ -105,10 +105,12 @@ export const PRISM_RUNTIME_MANIFEST: RuntimeManifest = {
 
 This avoids JSON serialization of Angular class references and keeps tree-shaking intact. The manifest is a named export, `PRISM_RUNTIME_MANIFEST`, which `main.ts` passes to `providePrism()`.
 
+Values are written as JSON (`manifest-value.ts`), except a `Date`: the generator writes the `new Date(…)` it was read from, with the arguments of its `StaticDate`, and a `Date` without them, as a plugin may add one, as `new Date(<time>)`. The browser makes the `Date` when the module loads, in its own time zone, so `new Date(2026, 3, 28)` is local midnight where the styleguide is open, not where it was built.
+
 **Wrappers.** Two kinds of showcase need a class that the library does not have, so the manifest declares one next to the imports. Both are standalone components that Angular compiles with the Prism app, ahead of time, which is why their templates are real Angular templates and not strings parsed in the browser.
 
-- **`<Class>__PrismHost`** for every directive that has a variant without a composition. It renders the directive on the element of its host, or of its selector when it has no host: `<tag attrs dirAttr [inputs] (outputs)>{{ __prismContent__() }}</tag>`, and a void element as `<input … />` without content. Its outputs are `output<any>()`, as in the composition wrapper: the template passes on the directive's payload, whose type the manifest does not import. The class is the `type` of the directive's entry.
-- **`<Class>__PrismComposition`** for a showcase with at least one composed variant, a `template` or a host template. There is one per showcase, with a `@switch` over its distinct compositions. It declares the inputs and outputs of the subject under their member names, so the renderer binds them like those of a directive, plus `__prismVariant__`, the index of the variant, which a `computed` maps onto a case. Variants with the same markup share a case. The entry carries the wrapper as `composition`, and the renderer creates it for a composed variant and `type` for any other. When every variant is composed, `type` is the wrapper as well.
+- **`<Class>__PrismHost`** for every directive that has a variant without a composition. It renders the directive on the element of its host, or of its selector when it has no host: `<tag attrs dirAttr [inputs] (outputs)>{{ __prismContent__() }}</tag>`, and a void element as `<input … />` without content. Its outputs are `output<any>()`, as in the composition wrapper: the template passes on the directive's payload, whose type the manifest does not import. For each `model()` it binds it adds `(<name>Change)` and an `output<any>()` named `<member>Change` (`model-changes.ts`), since the scan lists no output for the change. The class is the `type` of the directive's entry.
+- **`<Class>__PrismComposition`** for a showcase with at least one composed variant, a `template` or a host template. There is one per showcase, with a `@switch` over its distinct compositions. It declares the inputs and outputs of the subject under their member names, so the renderer binds them like those of a directive, and passes on the change of each `model()` a case binds as the host wrapper does, plus `__prismVariant__`, the index of the variant, which a `computed` maps onto a case. Variants with the same markup share a case. The entry carries the wrapper as `composition`, and the renderer creates it for a composed variant and `type` for any other. When every variant is composed, `type` is the wrapper as well.
 
 ```typescript
 // FormFieldComponent · projects/my-lib/src/lib/form-field/form-field.component.ts

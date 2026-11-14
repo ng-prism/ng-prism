@@ -180,7 +180,8 @@ const CODE_CSS = (fs, lh) => `
 
 /**
  * A code card on the left over a veil, the styleguide behind it: the card types one line, the window behind fades into
- * the state that line makes (cause and effect in one picture). Without a veil where the window behind is light.
+ * the state that line makes (cause and effect in one picture). Without a veil where the window behind is light, and then
+ * without the card's glow too, which would lie on the light window as a violet haze.
  * Lines stay verbatim and never wrap; a line too long for the card runs out under a fade on the right.
  * spec: { id, dur, file, src: string[], typedLine, t0, cap, win?: { states: [before, after], hide?, after?, cam? },
  *   veil = true, width = 832 }. A state is 'build/state' or [ref, alt] like an app beat's window. The styleguide always
@@ -226,8 +227,12 @@ ${
 }
 ${cursorHtml(id)}
       </div>
-      ${veil ? '<div class="k-veil"></div>' : ''}
-      <div class="k-glow" id="${id}-glow"></div>
+      ${
+          veil
+              ? `<div class="k-veil"></div>
+      <div class="k-glow" id="${id}-glow"></div>`
+              : ''
+      }
       <div class="k-card" id="${id}-card" data-layout-allow-overflow>
         <p class="k-file">${esc(file)}</p>
         <div class="k-code">${lines}<span class="k-caret" id="${id}-caret" style="opacity:0"></span>${overflow ? '<span class="k-fade"></span>' : ''}</div>
@@ -237,7 +242,7 @@ ${cursorHtml(id)}
     camera(tl, id, cam, dur);
     // the card flies in with a slight tilt and settles; its glow follows
     tl.ft(`#${id}-card`, { opacity: 0, rotationY: 22, x: -60, z: -180 }, { opacity: 1, rotationY: 0, x: 0, z: 0, duration: 0.8, ease: 'expo.out' }, 0.1);
-    tl.ft(`#${id}-glow`, { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 1.0, ease: 'power2.out' }, 0.2);
+    if (veil) tl.ft(`#${id}-glow`, { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 1.0, ease: 'power2.out' }, 0.2);
     // the line types itself at 34 characters a second, the caret ahead of it
     const w0 = n2(indent * cw),
         w1 = n2(line.length * cw);

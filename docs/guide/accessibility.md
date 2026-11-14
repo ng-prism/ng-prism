@@ -8,7 +8,7 @@ The library-wide score in the header and the a11y markers in the sidebar come fr
 
 The audit covers the component the canvas renders, its own element and everything inside it. For a variant with a [`template` or a host template](guide/compositions.md) that is the whole composition: the audit, the ARIA tree, the screen reader list and the tab order include the frame and the other parts. A form control in its field is audited with the label the field gives it, so `Form elements must have labels` does not fire for an input the frame labels. An overlay the component opens in `<body>`, such as a CDK overlay, is outside it and is not audited.
 
-The audit runs on the Playground while the addons panel is shown, whichever of its tabs is open, since the A11y tab carries the number of violations. It runs again about half a second after the variant, the component or an input value in the Controls panel changes. A state picked in the tools menu, a pseudo-class toggle and a theme switch do not start a new audit, so change an input to audit the component in that state.
+The audit runs on the Playground while the addons panel is shown, whichever of its tabs is open, since the A11y tab carries the number of violations. It runs again about half a second after the variant, the component or an input value in the Controls panel changes, and after the color scheme or the forced colors the canvas [simulates](#under-a-simulation). A state picked in the tools menu, a pseudo-class toggle, a theme switch and the simulated motion or vision do not start a new audit, so change an input to audit the component in that state.
 
 The panel has four sub-tabs.
 
@@ -32,7 +32,7 @@ The axe-core audit of the variant on the canvas:
 
 The A11y tab and the Violations sub-tab carry the number of open violations, red when one of them is critical or serious and amber otherwise. A clean component's tab carries no badge.
 
-**What the audit sees.** It measures the component and nothing the canvas draws around it (since 22.7.0). For the duration of the audit, the panel overlays (the A11y panel's own outline, the box model, any plugin's), the measuring tool, the rulers and the canvas's dot or checker pattern are hidden, so an outline over the component cannot hide a contrast violation and the result does not depend on which panel is open. They may blink away for that moment. What the component renders itself stays visible. The theme is the one you look at.
+**What the audit sees.** It measures the component and nothing the canvas draws around it (since 22.7.0). For the duration of the audit, the panel overlays (the A11y panel's own outline, the box model, any plugin's), the measuring tool, the rulers and the canvas's dot or checkerboard pattern are hidden, so an outline over the component cannot hide a contrast violation and the result does not depend on which panel is open. They may blink away for that moment. What the component renders itself stays visible. The theme is the one you look at, and so is a simulated color scheme or forced colors.
 
 ### Keyboard Navigation
 
@@ -48,7 +48,21 @@ What a screen reader announces, in reading order: one numbered line per element 
 
 ## On the canvas
 
-While the A11y tab is open, the canvas outlines the rendered component and labels it with the role of the showcased element (`role="button"`) and, when the component holds a focusable element, its first tab stop (`Tab 1`). In a composition the outline goes around the whole composition, and the role is the one of the showcased element. The outline is gone while the [measuring tool](guide/measuring.md) is on and in capture mode.
+While the A11y tab is open, the canvas outlines the rendered component and labels it with the role of the showcased element (`role="button"`) and, when the component holds a focusable element, its first tab stop (`Tab 1`). In a composition the outline goes around the whole composition, and the role is the one of the showcased element. The outline is gone while the [measuring tool](guide/measuring.md) is on and in capture mode. It belongs to the styleguide, so a simulation does not change it.
+
+To look at the component under reduced motion, a light or dark color scheme, forced colors or a colour vision deficiency, switch it on in the **Simulate** group of the tools menu, see [Simulate](guide/styleguide-ui.md#simulate).
+
+## Under a simulation
+
+While the canvas simulates a color scheme or forced colors (since 22.8.0), the audit runs under that condition, since both change the colours axe measures. Every figure of the live audit names it:
+
+- the Violations sub-tab shows `Audited under Dark scheme` below the score, or `Audited under Forced colors (approx.)`
+- the gauge in the component head, while it shows the A11y score, carries `sim`, or `sim · approx.` under forced colors, with the condition in its tooltip; its card names it on the A11y score row
+- the badge of the A11y tab says it to a screen reader, as in `2 violations under Dark scheme`
+
+A result belongs to the condition it names. After a switch, the previous result stays, dimmed in the Violations sub-tab, until the new audit is in. Motion and vision leave the computed colours alone, so they start no audit and the figures name neither. Under forced colors the audit measures the component in the colors of Chrome's forced palette, the light or the dark one. That is an approximation, see [Forced colors](guide/styleguide-ui.md#forced-colors): the real mode paints a backplate behind text that the simulation lacks and can give another result, so a score under forced colors is no result of the real mode.
+
+The a11y pill in the header and the markers in the sidebar come from the library-wide report, see [A11y Reports](guide/a11y-reports.md), and do not follow the simulation.
 
 ## Per-component config
 

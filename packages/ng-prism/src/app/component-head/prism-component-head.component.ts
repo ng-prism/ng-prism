@@ -8,7 +8,7 @@ import { PrismNavigationService } from '../services/prism-navigation.service.js'
 import { PrismBadgeComponent } from '../shared/prism-badge.component.js';
 import { PRISM_CONFIG, PRISM_MANIFEST } from '../tokens/prism-tokens.js';
 import { isCompactHead, PrismHeadCompactState } from './head-compact.js';
-import { headMetrics, infoDotTone } from './head-metrics.js';
+import { headMetrics, infoDotReason, infoDotTone } from './head-metrics.js';
 import { pipeFacts } from './pipe-facts.js';
 import { PrismHeadGaugeComponent } from './prism-head-gauge.component.js';
 import { PrismHeadInfoComponent } from './prism-head-info.component.js';
@@ -102,12 +102,16 @@ export class PrismComponentHeadComponent {
         headMetrics({
             meta: this.componentMeta(),
             a11y: this.auditService.scoreResult(),
-            a11yThresholds: this.a11yThresholds()
+            a11yThresholds: this.a11yThresholds(),
+            a11yCondition: this.auditService.condition()
         })
     );
 
     /** A warning or an alarm among the metrics, shown as a dot on ⓘ while the gauge sits inside its card. */
     protected readonly infoDot = computed(() => infoDotTone(this.metrics()));
+
+    /** What that dot stands for, which names the condition when the metric behind it was measured under a simulation. */
+    protected readonly infoDotReason = computed(() => infoDotReason(this.metrics()));
 
     private readonly componentMeta = computed(() => {
         const c = this.comp();

@@ -15,6 +15,20 @@
     opacity: 0.6;
 }
 
+.a11y-score {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.a11y-condition {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--prism-text-muted);
+}
+
 .viol-list {
     display: flex;
     flex-direction: column;

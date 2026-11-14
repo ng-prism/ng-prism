@@ -1,14 +1,14 @@
-import type { CanvasBg } from './canvas-bg.type.js';
+import { CANVAS_BGS, type CanvasBg } from './canvas-bg.type.js';
 
 /**
- * The surface a variant is reported to render on when nothing declares one.
+ * The surface a variant is reported to render on when nothing declares one and
+ * the project has not set `showcaseDefaults.bg`.
  *
  * `transparent`, because an undeclared variant has no opinion about its
- * surface. `checker` patterns over `--prism-bg-surface`, a theme token, and
- * capture mode keeps the colour, so the runner's theme would leak into the
- * baseline. Alpha has no such dependency and, unlike a pattern, does not shift
- * when a centred component resizes. In the app both render the same
- * checkerboard; the difference only shows in a capture.
+ * surface. A colour from a theme token (`--prism-bg-surface` under `dots` and
+ * `plain`) would be kept by capture mode, so the runner's theme would leak into
+ * the baseline. Alpha has no such dependency and, unlike a pattern, does not
+ * shift when a centred component resizes.
  *
  * A runner must pass `omitBackground: true`, otherwise the capture is opaque
  * over whatever the browser painted. See
@@ -20,9 +20,10 @@ import type { CanvasBg } from './canvas-bg.type.js';
  *   colours are absolute, not theme tokens, so they are stable across runners.
  * - `transparent` when the component's own transparency is under test (an
  *   outlined button, an icon, a divider). On an opaque colour a transparent
- *   fill and a painted fill produce the same pixels.
- * - `dots`, `plain` or `checker` for browsing. They follow the active theme, so
- *   a baseline recorded on one is only as stable as the theme.
+ *   fill and a painted fill produce the same pixels. While browsing it is a
+ *   light checkerboard in both themes, in a capture it is see-through.
+ * - `dots` or `plain` for browsing. They follow the active theme, so a baseline
+ *   recorded on one is only as stable as the theme.
  */
 export const DEFAULT_VARIANT_BG: CanvasBg = 'transparent';
 
@@ -57,10 +58,33 @@ export function declaredVariantBg(config: VariantBgSource, variantIndex: number)
 /**
  * The background a variant renders on, always resolved to a concrete value.
  *
+ * Declared first (see {@link declaredVariantBg}), then `fallback`, which is the
+ * project's `showcaseDefaults.bg` (see {@link showcaseDefaultBg}), then
+ * {@link DEFAULT_VARIANT_BG}. The fallback only stands in for "nothing declared",
+ * it never overrides a declaration.
+ *
  * This is the answer external tooling needs, since a screenshot runner cannot act
  * on "nothing declared". It is also what capture mode paints, so the value
  * reported by `__PRISM_MANIFEST__` and the pixels in the capture agree.
  */
-export function resolveVariantBg(config: VariantBgSource, variantIndex: number): CanvasBg {
-    return declaredVariantBg(config, variantIndex) ?? DEFAULT_VARIANT_BG;
+export function resolveVariantBg(config: VariantBgSource, variantIndex: number, fallback: CanvasBg | null = null): CanvasBg {
+    return declaredVariantBg(config, variantIndex) ?? fallback ?? DEFAULT_VARIANT_BG;
+}
+
+/**
+ * The project's `showcaseDefaults.bg`, or `null` when it sets none.
+ *
+ * A value that is no {@link CanvasBg} is `null` as well. The type rules it out
+ * at build time, but `ng-prism.config.ts` can be plain JavaScript, and a removed
+ * value (`checker`) in an old config must fall back to what an undeclared
+ * variant gets anyway, not reach the canvas as `data-bg`. No warning: the builder
+ * does not validate the rest of the config either.
+ *
+ * Takes the config structurally, like {@link VariantBgSource}, so the caller can
+ * pass `NgPrismConfig` without this module importing `plugin/`.
+ */
+export function showcaseDefaultBg(config: { showcaseDefaults?: { bg?: unknown } } | null | undefined): CanvasBg | null {
+    const bg = config?.showcaseDefaults?.bg;
+
+    return CANVAS_BGS.find((known) => known === bg) ?? null;
 }

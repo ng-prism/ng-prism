@@ -29,6 +29,11 @@ package is right:
    `??` and `&&`, `let` and `var`, `declare`d values, functions, classes and `new`, each with a `⚠ ng-prism:` warning,
    and keeps the rest. The one function that works is the `setup: () => [...]` of a service or pipe: the builder reads the array
    literal from the source and never calls it. When the whole config can't be evaluated, the component is skipped.
+   The one `new` that works is `new Date(…)` with arguments it can read (since 22.8.0), in variants and as an input
+   default; the browser makes the `Date` from the arguments as written. For a day without a time write a local form,
+   `new Date(2026, 3, 28)` (month from 0) or `new Date('2026-04-28T00:00')` (a time without an offset is local):
+   `new Date('2026-04-28')` is midnight in UTC and shows the 27th west of UTC.
+   `new Date()` without arguments is the current time and is dropped.
    Constants imported from a compiled package (`.d.ts`) are readable only as plain literals.
    `defineConfig({ strictShowcase: true })` in `ng-prism.config.ts` turns every dropped value into a build error.
 2. **The component must be exported by the library's entry point.** The builder scans what the `entryPoint` of the
@@ -165,10 +170,12 @@ package is right:
       a search input, stays its own entry. `partOf` takes one parent only.
 
 Other fields: `description` (Markdown), `category`, `categoryOrder`, `componentOrder`, `section`, `tags`, `status`
-(`stable`, `beta`, `wip`, `deprecated`), `bg` (`dots`, `plain`, `light`, `dark`, `transparent`; `checker` is
-deprecated), `canvasLayout` (`fit`, or `stretch` for a component that fills its container: it gets the canvas width up
+(`stable`, `beta`, `wip`, `deprecated`), `bg` (`dots`, `plain`, `light`, `dark`, `transparent`), `canvasLayout`
+(`fit`, or `stretch` for a component that fills its container: it gets the canvas width up
 to 800px, with Viewport width on the width set there, a subject in a composition too), `meta` (data for plugins, e.g. `meta: { figma: '<url>' }`), `imports` (rule 13), `partOf` (rule 14). A variant
-can set its own `description`, `bg`, `canvasLayout`, `meta`, `pseudo`, `template` and `host` (rule 13).
+can set its own `description`, `bg`, `canvasLayout`, `meta`, `pseudo`, `template` and `host` (rule 13). Where a whole
+library shares one `bg`, `showcaseDefaults: { bg: 'light' }` in `ng-prism.config.ts` (since 22.8, skill setup) replaces
+declaring it on every showcase; a `bg` on a showcase or a variant still wins.
 
 `meta.a11y` (typed): `rules: { '<axe-rule>': { enabled: false } }` switches a rule off for the component's live audit
 (not audited at all), `disable: true` skips the audit, and `accept: [{ rule: '<axe-rule>', reason: '…' }]` (since 22.7,
@@ -305,8 +312,16 @@ node "${CLAUDE_SKILL_DIR}/scripts/screenshot.mjs" --pipe TimeAgoPipe
 
 - By default it opens the variant in capture mode (`?capture=1`: the component alone on its background, motion
   frozen) and screenshots `.demo-wrap`. `--shell` takes the whole window, styleguide UI included.
-- A variant without `bg`, or with `bg: 'transparent'`, comes back with a transparent background (a PNG with alpha).
-  Viewers show transparent pixels differently; if a light or dark component is hard to judge, look at `--shell` too.
+- Capture mode never simulates (since 22.8): the tools menu's Simulate group and its URL parameters `motion`,
+  `scheme`, `forced` and `vision` don't reach a capture, which shows the component under the browser's own
+  conditions. To look at a variant under reduced motion, a light or dark color scheme, approximated forced colors or a
+  colour vision deficiency, open it without `capture=1` and with the parameter in a browser tool, e.g.
+  `http://localhost:4400/?component=<ClassName>&variant=<index>&scheme=dark` (or `motion=reduce`, `forced=active`,
+  `vision=deuteranopia`).
+- A variant with `bg: 'transparent'`, or without `bg` while the config has no `showcaseDefaults: { bg }`, comes back with
+  a transparent background (a PNG with alpha). Viewers show transparent pixels differently; if a light or dark
+  component is hard to judge, look at `--shell` too. With `showcaseDefaults.bg` set, a variant without `bg` is
+  captured on that background (the manifest's `bg` says which).
 - `--state <index>` captures the variant in one of the component's `states` (`@Showcase({ states })`; 0-based, in
   source order, listed in `window.__PRISM_MANIFEST__`). Without it no state is active. A state doesn't fit every
   variant, for example one with `states: false`, or one whose target the variant doesn't render. The script then prints

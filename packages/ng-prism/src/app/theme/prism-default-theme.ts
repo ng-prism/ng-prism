@@ -210,6 +210,50 @@ export const PRISM_BASE_TOKENS: Record<string, string> = {
 
     '--prism-void-light': '#f7f5fc',
     '--prism-void-dark': '#07050f',
+
+    /**
+     * The text a component inherits on a fixed ground: `light` and
+     * `transparent` set the first, `dark` the second. They are the themes' own
+     * text colours, kept as tokens of their own because the grounds do not
+     * follow the theme, and a project that retunes a ground retunes its text
+     * with it, to 4.5:1 on that ground.
+     */
+    '--prism-void-light-text': '#0f172a',
+    '--prism-void-dark-text': '#f1f5f9',
+
+    /**
+     * What the canvas draws on a fixed ground besides the component: the
+     * measurement (line, grips, label, the pin row's chips) and the surface,
+     * text, contours and active tool of the tool rail, the pills, the pin row
+     * and the rulers. `light` and `transparent` read the first set, `dark` the
+     * second, in both themes. A project whose ground is a mid-tone has to
+     * change `-measure` at least, the one default that fails there (1.8:1 on
+     * `#005fe3`; `-text` still reaches 5.1:1 and the overlay defaults hold
+     * against their own `-overlay-bg`). A matching look for `#005fe3` is white
+     * text and measurement (5.6:1), a navy `-overlay-bg` of `#091e42`,
+     * `-overlay-fg` `#f4f5f9`, `-overlay-muted` `#bbc5d5`, `-overlay-border`
+     * `#67758c` and `-overlay-primary` `#4d97ff`; docs/guide/theming.md lists
+     * it in full.
+     *
+     * `-overlay-fg`, `-overlay-muted` and `-overlay-primary` need 4.5:1 on
+     * `-overlay-bg`, `-overlay-border` 3:1, `-measure` 4.5:1 on the ground and
+     * on `-overlay-bg`. The active tool's tint is mixed from `-overlay-primary`.
+     * The simulation of forced colors paints fixed values of its own, so these
+     * do not reach it.
+     */
+    '--prism-void-light-measure': '#ca00c1',
+    '--prism-void-light-overlay-bg': '#ffffff',
+    '--prism-void-light-overlay-fg': '#0f172a',
+    '--prism-void-light-overlay-muted': '#334155',
+    '--prism-void-light-overlay-border': '#7b8aa0',
+    '--prism-void-light-overlay-primary': '#1d4ed8',
+    '--prism-void-dark-measure': '#f632ff',
+    '--prism-void-dark-overlay-bg': '#1a2335',
+    '--prism-void-dark-overlay-fg': '#f1f5f9',
+    '--prism-void-dark-overlay-muted': '#cbd5e1',
+    '--prism-void-dark-overlay-border': '#64748b',
+    '--prism-void-dark-overlay-primary': '#60a5fa',
+
     '--prism-text-light': '#f1f5f9',
 
     /**

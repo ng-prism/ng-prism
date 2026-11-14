@@ -4,18 +4,23 @@
     <div
         class="a11y-body"
         [class.a11y-body--loading]="auditService.running()">
-        <prism-metric-card
-            class="a11y-score-card"
-            label="Score"
-            unit="/ 100"
-            [value]="'' + (scoreResult()?.score ?? 0)"
-            [tone]="badgeTone()"
-            [title]="scoreTitle()">
-            <prism-a11y-score
-                metricVisual
-                [score]="scoreResult()?.score ?? 0"
-                [tone]="grade()" />
-        </prism-metric-card>
+        <div class="a11y-score">
+            <prism-metric-card
+                class="a11y-score-card"
+                label="Score"
+                unit="/ 100"
+                [value]="'' + (scoreResult()?.score ?? 0)"
+                [tone]="badgeTone()"
+                [title]="scoreTitle()">
+                <prism-a11y-score
+                    metricVisual
+                    [score]="scoreResult()?.score ?? 0"
+                    [tone]="grade()" />
+            </prism-metric-card>
+            @if (auditService.condition(); as condition) {
+                <p class="a11y-condition">Audited under {{ condition }}</p>
+            }
+        </div>
 
         <div class="viol-list">
             @for (item of violations(); track item.id) {

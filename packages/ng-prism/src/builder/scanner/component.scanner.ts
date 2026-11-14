@@ -33,27 +33,17 @@ function isComponentStatus(value: unknown): value is ComponentStatus {
 }
 
 /**
- * Backgrounds that still work but should not be reached for any more.
+ * What a `bg` the scanner cannot take says about itself.
  *
- * `checker` draws the same checkerboard as `transparent` while browsing, so
- * the canvas cannot tell them apart. It captures as `--prism-bg-surface`, though,
- * a *theme* token, which makes a baseline recorded on it depend on the theme
- * the runner's browser started in. Since `transparent` took over as the
- * default, it is the value that looks like transparency and is not.
- *
- * Only warned about: the value is valid, and rejecting it would change what a
- * component renders on, which is a breaking change. Scheduled for removal in
- * 23.0.0, the next Angular-aligned major.
+ * `checker` gets its own message: it was a valid background until 22.8.0, so a
+ * decorator that still declares it is outdated, not mistyped, and the fix is
+ * one word (or `ng update`) rather than a look through the list of values.
  */
-const DEPRECATED_BGS: Partial<Record<CanvasBg, string>> = {
-    checker: "use 'transparent' for the same look with a capture that keeps its alpha, or 'light'/'dark' for an absolute colour"
-};
-
-function warnDeprecatedBg(bg: CanvasBg, where: string): void {
-    const advice = DEPRECATED_BGS[bg];
-
-    if (!advice) return;
-    console.warn(`⚠ ng-prism: ${where} declares bg "${bg}", which is deprecated and will ` + `be removed in 23.0.0; ${advice}.`);
+function invalidBgMessage(where: string, value: unknown): string {
+    if (value === 'checker') {
+        return `${where} declares bg "checker", which was removed in 22.8.0; use 'transparent' (a checkerboard while browsing, light in both themes, see-through in a capture), or run ng update @ng-prism/core to rewrite it. Skipping.`;
+    }
+    return `${where} declares invalid bg "${String(value)}", expected one of: ${CANVAS_BGS.join(', ')}. Skipping.`;
 }
 
 function isCanvasBg(value: unknown): value is CanvasBg {
@@ -453,9 +443,8 @@ function readShowcaseConfig(
     if (obj['bg'] !== undefined) {
         if (isCanvasBg(obj['bg'])) {
             config.bg = obj['bg'];
-            warnDeprecatedBg(obj['bg'], className);
         } else {
-            report(`${className} declares invalid bg "${String(obj['bg'])}", ` + `expected one of: ${CANVAS_BGS.join(', ')}. Skipping.`);
+            report(invalidBgMessage(className, obj['bg']));
         }
     }
 
@@ -482,15 +471,8 @@ function readShowcaseConfig(
             const reportVariant = (field: 'template' | 'host' | 'content', text: string) =>
                 report(describeShowcaseIssue(className, arg, ['variants', sourceIndex(index, unevaluableElements.variants), field], text));
 
-            if (isCanvasBg(variant['bg'])) {
-                warnDeprecatedBg(variant['bg'], `${className} variant "${String(variant['name'])}"`);
-            }
             if (variant['bg'] !== undefined && !isCanvasBg(variant['bg'])) {
-                report(
-                    `${className} variant "${String(variant['name'])}" declares ` +
-                        `invalid bg "${String(variant['bg'])}", expected one of: ` +
-                        `${CANVAS_BGS.join(', ')}. Skipping.`
-                );
+                report(invalidBgMessage(`${className} variant "${String(variant['name'])}"`, variant['bg']));
                 delete cleaned['bg'];
             }
             if (variant['canvasLayout'] !== undefined && !isCanvasLayout(variant['canvasLayout'])) {

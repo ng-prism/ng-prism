@@ -74,6 +74,86 @@ describe('PrismCanvasService', () => {
             localStorage.setItem(STORAGE_KEY, JSON.stringify({ viewportWidth: 480 }));
             expect(createService().viewportWidth()).toBeNull();
         });
+
+        it('should ignore a persisted background choice', () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ bg: 'light', bgChosen: true }));
+            expect(createService().bg()).toBeNull();
+        });
+    });
+
+    // `null` while nobody picked one. The storage keeps the flag `bgChosen` next to the value: 22.7 stored `dots`
+    // without one, and a picked `dots` has to stay apart from it.
+    describe('picked background', () => {
+        it('should start with nothing picked', () => {
+            expect(createService().bg()).toBeNull();
+        });
+
+        it('keeps a pick, dots included, and persists it', () => {
+            const service = createService();
+
+            service.setBg('dots');
+            expect(service.bg()).toBe('dots');
+
+            const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Record<string, unknown>;
+
+            expect(stored['bg']).toBe('dots');
+            expect(stored['bgChosen']).toBe(true);
+        });
+
+        it('stores that nothing is picked', () => {
+            createService().setZoom(1.5);
+
+            const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Record<string, unknown>;
+
+            expect(stored['bgChosen']).toBe(false);
+        });
+
+        it('restores a stored pick', () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ bg: 'dots', bgChosen: true }));
+            expect(createService().bg()).toBe('dots');
+        });
+
+        it('lets a stored flag win over the background it sits next to', () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ bg: 'light', bgChosen: false }));
+            expect(createService().bg()).toBeNull();
+        });
+
+        it('migrates storage without the flag', () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ bg: 'light' }));
+            expect(createService().bg()).toBe('light');
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ bg: 'dots' }));
+            expect(createService().bg()).toBeNull();
+        });
+
+        it('should fall back from a stored background that no longer exists', () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ bg: 'checker', bgChosen: true }));
+
+            // The pick went with the value: nobody chose `dots`, so a declared
+            // background and the emulated scheme may still win over it.
+            expect(createService().bg()).toBeNull();
+        });
+
+        it('treats storage without a background or flag as nothing picked', () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ zoom: 2 }));
+            expect(createService().bg()).toBeNull();
+        });
+
+        it('ignores a stored flag that is not a boolean', () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ bg: 'light', bgChosen: 'yes' }));
+            expect(createService().bg()).toBe('light');
+        });
+
+        it('keeps the pick across other canvas changes', () => {
+            const service = createService();
+
+            service.setBg('plain');
+            service.setZoom(1.5);
+
+            const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Record<string, unknown>;
+
+            expect(stored['bg']).toBe('plain');
+            expect(stored['bgChosen']).toBe(true);
+        });
     });
 
     describe('viewport width', () => {

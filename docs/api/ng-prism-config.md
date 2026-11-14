@@ -33,6 +33,13 @@ interface NgPrismConfig {
         gate?: { score?: number; critical?: number; serious?: number; moderate?: number } | false;
         reportPath?: string;
     };
+    colorScheme?: {
+        light?: { class?: string; attributes?: Record<string, string> };
+        dark?: { class?: string; attributes?: Record<string, string> };
+    };
+    showcaseDefaults?: {
+        bg?: CanvasBg;
+    };
     strictShowcase?: boolean;
     /** @deprecated */
     themeStylesheet?: string;
@@ -226,6 +233,62 @@ export default defineConfig({
 
 **Guide:** [Theming](guide/theming.md)
 
+## Canvas
+
+How the canvas treats the component it shows.
+
+### `colorScheme`
+
+**Type** `{ light?: NgPrismColorSchemeTarget; dark?: NgPrismColorSchemeTarget }`, each `{ class?: string; attributes?: Record<string, string> }` · **Default** none · **Since** 22.8.0
+
+The class and the attributes that switch your library's theme, per color scheme, for a theme that hangs on a class or an attribute rather than on `prefers-color-scheme`. While the canvas [simulates](guide/styleguide-ui.md#simulate) the color scheme `Light` or `Dark`, the host element of the shown component, in the Playground and in every Overview cell, and the CDK overlay container get the class and the attributes named for that scheme, on top of the emulated `prefers-color-scheme` and `color-scheme`. Under `System`, and under forced colors alone, they get neither. When the simulation ends, each element has its own classes and attributes back. Capture mode never simulates, so it never sets them.
+
+- **`class`** is one class, or several separated by spaces.
+- **`attributes`** maps names to values. `class`, `style` and `data-prism-sim` belong to the simulation, and a name the DOM rejects cannot be set: each is left out, and in dev mode the browser console warns once, `[ng-prism] colorScheme: the attribute "<name>" is left out, …`.
+- **Selectors** such as `.dark .btn`, `:host-context(.dark)` and `[data-mode='dark'] .btn` follow it. A theme keyed on `:root`, `html` or `body` does not: the class would have to go on the document, which would switch the styleguide's own UI as well.
+- **Avoid `data-theme`**: the styleguide still sets it on `<html>` for its own theme, deprecated since 22.8.0, removed in 23.0.0, so the rules of both your themes would match. The styleguide's own attribute is `data-prism-theme`, see [Dark and Light Themes](guide/theming.md#dark-and-light-themes).
+
+```typescript
+export default defineConfig({
+    colorScheme: {
+        dark: { class: 'dark' },
+        light: { attributes: { 'data-mode': 'light' } }
+    }
+});
+```
+
+`NgPrismColorSchemeConfig` and `NgPrismColorSchemeTarget` are exported from `@ng-prism/core/plugin`.
+
+**Guide:** [Simulate](guide/styleguide-ui.md#simulate)
+
+### `showcaseDefaults`
+
+**Type** `{ bg?: CanvasBg }` · **Default** none · **Since** 22.8.0
+
+What the canvas falls back to where a `@Showcase` declares nothing. Only `bg` so far.
+
+- **`bg`** is the canvas background of every variant that declares no [`bg`](api/showcase-config.md#bg), on the variant or on the component, in place of the built-in one: Dots in the Playground, and `transparent` (`DEFAULT_VARIANT_BG`) in the Overview, in capture mode and in `__PRISM_MANIFEST__`. A library whose components are all designed against a light surface sets it once instead of declaring `bg: 'light'` on each.
+
+It is a fallback and no declaration: whatever someone decided beats it. Where nothing is decided, the first match wins:
+
+| Where                                 | Order                                                                                                                                                                                                 |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Playground                            | the override set for the variant in the tools menu, the `bg` of the variant, then of the component, the background picked for the whole canvas, a simulated color scheme, `showcaseDefaults.bg`, Dots |
+| Overview                              | the `bg` of the variant, then of the component, a simulated color scheme, `showcaseDefaults.bg`, `transparent`                                                                                        |
+| Capture mode and `__PRISM_MANIFEST__` | the `bg` of the variant, then of the component, `showcaseDefaults.bg`, `transparent`                                                                                                                  |
+
+The Playground does not treat it as the variant's recommendation: no `Recommended` pill appears, the chip in the Background group carries no recommended border, and a pick on such a variant is still the background for the whole canvas, kept across variants and visits. Capture mode and the manifest agree on it, so the `bg` a screenshot runner reads is the one in its screenshot. A value that is no [`CanvasBg`](api/types.md#canvasbg) is ignored, without a warning.
+
+```typescript
+export default defineConfig({
+    showcaseDefaults: { bg: 'light' }
+});
+```
+
+`NgPrismShowcaseDefaults` is exported from `@ng-prism/core/plugin`, and so is `showcaseDefaultBg(config)`, which returns the configured `bg`, or `null` where there is none or it is no `CanvasBg`. A runner that resolves backgrounds itself passes it to `resolveVariantBg()` as the third argument, see [Plugin UI Kit](api/plugin-ui.md#backgrounds).
+
+**Guide:** [Tour of the UI: Background](guide/styleguide-ui.md#background), [Visual Regression](guide/visual-regression.md#the-background-is-part-of-the-baseline)
+
 ## Styleguide state
 
 What the styleguide keeps across reloads and in its links.
@@ -234,7 +297,7 @@ What the styleguide keeps across reloads and in its links.
 
 **Type** `boolean` · **Default** `true`
 
-Whether the styleguide keeps its selection in the URL: the component, service, pipe or page, and the variant, state, view, part and panel, as query parameters. With `false` it neither writes them nor restores the selection from them.
+Whether the styleguide keeps its selection in the URL as query parameters: the component, service, pipe or page, the variant, state, view, part and panel, and what the canvas simulates. With `false` it neither writes them nor restores the selection from them.
 
 ```typescript
 export default defineConfig({ urlState: false });
@@ -246,7 +309,7 @@ export default defineConfig({ urlState: false });
 
 **Type** `boolean` · **Default** `true`
 
-Whether the styleguide keeps the values changed in the Controls panel, per component and variant, and the active tab and perspective of the accessibility panel in `sessionStorage`, so that a reload keeps them. Capture mode never restores them. The layout, the theme and the canvas settings are kept in `localStorage` either way.
+Whether the styleguide keeps the values changed in the Controls panel, per component and variant, the active tab and perspective of the accessibility panel, and what the canvas simulates in `sessionStorage`, so that a reload keeps them. Capture mode never restores them. The layout, the theme and the canvas settings are kept in `localStorage` either way.
 
 ```typescript
 export default defineConfig({ persistState: false });

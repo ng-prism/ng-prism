@@ -301,7 +301,7 @@ export default {
                 clicks: [{ t: 2.2, ...mid(seg) }],
                 fades: [{ win: 1, at: 2.2 }]
             },
-            { id: 'end', kind: 'end', dur: 5.5, vo: { at: 1.55, text: 'Try it out!' } }
+            { id: 'end', kind: 'end', dur: 5.5, vo: { at: 1.55, text: "One command, and you're set." } }
         ];
     }
 };

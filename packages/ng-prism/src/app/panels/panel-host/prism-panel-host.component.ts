@@ -7,6 +7,7 @@ import { PrismNavigationService } from '../../services/prism-navigation.service.
 import { PrismPanelService } from '../../services/prism-panel.service.js';
 import { PrismPluginService } from '../../services/prism-plugin.service.js';
 import { PrismRendererService } from '../../services/prism-renderer.service.js';
+import { PrismSimulationService } from '../../services/prism-simulation.service.js';
 import { type PrismTabItem, PrismTabsComponent } from '../../shared/prism-tabs.component.js';
 import { PRISM_CONFIG, PRISM_MANIFEST } from '../../tokens/prism-tokens.js';
 import { resolveAcceptances } from '../a11y/a11y-acceptances.js';
@@ -43,6 +44,7 @@ export class PrismPanelHostComponent {
     protected readonly envInjector = inject(EnvironmentInjector);
     private readonly auditService = inject(A11yAuditService);
     private readonly rendererService = inject(PrismRendererService);
+    private readonly simulation = inject(PrismSimulationService);
     private readonly manifest = inject<RuntimeManifest>(PRISM_MANIFEST);
     private readonly config = inject<NgPrismConfig>(PRISM_CONFIG);
 
@@ -73,6 +75,7 @@ export class PrismPanelHostComponent {
             inputCount: this.inputCount(),
             eventCount: this.eventLog.events().length,
             a11yResult: this.auditService.scoreResult(),
+            a11yCondition: this.auditService.condition(),
             a11yThresholds: this.a11yThresholds()
         });
         const notice = deprecatedBadgeVariantNotice(panel.id, badge);
@@ -110,6 +113,8 @@ export class PrismPanelHostComponent {
 
             this.rendererService.inputValues();
             const variantIndex = this.rendererService.activeVariantIndex();
+            // A changed condition re-audits: the same markup computes different colours under it.
+            const condition = this.simulation.auditCondition();
 
             if (!element || !comp) {
                 this.auditService.clear();
@@ -126,7 +131,7 @@ export class PrismPanelHostComponent {
             // The acceptances of the variant on screen: the component's and its own.
             const accept = resolveAcceptances(comp.meta?.showcaseConfig?.meta, comp.meta?.showcaseConfig?.variants?.[variantIndex]?.meta);
 
-            this.auditService.scheduleAudit(element, { ...a11yConfig, accept });
+            this.auditService.scheduleAudit(element, { ...a11yConfig, accept }, undefined, condition);
         });
 
         effect(() => {

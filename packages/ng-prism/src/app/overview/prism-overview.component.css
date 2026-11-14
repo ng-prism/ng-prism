@@ -2,12 +2,44 @@
     display: block;
 }
 
+/* A stacking context of its own, so that nothing a component stacks in a
+   cell climbs over the simulation pill, which the list scrolls under. */
 .prism-overview {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: var(--sp-4);
     align-content: start;
     padding: var(--sp-6);
+    isolation: isolate;
+}
+
+/* What the canvas simulates, above the sheet and above the matrix. It sits in
+   the flow, on the sheet's own inset, and takes nothing while there is nothing
+   to say: its empty host is display: none, margin included.
+
+   The overview has no tools rail, so the pill is the only sign that something
+   is simulated. In the list the panel host scrolls, and the pill stays where
+   it is while the cells pass under it (its own background is translucent and
+   blurred). Its host spans the panel, so it lets clicks beside the pill
+   through to the cells; the pill takes them back. The matrix scrolls inside
+   itself, below the pill, which never moves there.
+
+   The sheet starts one gap below it. The list gets its inset from its padding,
+   which would add to the pill's margin, so while the pill shows the list gives
+   up its top padding. The pill stands on the panel's surface, outside the
+   canvas wrap, so it takes the theme's colours (see prism-sim-pill.component.css). */
+.prism-overview__sim {
+    position: sticky;
+    top: var(--sp-6);
+    z-index: 1;
+    flex: none;
+    align-self: flex-start;
+    margin: var(--sp-6) var(--sp-6) var(--sp-4);
+    pointer-events: none;
+}
+
+.prism-overview__sim:not(:empty) + .prism-overview {
+    padding-top: 0;
 }
 
 /* The panel host is a column flex box that scrolls. The matrix scrolls inside

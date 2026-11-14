@@ -1,0 +1,39 @@
+.ctl-date {
+    flex: 1;
+    min-width: 0;
+    height: 30px;
+    padding: 0 10px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--prism-text);
+    outline: none;
+    background: var(--prism-input-bg);
+    border: 1px solid var(--prism-border);
+    border-radius: var(--radius-sm);
+    transition:
+        border-color var(--dur-fast),
+        box-shadow var(--dur-fast);
+}
+
+.ctl-date:focus {
+    border-color: var(--prism-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--prism-primary) 30%, transparent);
+}
+
+/* Touch screens: 16px keeps iOS from zooming the page when the field gets focus. */
+@media (pointer: coarse) {
+    .ctl-date {
+        height: 40px;
+        font-size: 16px;
+    }
+}
+
+/* In a narrow controls panel, as on a phone, the field takes the whole row
+   under its label. The container is the panel's .ctl-panel. */
+@container (max-width: 520px) {
+    :host {
+        display: flex;
+        flex: 1;
+        min-width: 0;
+    }
+}

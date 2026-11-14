@@ -276,3 +276,42 @@ describe('generateCompositionClass', () => {
         expect(text).not.toMatch(/[^.]\bcleared\.emit/);
     });
 });
+
+describe('generateCompositionClass with a model()', () => {
+    const MODEL = { name: 'value', alias: 'date', type: 'date' as const, required: false, model: true as const };
+
+    it('passes on the change of a model the case binds, under the name Angular gives it', () => {
+        const subject = frame({ cases: [{ template: `<lib-form-field${SLOT} />`, unbound: [] }], variantCases: [0] }, { inputs: [MODEL], outputs: [] });
+        const code = generate(subject);
+
+        expect(code).toContain('  valueChange = output<any>();');
+        expect(template(code)).toContain('(dateChange)="this.valueChange.emit($event)"');
+    });
+
+    it('passes on nothing in a case that leaves the model unbound', () => {
+        const subject = frame(
+            {
+                cases: [
+                    { template: `<lib-form-field${SLOT} />`, unbound: [] },
+                    { template: `<lib-form-field${SLOT} [date]="d" />`, unbound: [{ name: 'value', reason: 'template' }] }
+                ],
+                variantCases: [0, 1]
+            },
+            { inputs: [MODEL], outputs: [] }
+        );
+        const text = template(generate(subject));
+
+        expect(text.match(/\(dateChange\)/g)).toHaveLength(1);
+    });
+
+    it('leaves a change output the component declares itself alone', () => {
+        const subject = frame(
+            { cases: [{ template: `<lib-form-field${SLOT} />`, unbound: [] }], variantCases: [0] },
+            { inputs: [MODEL], outputs: [{ name: 'valueChange', alias: 'dateChange' }] }
+        );
+        const code = generate(subject);
+
+        expect(code.match(/valueChange = output<any>\(\);/g)).toHaveLength(1);
+        expect(template(code).match(/\(dateChange\)/g)).toHaveLength(1);
+    });
+});

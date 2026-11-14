@@ -3,6 +3,7 @@ import ts from 'typescript';
 import type { InputMeta } from '../../plugin/plugin.types.js';
 import { resolveEntryPointExports } from './entry-point.scanner.js';
 import { extractInputs, extractOutputs } from './input.extractor.js';
+import { StaticDate } from './static-date.js';
 
 const FIXTURES_DIR = path.join(__dirname, '__fixtures__');
 
@@ -576,5 +577,63 @@ describe('extractInputs and extractOutputs with aliases', () => {
         const outputs = extractOutputs(classDecl, checker);
 
         expect(outputs).toEqual([{ name: 'closed', alias: 'dismissed' }, { name: 'legacyEmitter', alias: 'legacyChange' }, { name: 'opened' }]);
+    });
+});
+
+describe('extractInputs with Date inputs', () => {
+    let inputs: Map<string, InputMeta>;
+
+    beforeAll(() => {
+        const entryFile = path.join(FIXTURES_DIR, 'date-api.ts');
+        const result = resolveEntryPointExports([{ entryFile, importPath: 'fixture' }], compilerOptions);
+        const checker = result.program.getTypeChecker();
+        const classDecl = getClassDeclaration(result.entries[0].exports, 'DateInputsComponent', checker);
+
+        inputs = new Map(extractInputs(classDecl, checker).map((input) => [input.name, input]));
+    });
+
+    function pick(name: string): InputMeta {
+        return inputs.get(name)!;
+    }
+
+    // `input<T>()` without a value is an `InputSignal<T | undefined>`, so an emptied control may write `undefined`.
+    it('reads input<Date>() as a date that can be emptied to undefined', () => {
+        expect(pick('a')).toMatchObject({ type: 'date', emptyValue: 'undefined' });
+    });
+
+    it('gives a required Date no empty value', () => {
+        expect(pick('r').type).toBe('date');
+        expect(pick('r')).not.toHaveProperty('emptyValue');
+    });
+
+    it.each([
+        ['Date | null', 'b', 'null'],
+        ['Date | undefined', 'c', 'undefined'],
+        ['an optional @Input of type Date', 'd', 'undefined'],
+        ['an alias for Date | null', 'e', 'null']
+    ])('reads %s as a date with its empty value', (_, name, emptyValue) => {
+        expect(pick(name)).toMatchObject({ type: 'date', emptyValue });
+    });
+
+    it('keeps a union with another type and an object with a Date field apart from dates', () => {
+        expect(pick('f').type).toBe('unknown');
+        expect(pick('g').type).toBe('object');
+    });
+
+    it('reads a Date default with its arguments', () => {
+        const { defaultValue } = pick('h');
+
+        expect(defaultValue).toBeInstanceOf(StaticDate);
+        expect((defaultValue as StaticDate).args).toEqual([2026, 0, 1]);
+    });
+
+    it('reads the type of input(new Date(…)) from its default', () => {
+        expect(pick('j').type).toBe('date');
+        expect(pick('j')).not.toHaveProperty('emptyValue');
+    });
+
+    it('marks new Date() as a default it cannot read', () => {
+        expect(pick('i')).toMatchObject({ type: 'date', defaultUnreadable: true });
+        expect(pick('i')).not.toHaveProperty('defaultValue');
     });
 });

@@ -1,0 +1,16 @@
+<svg
+    width="0"
+    height="0"
+    style="position: absolute; overflow: hidden"
+    aria-hidden="true"
+    focusable="false">
+    @for (filter of filters; track filter.id) {
+        <filter
+            [attr.id]="filter.id"
+            color-interpolation-filters="linearRGB">
+            <feColorMatrix
+                type="matrix"
+                [attr.values]="filter.values" />
+        </filter>
+    }
+</svg>

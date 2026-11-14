@@ -42,7 +42,7 @@ import { ButtonComponent } from 'my-lib';
 export class ButtonPatternsPageComponent {}
 ```
 
-The styleguide shows the page's `title` as a heading above the component.
+The styleguide shows the page's `title` as a heading above the component and leaves an edge around the page, a narrower one [on a phone](guide/styleguide-ui.md#on-a-phone).
 
 ## Following the Theme
 
@@ -67,7 +67,7 @@ A page renders in the styleguide's own document, on the dark or light background
 }
 ```
 
-Text without a colour of its own inherits `--prism-text-2` and the styleguide's sans font. Headings, paragraphs, lists, code and links without styles of their own get the styleguide's defaults (links in `--prism-link`, underlined). Those defaults sit in a cascade layer, so any rule of your page or of a global stylesheet for the same element wins, whatever its specificity. [Theming](guide/theming.md) lists every token with its dark and light value. For anything a token cannot express, such as an image per theme, `data-theme` on `<html>` reads `dark` or `light`, see [Dark and Light Themes](guide/theming.md#dark-and-light-themes).
+Text without a colour of its own inherits `--prism-text-2` and the styleguide's sans font. Headings, paragraphs, lists, code and links without styles of their own get the styleguide's defaults (links in `--prism-link`, underlined). Those defaults sit in a cascade layer, so any rule of your page or of a global stylesheet for the same element wins, whatever its specificity. [Theming](guide/theming.md) lists every token with its dark and light value. For anything a token cannot express, such as an image per theme, `data-prism-theme` on `<html>` reads `dark` or `light` (since 22.8.0; `data-theme` with the same value is deprecated), see [Dark and Light Themes](guide/theming.md#dark-and-light-themes).
 
 ## Registering Pages
 

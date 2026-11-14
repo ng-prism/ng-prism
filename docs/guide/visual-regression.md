@@ -56,9 +56,11 @@ A variant declares `bg` because that is the surface it has to work on. A screens
 Two consequences for a runner:
 
 - **Record it next to the baseline.** A variant whose `bg` changes compares a capture on one surface against a baseline on another: every pixel differs while the component is untouched. Storing the background alongside the baseline image lets you tell that apart from a regression, and the plugin's report has fields for both (`bg`, `baselineBg`).
-- **Declare a background on anything you baseline.** `light` or `dark` when the component was designed against a surface, since their colours are absolute. [`transparent`](#capturing-transparency) when the component's own transparency is the thing under test. Avoid `dots`, `plain` and `checker`: they follow the theme, so a capture on one of them is only as stable as the browser profile's theme, see [`bg`](api/showcase-config.md#bg).
+- **Declare a background on anything you baseline.** `light` or `dark` when the component was designed against a surface, since their colours are absolute. [`transparent`](#capturing-transparency) when the component's own transparency is the thing under test. Avoid `dots` and `plain`: they follow the theme, so a capture on one of them is only as stable as the browser profile's theme, see [`bg`](api/showcase-config.md#bg).
 
-With nothing declared a variant resolves to `transparent`. An undeclared variant has no opinion about its surface, so it is captured without one.
+With nothing declared a variant resolves to `transparent`. An undeclared variant has no opinion about its surface, so it is captured without one. A project whose components are all designed against one surface can say so once with [`showcaseDefaults: { bg: 'light' }`](api/ng-prism-config.md#showcasedefaults): the variants that declare nothing resolve to that value instead, and `__PRISM_MANIFEST__` reports it.
+
+A capture keeps the text colour of the ground, also on `transparent`, whatever theme the runner's browser started in, so a component that inherits its colour looks as it does while browsing, see [`bg`](api/showcase-config.md#bg).
 
 ### Capturing transparency
 
@@ -76,7 +78,7 @@ With nothing declared a variant resolves to `transparent`. An undeclared variant
 })
 ```
 
-While browsing, `transparent` draws a checkerboard, because that is how the UI shows "no surface here". Only under `?capture=1` does it clear the canvas and every wrapper behind it, so nothing is composited into the shot.
+While browsing, `transparent` draws a checkerboard, because that is how the UI shows "no surface here". It is light in both themes, so a component sees the same ground under the dark theme as under the light one, see [`CanvasBg`](api/types.md#canvasbg). Only under `?capture=1` does it clear the canvas and every wrapper behind it, so nothing is composited into the shot.
 
 #### The runner has to ask for it
 
@@ -88,7 +90,7 @@ await element.screenshot({ path, omitBackground: true });
 
 `omitBackground` clears the _browser's_ default page backdrop, which no stylesheet can reach. Without it the capture comes back as PNG colour type 2 (no alpha channel, fully opaque) over whatever the browser painted. It still looks like a correct screenshot, but it no longer tests transparency and nothing reports that. With the flag, the same variants come back as colour type 6 with meaningful alpha.
 
-Since an undeclared variant also resolves to `transparent`, a transparency-aware runner needs this flag for every variant without a `bg`, not only for the ones that declare `transparent`.
+Since an undeclared variant also resolves to `transparent`, unless the config sets `showcaseDefaults.bg`, a transparency-aware runner needs this flag for every variant without a `bg`, not only for the ones that declare `transparent`. The `bg` in `__PRISM_MANIFEST__` says which it is.
 
 Two things to know before you record baselines this way:
 
@@ -130,7 +132,7 @@ Two things make this work without a change in the runner:
 - **The render marker waits for the state.** `data-prism-rendered` only appears once the forced states are in place on the rendered component, whether the variant forces them or a component state does. A runner that waits on the marker, as every runner on this page does, captures the forced state. With a component state the marker ends in its index (`ButtonComponent:1:0`), and a runner that wants the state waits for that exact value, see [Waiting for a render](guide/external-tooling.md#waiting-for-a-render). Without a state it stays `ButtonComponent:1`.
 - **Capture mode leaves room for the ring.** A focus ring is usually drawn outside the component's box, which `.demo-wrap` hugs. For a capture that forces a state, capture mode pads `.demo-wrap` without moving the component, so the screenshot grows instead of cropping the ring, see [Room for a focus ring](guide/external-tooling.md#room-for-a-focus-ring). A variant captured without a state keeps its box, so no existing baseline moves when you add `pseudo` or `states`. A ring wider than that room (8px) still gets cropped; [the same section](guide/external-tooling.md#room-for-a-focus-ring) says what to do then.
 
-The toggles in the canvas tools menu are session state and are ignored in capture mode: what is captured is what the variant declares, plus the state in the URL. Transitions are frozen in capture mode as well, so the state is captured at its end value and not on its way there.
+The toggles in the canvas tools menu are session state and are ignored in capture mode, and so is what the menu [simulates](guide/styleguide-ui.md#simulate): what is captured is what the variant declares, plus the state in the URL. Transitions are frozen in capture mode as well, so the state is captured at its end value and not on its way there.
 
 `__PRISM_MANIFEST__` reports the forced states per variant ([`pseudo`](guide/external-tooling.md#enumerating-what-exists)) and the component's `states`, for a runner that wants to label, filter or enumerate them.
 

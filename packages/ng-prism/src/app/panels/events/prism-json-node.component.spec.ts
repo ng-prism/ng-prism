@@ -1,4 +1,4 @@
-import { summarizeValue } from './prism-json-node.utils.js';
+import { jsonNodeType, summarizeValue } from './prism-json-node.utils.js';
 
 describe('summarizeValue', () => {
     it('renders a string with quotes', () => {
@@ -51,5 +51,20 @@ describe('summarizeValue', () => {
 
     it('nests object values using summarizeValue recursively', () => {
         expect(summarizeValue({ x: { y: 1 } })).toBe('{x: {y: 1}}');
+    });
+
+    it('shows a Date as its local day, also inside an object or an array', () => {
+        const date = new Date(2026, 3, 28);
+
+        expect(summarizeValue(date)).toBe('2026-04-28');
+        expect(summarizeValue({ at: date })).toBe('{at: 2026-04-28}');
+        expect(summarizeValue([date])).toBe('[2026-04-28]');
+    });
+});
+
+describe('jsonNodeType', () => {
+    it('tells a Date from other objects, so that it shows as a value and not as {}', () => {
+        expect(jsonNodeType(new Date(2026, 3, 28))).toBe('date');
+        expect(jsonNodeType({})).toBe('object');
     });
 });

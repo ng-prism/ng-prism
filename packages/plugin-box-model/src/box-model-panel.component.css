@@ -11,7 +11,7 @@
     overflow: auto;
 }
 
-:host-context(html[data-theme='light']) {
+:host-context(html[data-prism-theme='light']) {
     --prism-bm-margin: #9a5200;
     --prism-bm-border: #7a6300;
     --prism-bm-padding: #15803d;

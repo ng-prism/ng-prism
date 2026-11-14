@@ -3,10 +3,13 @@ import { TestBed } from '@angular/core/testing';
 import type { NgPrismConfig, RuntimeComponent, RuntimeManifest } from '../../plugin/plugin.types.js';
 import { A11yPanelStateService } from '../panels/a11y/a11y-panel-state.service.js';
 import { A11yPerspectiveService } from '../panels/a11y/a11y-perspective.service.js';
+import { DEFAULT_SIMULATION } from '../simulate/simulation.js';
 import { PRISM_CONFIG, PRISM_MANIFEST } from '../tokens/prism-tokens.js';
 import { PrismNavigationService } from './prism-navigation.service.js';
 import { PrismPersistenceService } from './prism-persistence.service.js';
 import { PrismRendererService } from './prism-renderer.service.js';
+import { PrismSimulationService } from './prism-simulation.service.js';
+import { PrismUrlStateService } from './prism-url-state.service.js';
 
 const STORAGE_KEY = 'ng-prism:state';
 
@@ -258,7 +261,8 @@ describe('PrismPersistenceService', () => {
                 JSON.stringify({
                     version: 1,
                     inputs: {},
-                    a11y: { activeTab: 'keyboard', perspective: 'visual' }
+                    a11y: { activeTab: 'keyboard', perspective: 'visual' },
+                    simulation: DEFAULT_SIMULATION
                 })
             );
             const setSpy = jest.spyOn(Storage.prototype, 'setItem');
@@ -346,6 +350,224 @@ describe('PrismPersistenceService', () => {
             const service = setup({ components: [] });
 
             expect(() => service.init()).not.toThrow();
+        });
+    });
+
+    describe('simulation', () => {
+        beforeEach(() => {
+            window.history.replaceState({}, '', '/');
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
+            window.history.replaceState({}, '', '/');
+            document.documentElement.removeAttribute('data-prism-capture');
+            document.getElementById('ng-prism-capture-styles')?.remove();
+        });
+
+        function store(simulation: unknown): void {
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, inputs: {}, simulation }));
+        }
+
+        it('keeps the simulation for the session', () => {
+            jest.useFakeTimers();
+            const service = setup({ components: [] });
+            const sim = TestBed.inject(PrismSimulationService);
+
+            service.init();
+            sim.set({ scheme: 'dark', vision: 'protanopia' });
+            TestBed.inject(ApplicationRef).tick();
+            jest.advanceTimersByTime(250);
+
+            const stored = JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? 'null');
+
+            expect(stored.version).toBe(1);
+            expect(stored.simulation).toEqual({ ...DEFAULT_SIMULATION, scheme: 'dark', vision: 'protanopia' });
+
+            const reloaded = setup({ components: [] });
+
+            reloaded.init();
+
+            expect(TestBed.inject(PrismSimulationService).state()).toEqual({ ...DEFAULT_SIMULATION, scheme: 'dark', vision: 'protanopia' });
+        });
+
+        it('writes it back when it returns to the default', () => {
+            jest.useFakeTimers();
+            store({ ...DEFAULT_SIMULATION, motion: 'reduce' });
+            const service = setup({ components: [] });
+            const sim = TestBed.inject(PrismSimulationService);
+
+            service.init();
+            sim.reset();
+            TestBed.inject(ApplicationRef).tick();
+            jest.advanceTimersByTime(250);
+
+            expect(JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? 'null').simulation).toEqual(DEFAULT_SIMULATION);
+        });
+
+        it('restores it from the session', () => {
+            store({ ...DEFAULT_SIMULATION, forced: 'active' });
+            const service = setup({ components: [] });
+
+            service.init();
+
+            expect(TestBed.inject(PrismSimulationService).state()).toEqual({ ...DEFAULT_SIMULATION, forced: 'active' });
+        });
+
+        it('lets the URL win over the session', () => {
+            window.history.replaceState({}, '', '/?vision=deuteranopia');
+            store({ scheme: 'dark' });
+            const service = setup({ components: [] });
+
+            TestBed.inject(PrismUrlStateService).init();
+            service.init();
+
+            expect(TestBed.inject(PrismSimulationService).state()).toEqual({ ...DEFAULT_SIMULATION, vision: 'deuteranopia' });
+        });
+
+        it('lets a link that names a default win over the session as well', () => {
+            window.history.replaceState({}, '', '/?scheme=system');
+            store({ scheme: 'dark' });
+            const service = setup({ components: [] });
+
+            TestBed.inject(PrismUrlStateService).init();
+            service.init();
+
+            expect(TestBed.inject(PrismSimulationService).state()).toEqual(DEFAULT_SIMULATION);
+        });
+
+        it('writes a change that comes after the first write', () => {
+            jest.useFakeTimers();
+            const service = setup({ components: [] });
+            const sim = TestBed.inject(PrismSimulationService);
+            const appRef = TestBed.inject(ApplicationRef);
+            const stored = (): unknown => JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? 'null')?.simulation;
+
+            service.init();
+            appRef.tick();
+            jest.advanceTimersByTime(250);
+
+            expect(stored()).toEqual(DEFAULT_SIMULATION);
+
+            sim.set({ vision: 'tritanopia' });
+            appRef.tick();
+            jest.advanceTimersByTime(250);
+
+            expect(stored()).toEqual({ ...DEFAULT_SIMULATION, vision: 'tritanopia' });
+        });
+
+        it('restores the session under urlState: false, whatever the query names', () => {
+            // Nothing applies the URL then, so a parameter of the same name that belongs to someone else must not block it.
+            window.history.replaceState({}, '', '/?vision=deuteranopia&motion=reduce');
+            store({ scheme: 'dark' });
+            const service = setup({ components: [] }, { urlState: false });
+
+            service.init();
+
+            expect(TestBed.inject(PrismSimulationService).state()).toEqual({ ...DEFAULT_SIMULATION, scheme: 'dark' });
+        });
+
+        it('restores the session where the URL says nothing about the simulation', () => {
+            window.history.replaceState({}, '', '/?panel=a11y');
+            store({ scheme: 'dark' });
+            const service = setup({ components: [] });
+
+            TestBed.inject(PrismUrlStateService).init();
+            service.init();
+
+            expect(TestBed.inject(PrismSimulationService).state()).toEqual({ ...DEFAULT_SIMULATION, scheme: 'dark' });
+        });
+
+        it('drops what is no setting, field by field', () => {
+            store({ motion: 'reduce', scheme: 'sepia', forced: 7, vision: null });
+            const service = setup({ components: [] });
+
+            service.init();
+
+            expect(TestBed.inject(PrismSimulationService).state()).toEqual({ ...DEFAULT_SIMULATION, motion: 'reduce' });
+        });
+
+        it('leaves the simulation alone when the session has none', () => {
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, inputs: {} }));
+            const service = setup({ components: [] });
+            const sim = TestBed.inject(PrismSimulationService);
+
+            sim.set({ scheme: 'light' });
+            service.init();
+
+            expect(sim.state().scheme).toBe('light');
+        });
+
+        it('does not restore it when persistState is false', () => {
+            store({ scheme: 'dark' });
+            const service = setup({ components: [] }, { persistState: false });
+
+            service.init();
+
+            expect(TestBed.inject(PrismSimulationService).state()).toEqual(DEFAULT_SIMULATION);
+        });
+
+        it('does not restore or write it in capture mode', () => {
+            jest.useFakeTimers();
+            window.history.replaceState({}, '', '/?capture=1');
+            store({ scheme: 'dark' });
+            const setSpy = jest.spyOn(Storage.prototype, 'setItem');
+            const service = setup({ components: [] });
+            const sim = TestBed.inject(PrismSimulationService);
+
+            service.init();
+            sim.set({ motion: 'reduce' });
+            TestBed.inject(ApplicationRef).tick();
+            jest.advanceTimersByTime(250);
+
+            expect(sim.state()).toEqual(DEFAULT_SIMULATION);
+            expect(setSpy).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('Date values', () => {
+        const comp = createComponent({
+            className: 'DateField',
+            inputs: [{ name: 'value', type: 'date', required: false, defaultValue: null }],
+            variants: [{ name: 'A' }]
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
+        it('restores a stored Date as a Date', () => {
+            const date = new Date(2026, 3, 28);
+
+            sessionStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify({ version: 1, inputs: { DateField: { variantIndex: 0, values: { value: { $prismDate: date.getTime() } } } } })
+            );
+            const service = setup({ components: [comp] });
+            const rendererService = TestBed.inject(PrismRendererService);
+
+            TestBed.inject(PrismNavigationService).select(comp);
+            service.init();
+
+            const value = rendererService.inputValues()['value'];
+
+            expect(value).toBeInstanceOf(Date);
+            expect((value as Date).getTime()).toBe(date.getTime());
+        });
+
+        it('writes a Date so that it reads back as one', () => {
+            jest.useFakeTimers();
+            const date = new Date(2026, 3, 28);
+            const service = setup({ components: [comp] });
+            const rendererService = TestBed.inject(PrismRendererService);
+
+            service.init();
+            TestBed.inject(PrismNavigationService).select(comp);
+            rendererService.inputValues.set({ value: date });
+            TestBed.inject(ApplicationRef).tick();
+            jest.advanceTimersByTime(250);
+
+            expect(JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? 'null').inputs.DateField.values).toEqual({ value: { $prismDate: date.getTime() } });
         });
     });
 });

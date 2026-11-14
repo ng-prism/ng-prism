@@ -10,7 +10,16 @@ const CAUSES: Record<UnresolvedReference['kind'], string> = {
     var: 'is declared with var; only const declarations can be read',
     'no-value': 'is declared without a value, as in a .d.ts file or with declare',
     cycle: 'refers back to itself',
-    'runtime-value': 'is a function or class, which only exists at runtime'
+    'runtime-value': 'is a function or class, which only exists at runtime',
+    'current-time': 'is the current time, which differs in every build',
+    'invalid-date': 'is an invalid date'
+};
+const CONSEQUENCES: Record<UnevaluableIssue['reason'], string> = {
+    unsupported: 'cannot be evaluated statically and was dropped',
+    'runtime-value': 'is a runtime value (function, class or instance) and cannot be part of the static manifest; it was dropped',
+    'current-time':
+        'is the current time, which differs in every build and every visual regression run, so it was dropped; write the date out instead, such as new Date(2026, 3, 28)',
+    'invalid-date': 'is an invalid date and was dropped'
 };
 const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
 
@@ -23,11 +32,7 @@ const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
 export function describeUnevaluable(className: string, config: ts.Expression, issue: UnevaluableIssue): string {
     const isRoot = issue.node === config;
     const where = issue.path.length === 0 ? '@Showcase' : formatShowcasePath(issue.path, config);
-    const consequence = isRoot
-        ? 'cannot be evaluated statically, so the component is skipped'
-        : issue.reason === 'runtime-value'
-          ? 'is a runtime value (function, class or instance) and cannot be part of the static manifest; it was dropped'
-          : 'cannot be evaluated statically and was dropped';
+    const consequence = isRoot ? 'cannot be evaluated statically, so the component is skipped' : CONSEQUENCES[issue.reason];
 
     const cause = issue.cause ? `: ${excerpt(issue.cause.node)} ${CAUSES[issue.cause.kind]}` : '';
 

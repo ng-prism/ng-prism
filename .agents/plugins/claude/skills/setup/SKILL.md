@@ -85,6 +85,18 @@ the Node way, without tsconfig `paths`.
 - `a11y`: report path, `thresholds` (grade the header pill, navigation markers and gauges) and `gate` (since 22.7:
   the limits the build fails on; left out it is `thresholds`, `false` never fails, e.g. when CI gates on its own; the
   dev server only warns) for the accessibility audit (`api/ng-prism-config.md`).
+- `colorScheme` (since 22.8): for a library whose theme hangs on a class or an attribute rather than on
+  `prefers-color-scheme`, e.g. `colorScheme: { dark: { class: 'dark' }, light: { attributes: { 'data-mode': 'light' } } }`.
+  While the tools menu's Simulate group emulates the color scheme Light or Dark, the shown component's host and the CDK
+  overlay container get that class and those attributes, so `.dark .btn` and `:host-context(.dark)` follow. A theme
+  keyed on `:root`, `html` or `body` can't be switched this way (it would switch the styleguide too). The attribute
+  names `class`, `style` and `data-prism-sim` are left out with a console warning; avoid `data-theme`, which the
+  styleguide still sets on `<html>` until 23.0. A library that themes through `prefers-color-scheme` needs nothing.
+- `showcaseDefaults: { bg }` (since 22.8): the canvas background of every variant that declares no `bg`, e.g.
+  `showcaseDefaults: { bg: 'light' }` for a library whose components are all designed against a light surface. Without
+  it that is `dots` in the Playground and `transparent` in the Overview, in capture mode and in
+  `window.__PRISM_MANIFEST__`. Only a fallback: a declared `bg`, a pick in the tools menu and a simulated color scheme
+  beat it, and the pill doesn't call it recommended.
 - `strictShowcase` (default `false`): a dropped `@Showcase` value fails the build instead of warning.
 
 `ui`, `appComponent`, `themeStylesheet` and `headless` are in the typings, but nothing has ever read them; they are
@@ -133,14 +145,23 @@ itself. Keep the core and every plugin on the same version: plugins require `@ng
 
 Theme values are CSS custom properties, set inline on `<html>`. The order: built-in tokens, the built-in dark or light
 theme, `darkTheme` / `lightTheme`, then `theme`, which wins in both modes. Dark is the default; the user's choice is
-stored in localStorage (`ng-prism-theme`). The main tokens: `--prism-primary` (text and indicators; overriding it
-alone also recolours the fills `--prism-primary-fill`, `-fill-hover` and `--prism-toggle-on`), `--prism-on-primary`
+stored in localStorage (`ng-prism-theme`) and set on `<html>` as `data-prism-theme="dark|light"` (since 22.8; the old
+`data-theme` is deprecated, removed in 23.0): key styles of a component page or a plugin panel on `data-prism-theme`.
+The main tokens: `--prism-primary` (text and indicators; overriding it alone also recolours the fills
+`--prism-primary-fill`, `-fill-hover` and `--prism-toggle-on`), `--prism-on-primary`
 (text on a fill; set it with a light primary of your own), `--prism-accent`, `--prism-bg`, `--prism-bg-surface`,
 `--prism-bg-elevated`, `--prism-text`, `--prism-text-muted`, `--prism-border`, `--prism-success`, `--prism-warn`,
 `--prism-danger`, `--prism-font-sans`, `--prism-font-mono`. The header is a navy brand band in both modes and renders
 with the dark set, `darkTheme` included; a custom `title` replaces the wordmark and is shown in neutral text.
 `--prism-brand-motion` (default `24s`) is the cycle of the header's slow brand light (glow swell, then a light along
 the top edge); `'none'` in `theme` holds it still, and `prefers-reduced-motion` always does.
+The canvas grounds `light`, `dark` and `transparent` do not follow the theme: `--prism-void-light` and
+`--prism-void-dark` are fixed (`transparent` draws its checkerboard from the light one), and `--prism-void-light-text`
+and `--prism-void-dark-text` are the text a component inherits on them.
+`--prism-void-{light,dark}-{measure,overlay-bg,overlay-fg,overlay-muted,overlay-border,overlay-primary}` colour the
+measurement and the overlays (tool rail, pills, rulers) on a ground. The defaults suit a near-black dark ground; a
+mid-tone `--prism-void-dark` must at least change `--prism-void-dark-measure`, which fails on it. Floors and a worked
+example: `guide/theming.md#base-tokens-theme-independent`.
 Deprecated since 22.7 (removed in 23.0): `--prism-primary-from`, `--prism-primary-to`, `--prism-spectrum` and
 `--prism-mark-nominal|attention|critical` (aliases of success, warn and danger; an override still carries over, with a
 console warning). Don't suggest them in new config.
@@ -171,6 +192,18 @@ In Nx, a target with `"command": "npx ng-prism-strip dist/<path>"` and `"depends
   `--prism-primary-fill`, the `--prism-mark-*`, `--prism-spectrum` and `--prism-primary-from/-to` tokens are deprecated
   (the build names any override of them), and `PanelBadge.variant` gives way to `kind`. See
   `guide/upgrade-notes-22.md#upgrading-to-2270`.
+- 22.8.0 changes nothing in a config. A component on `light`, `dark` or `transparent` now inherits the text colour of
+  its ground (`--prism-void-light-text`, `--prism-void-dark-text`) in both themes, so an icon in `currentColor` changes
+  with it: record the baselines of the affected variants again, those without a `bg` included (a capture resolves them
+  to `transparent`). A colour workaround on `.demo-wrap` or `.cell__mount` in a global stylesheet no longer takes
+  effect: delete it, or move its colour to those two tokens. A `@Showcase` that declares `bg: 'checker'` has to
+  change: the value is removed and the build drops it with a warning. `ng update @ng-prism/core` rewrites it to
+  `'transparent'` (a checkerboard that is light in both themes and see-through in a capture) on the class and its
+  inline variants, and a visual regression baseline taken on `checker` needs recording again. `data-theme` on `<html>`
+  is deprecated: replace it with `data-prism-theme` in the styleguide app's own styles and scripts (an attribute can't
+  warn, so search for it). The tools menu's first group is called Background now and its button
+  `Background, state, zoom, width and simulate`, which matters only to end-to-end tests that find them by name. See
+  `guide/upgrade-notes-22.md#upgrading-to-2280`.
 - Update the core and all plugins in one call: `ng update @ng-prism/core @ng-prism/plugin-jsdoc …`.
 - The migrations to v22 (manifest moved to `ng-prism-cache/`, `.ng-prism/` renamed) read `angular.json` only; in an Nx
   workspace apply them by hand following `guide/migration-v22.md`. They need Angular CLI 22 and a Node version it
@@ -180,4 +213,5 @@ In Nx, a target with `"command": "npx ng-prism-strip dist/<path>"` and `"depends
 
 - `guide/installation.md`, `guide/configuration.md`, `api/ng-prism-config.md`, `api/builders.md`
 - `plugins/overview.md` and one page per plugin (`plugins/jsdoc.md`, `plugins/figma.md`, …)
-- `guide/theming.md`, `guide/library-publishing.md`, `guide/upgrade-notes-22.md`, `guide/migration-v22.md`
+- `guide/theming.md`, `guide/styleguide-ui.md#simulate` (what `colorScheme` serves), `guide/library-publishing.md`,
+  `guide/upgrade-notes-22.md`, `guide/migration-v22.md`

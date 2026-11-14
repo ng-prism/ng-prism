@@ -24,6 +24,7 @@ import { CANVAS_BG_STYLES } from '../canvas/canvas-bg.styles.js';
 import { PrismCanvasBgPillComponent } from '../canvas/prism-canvas-bg-pill.component.js';
 import { PrismCanvasMeasureComponent } from '../canvas/prism-canvas-measure.component.js';
 import { PrismCanvasRulersComponent } from '../canvas/prism-canvas-rulers.component.js';
+import { PrismSimPillComponent } from '../canvas/prism-sim-pill.component.js';
 import { snapViewportWidth } from '../canvas/viewport-snap.js';
 import { PrismResizerDirective } from '../directives/prism-resizer.directive.js';
 import { BUILTIN_PANELS } from '../panels/builtin-panels.js';
@@ -38,10 +39,15 @@ import { PrismPanelService } from '../services/prism-panel.service.js';
 import { PrismPluginService } from '../services/prism-plugin.service.js';
 import { PrismPseudoStateService } from '../services/prism-pseudo-state.service.js';
 import { PrismRendererService } from '../services/prism-renderer.service.js';
+import { PrismSimulationService } from '../services/prism-simulation.service.js';
 import { PrismVariantBgService } from '../services/prism-variant-bg.service.js';
+import { pinGroundLayer } from '../simulate/ground-layer.js';
+import { groundSimulation } from '../simulate/ground.js';
+import { keepScopeRoot } from '../simulate/keep-scope-root.js';
 import { PRISM_RENDERER_HOOKS } from '../tokens/prism-tokens.js';
 import { activeCase, type RenderSignature, renderSignature, renderTypeFor, sameRender } from './composition.js';
 import { buildInputBindings, unboundInputs } from './input-bindings.js';
+import { modelChangeSources } from './model-changes.js';
 import { resolveOverlay } from './overlay-resolver.js';
 import { parseContentToNodes } from './projectable-content.js';
 import { resolveExcludedReason, resolveRenderedKey } from './rendered-key.js';
@@ -50,7 +56,7 @@ import { resolveExcludedReason, resolveRenderedKey } from './rendered-key.js';
     selector: 'prism-renderer',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [PrismCanvasRulersComponent, PrismCanvasBgPillComponent, PrismCanvasMeasureComponent, NgComponentOutlet, PrismResizerDirective],
+    imports: [PrismCanvasRulersComponent, PrismCanvasBgPillComponent, PrismSimPillComponent, PrismCanvasMeasureComponent, NgComponentOutlet, PrismResizerDirective],
     templateUrl: './prism-renderer.component.html',
     styleUrl: './prism-renderer.component.css',
     styles: [CANVAS_BG_STYLES]
@@ -61,6 +67,7 @@ export class PrismRendererComponent {
     protected readonly canvasService = inject(PrismCanvasService);
     protected readonly capture = inject(PrismCaptureService);
     protected readonly variantBg = inject(PrismVariantBgService);
+    private readonly simulation = inject(PrismSimulationService);
     private readonly pseudoState = inject(PrismPseudoStateService);
     private readonly mobileLayout = inject(PrismMobileLayoutService);
 
@@ -88,6 +95,11 @@ export class PrismRendererComponent {
      * component there is meant to meet the device's own width.
      */
     protected readonly viewportWidth = computed(() => (this.capture.active() || !this.desktopTools() ? null : this.canvasService.viewportWidth()));
+
+    /** How the simulation paints the stage's ground; nothing while nothing is simulated, so capture mode never sees it. */
+    protected readonly ground = computed(() => groundSimulation(this.simulation.scopeRoot(), this.simulation.forcedPalette()));
+    /** Whether the stage draws the vision ground layer; a switch between two settings keeps it. */
+    private readonly visionGround = computed(() => this.ground().vision !== null);
 
     protected readonly VIEWPORT_MIN = VIEWPORT_MIN;
     protected readonly VIEWPORT_MAX = VIEWPORT_MAX;
@@ -120,6 +132,8 @@ export class PrismRendererComponent {
     private readonly outlet = viewChild.required('outlet', {
         read: ViewContainerRef
     });
+    private readonly stage = viewChild.required<ElementRef<HTMLElement>>('stage');
+    private readonly demoWrap = viewChild.required<ElementRef<HTMLElement>>('demoWrap');
     private componentRef: ComponentRef<unknown> | null = null;
     private outputSubscriptions: Array<{ unsubscribe(): void }> = [];
     /** What the instance on the canvas renders, `null` without one: a variant switch to another render creates a new instance. */
@@ -255,6 +269,19 @@ export class PrismRendererComponent {
             untracked(() => this.pseudoMarker.apply(element, base, state));
         });
 
+        // The shown component is the scope root of the simulation in the Playground.
+        keepScopeRoot(this.rendererService.renderedElement);
+
+        // The vision ground layer stays over the scrolled-to part of the stage, as long as it is drawn.
+        effect((onCleanup) => {
+            if (!this.visionGround()) return;
+
+            const stage = this.stage().nativeElement;
+            const content = this.demoWrap().nativeElement;
+
+            onCleanup(untracked(() => pinGroundLayer(stage, content)));
+        });
+
         // What the layers and the toggles of the tools menu depend on. Written from the marker alone and never
         // read back here: `null` whenever no state layer is applied, so the fit of the previous state cannot linger.
         effect(() => {
@@ -322,18 +349,18 @@ export class PrismRendererComponent {
             projectableNodes
         });
 
+        const instance = this.componentRef.instance as Record<string, unknown>;
+
         for (const output of comp.meta.outputs) {
-            const emitter = (this.componentRef.instance as Record<string, unknown>)[output.name];
-
-            if (emitter && typeof (emitter as { subscribe?: unknown }).subscribe === 'function') {
-                const sub = (
-                    emitter as {
-                        subscribe(fn: (v: unknown) => void): { unsubscribe(): void };
-                    }
-                ).subscribe((v: unknown) => this.eventLogService.log(output.name, v));
-
-                this.outputSubscriptions.push(sub);
-            }
+            this.subscribeTo(instance[output.name], (v) => this.eventLogService.log(output.name, v));
+        }
+        // A `model()` the component changes itself: the change is an event, and the control follows the value. No loop:
+        // the model emits only for `set` and `update`, never for `setInput`.
+        for (const source of modelChangeSources(comp, variantIndex)) {
+            this.subscribeTo(instance[source.member], (v) => {
+                this.eventLogService.log(source.event, v);
+                this.rendererService.updateInput(source.input, v);
+            });
         }
 
         if (composed) this.componentRef.setInput(PRISM_VARIANT_INPUT, variantIndex);
@@ -364,6 +391,13 @@ export class PrismRendererComponent {
             } else if (!unbound.has(key)) {
                 console.warn(`[ng-prism] Unknown input "${key}" on <${comp.meta.componentMeta.selector}>, skipping. Remove it from @Showcase variants.`);
             }
+        }
+    }
+
+    /** Subscribes `next` to `emitter` when it is an output or a model signal, until the next render cleans up. */
+    private subscribeTo(emitter: unknown, next: (v: unknown) => void): void {
+        if (emitter && typeof (emitter as { subscribe?: unknown }).subscribe === 'function') {
+            this.outputSubscriptions.push((emitter as { subscribe(fn: (v: unknown) => void): { unsubscribe(): void } }).subscribe(next));
         }
     }
 

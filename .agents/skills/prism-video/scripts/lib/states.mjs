@@ -9,11 +9,12 @@ export const rescope = (css, scope) => (scope === 'ngp' ? css : css.replace(/\.n
 // A lookbehind, not a group: a group would swallow the `;` the next declaration needs, and keep it.
 export const still = (css) => css.replace(/(?<=^|[;{\s])(transition|animation)(-[a-z-]+)?\s*:[^;}]*;?/g, '');
 
-// Several windows share one film: prefix every id and every reference to one.
+// Several windows share one film: prefix every id and every reference to one. A url() may be quoted, and in an inline
+// style the quotes are &quot; (the styleguide writes its vision filters that way).
 export const prefixIds = (html, wid) =>
     html
         .replace(/ id="([^"]+)"/g, ` id="${wid}-$1"`)
-        .replace(/url\(#([^)]+)\)/g, `url(#${wid}-$1)`)
+        .replace(/url\((&quot;|["']?)#([^)"'&]+)\1\)/g, `url($1#${wid}-$2$1)`)
         .replace(/href="#([^"]+)"/g, `href="#${wid}-$1"`);
 
 // `film` carries `builds` ({ <build>: { scope, css } }) and `liftDir(build)`; `ref` is 'build/state'.

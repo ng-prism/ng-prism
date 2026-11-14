@@ -1,4 +1,4 @@
-import type { CanvasBg } from '@ng-prism/core/plugin';
+import { type CanvasBg, checkerboardStyle } from '@ng-prism/core/plugin';
 import type { VrtVariantResult } from './visual-regression.types.js';
 
 /**
@@ -21,14 +21,22 @@ const SURFACE: Partial<Record<CanvasBg, string>> = {
  * and through a `transparent` capture, so it decides whether those images are
  * readable.
  *
- * Only `light` and `dark` produce a colour; everything else keeps the
- * checkerboard. `dots`, `plain` and `checker` paint `--prism-bg-surface`, a
- * *theme* token, and the panel cannot know which theme the runner's browser
- * used. A `transparent` capture has a real alpha channel, which the
- * checkerboard shows. A report without a background is treated the same way.
+ * `light` and `dark` paint their flat surface. `transparent` gets the canvas's
+ * fixed light checkerboard, and so does a report without a background (absent,
+ * `null` or empty, since the report is JSON the runner wrote): a `transparent`
+ * capture has a real alpha channel and inherits dark text from the canvas, which
+ * would sit on navy on the theme checkerboard in the dark theme.
+ * Everything else keeps the panel's theme checkerboard (an empty result).
+ * `dots` and `plain` paint `--prism-bg-surface`, a *theme* token, and the panel
+ * cannot know which theme the runner's browser used. A report from before
+ * 22.8.0 can still say `checker`, which the type no longer has, and is treated
+ * the same way.
  */
 export function shotSurfaceStyle(bg: CanvasBg | undefined): Record<string, string> {
-    const surface = bg ? SURFACE[bg] : undefined;
+    // Size and position come from `.vrt-cmp__shot`: a 12px grid here, 16px on the canvas.
+    if (!bg || bg === 'transparent') return checkerboardStyle();
+
+    const surface = SURFACE[bg];
 
     if (!surface) return {};
     return { 'background-color': surface, 'background-image': 'none' };

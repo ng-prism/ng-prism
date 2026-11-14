@@ -10,18 +10,39 @@ import { PrismMobileLayoutService } from '../services/prism-mobile-layout.servic
 import { PrismNavigationService } from '../services/prism-navigation.service.js';
 import { PrismPseudoStateService } from '../services/prism-pseudo-state.service.js';
 import { PrismRendererService } from '../services/prism-renderer.service.js';
+import { PrismSimulationService } from '../services/prism-simulation.service.js';
 import { PrismVariantBgService } from '../services/prism-variant-bg.service.js';
 import { PrismIconButtonComponent } from '../shared/prism-icon-button.component.js';
+import { FORCED_SETTINGS, type ForcedSetting, MOTION_SETTINGS, SCHEME_SETTINGS, VISION_SETTINGS } from '../simulate/simulation.js';
+import { visionFilter } from '../simulate/vision-filters.js';
+import { CANVAS_BG_STYLES } from './canvas-bg.styles.js';
 import { railToggleTitle, TOOLS_LABEL, toolsTitle, zoomTitle } from './canvas-overlay-tokens.js';
 import { buildStateChips, chipFits, type PseudoSource, type StateChip, toggleTitle } from './state-chips.js';
+
+/** What each pseudo state's chip shows in front of its name: the pointer, the pointer pressing, the focus frame, the keyboard, a dashed frame for the element round the focus. */
+const STATE_ICONS: Record<PseudoState, string> = {
+    hover: 'mouse-pointer',
+    active: 'mouse-pointer-click',
+    focus: 'scan',
+    'focus-visible': 'keyboard',
+    'focus-within': 'box-select'
+};
+
+/** The bar over the widest preset, 1024. The others scale down from it, to no less than 6px so 320 still reads as a bar. */
+const WIDTH_BAR_MAX = 30;
+const WIDTH_BAR_MIN = 6;
+
+/** Forced colors are approximated, the browser has no switch for them; the tooltip says so and where the real mode is. */
+const FORCED_ACTIVE_TITLE = 'Forced colors (approx.). The exact mode: Chrome DevTools › Rendering › Emulate CSS media feature forced-colors';
 
 /**
  * The canvas tools, as a rail floating over the canvas.
  *
  * Things you toggle constantly (guides, rulers, the viewport constraint) get
  * their own button; things you set once (background, forced state, zoom,
- * viewport width) live in the menu. The template is a view rather than a setting and keeps its own
- * button. Zoom is shown as a readout, with the viewport width in its tooltip.
+ * viewport width, the simulated environment) live in the menu. The template
+ * is a view rather than a setting and keeps its own button. Zoom is shown as
+ * a readout, with the viewport width in its tooltip.
  *
  * The host generates no box. The rail must be a direct child of
  * `.prism-canvas-wrap` outside the stage, because that is what capture mode's
@@ -35,7 +56,9 @@ import { buildStateChips, chipFits, type PseudoSource, type StateChip, toggleTit
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [PrismIconComponent, PrismIconButtonComponent],
     templateUrl: './prism-canvas-toolbar.component.html',
-    styleUrl: './prism-canvas-toolbar.component.css'
+    styleUrl: './prism-canvas-toolbar.component.css',
+    // The background swatches carry data-bg like the stage, so the stage's own rules paint them. Last, see CANVAS_BG_STYLES.
+    styles: [CANVAS_BG_STYLES]
 })
 export class PrismCanvasToolbarComponent {
     protected readonly canvas = inject(PrismCanvasService);
@@ -44,17 +67,22 @@ export class PrismCanvasToolbarComponent {
     private readonly navigation = inject(PrismNavigationService);
     private readonly renderer = inject(PrismRendererService);
     protected readonly mobileLayout = inject(PrismMobileLayoutService);
+    protected readonly sim = inject(PrismSimulationService);
 
     /**
      * The pseudo states the canvas can force, as toggles. Several can be on at
      * once (`:hover` with `:focus-visible`). The active ones carry `is-on`, the
      * ones the variant or the active state declares the `is-rec` edge, as in the
-     * Canvas group.
+     * Background group.
      */
     protected readonly states = PSEUDO_STATES;
 
     protected stateTitle(state: PseudoState): string {
         return toggleTitle(state, this.declaredBy(state));
+    }
+
+    protected stateIcon(state: PseudoState): string {
+        return STATE_ICONS[state];
     }
 
     /** The variant first. Otherwise the active state, which {@link PrismPseudoStateService.isDeclared} only counts while it fits. */
@@ -116,13 +144,14 @@ export class PrismCanvasToolbarComponent {
     private readonly toggled = computed(() => Object.keys(this.pseudoState.override()).length > 0);
 
     /**
-     * Whether the menu holds something on top of the variant: an active state,
-     * or a pseudo state toggled on or off. Marked on the trigger, so it shows
-     * with the menu closed; both go with the next variant.
+     * Whether the menu holds something that changes what the canvas shows: an
+     * active state, a pseudo state toggled on or off, or a simulation. Marked
+     * on the trigger, so it shows with the menu closed. The state and the
+     * toggles go with the next variant, the simulation stays.
      */
-    protected readonly toolsSet = computed(() => this.pseudoState.activeState() !== null || this.toggled());
+    protected readonly toolsSet = computed(() => this.pseudoState.activeState() !== null || this.toggled() || this.sim.active());
 
-    protected readonly toolsTitle = computed(() => toolsTitle(this.pseudoState.activeState()?.name ?? null, this.toggled()));
+    protected readonly toolsTitle = computed(() => toolsTitle(this.pseudoState.activeState()?.name ?? null, this.toggled(), this.sim.active()));
 
     /** Angular templates resolve names against the component, not the global scope. */
     protected readonly Math = Math;
@@ -148,9 +177,8 @@ export class PrismCanvasToolbarComponent {
      * recommended one carries the `is-rec` edge. A value missing from the list
      * cannot be shown, so a variant declaring it would leave nothing active.
      *
-     * `checker` and `transparent` paint the same checkerboard here, so their
-     * titles explain the difference, which only a capture shows. `checker` is
-     * deprecated but stays until 23.0.0 because components can still declare it.
+     * `transparent` paints a checkerboard here, so its title says what only a
+     * capture shows: the alpha channel.
      */
     protected readonly bgs = CANVAS_BGS;
 
@@ -160,7 +188,7 @@ export class PrismCanvasToolbarComponent {
      * Bound with `[attr.title]`, never `[title]`. A property binding assigns to
      * `HTMLElement.title`, a non-nullable DOMString, so the `null` below would
      * be stringified and every unremarkable button would carry a tooltip
-     * reading "null" (four of the six in the common case).
+     * reading "null" (four of the five in the common case).
      */
     protected bgTitle(bg: CanvasBg): string | null {
         if (this.variantBg.recommended() === bg) {
@@ -168,9 +196,6 @@ export class PrismCanvasToolbarComponent {
         }
         if (bg === 'transparent') {
             return 'Checkerboard here, a real alpha channel in a capture';
-        }
-        if (bg === 'checker') {
-            return 'Deprecated: same look as Transparent, but a capture keeps the themed colour';
         }
         return null;
     }
@@ -186,8 +211,32 @@ export class PrismCanvasToolbarComponent {
      *
      * Plain numbers and no device names: this tool narrows a box and simulates
      * nothing, so calling 390 "iPhone" would promise a fidelity it does not have.
+     * A bar over each number shows the width instead, to scale.
      */
     protected readonly viewports = VIEWPORT_SNAPS;
+
+    /** The length of the bar over `width`, in px. */
+    protected widthBar(width: number): number {
+        return Math.max(WIDTH_BAR_MIN, Math.round((width / 1024) * WIDTH_BAR_MAX));
+    }
+
+    /**
+     * The Simulate rows, from the lists that also validate the URL and the
+     * session, so a setting cannot be restorable without being shown. Each
+     * label is its value, capitalized.
+     */
+    protected readonly motions = MOTION_SETTINGS;
+    protected readonly schemes = SCHEME_SETTINGS;
+    protected readonly forceds = FORCED_SETTINGS;
+    protected readonly visions = VISION_SETTINGS;
+
+    /** The filter the stage gets, for the colour stripe of each Vision tile. */
+    protected readonly visionFilter = visionFilter;
+
+    /** Bound with `[attr.title]`, see {@link bgTitle}. */
+    protected forcedTitle(forced: ForcedSetting): string | null {
+        return forced === 'active' ? FORCED_ACTIVE_TITLE : null;
+    }
 
     protected capitalize(s: string): string {
         return s.charAt(0).toUpperCase() + s.slice(1);

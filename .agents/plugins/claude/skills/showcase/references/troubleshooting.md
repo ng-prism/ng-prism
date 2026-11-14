@@ -15,14 +15,20 @@ These count for `strictShowcase: true`, which ends the build with
 - **`… cannot be evaluated statically, so the component is skipped`**: the argument of `@Showcase(…)` as a whole isn't
   an object literal the builder can read, e.g. `@Showcase(makeConfig())`. Write the object literally.
 - **`… is a runtime value (function, class or instance) and cannot be part of the static manifest; it was dropped`**: a
-  function, class, `new …` or object method in the config. Remove it; behaviour that needs code belongs in a component
-  page.
+  function, class, `new …` (other than `new Date(…)`) or object method in the config. Remove it; behaviour that needs
+  code belongs in a component page.
+- **`… is the current time, which differs in every build and every visual regression run, so it was dropped; …`**: a
+  `new Date()` without arguments. Write the date out, `new Date(2026, 3, 28)` for a day at local midnight.
+- **`… is an invalid date and was dropped`**: the arguments of a `new Date(…)` make no valid date. Fix them.
 - The dropped-value lines can end with the reason a constant couldn't be read:
     - **`… is declared with let; only const declarations can be read`** (or `var`): make it `const`.
     - **`… is declared without a value, as in a .d.ts file or with declare`**: a `declare`d value, or a constant from a
       compiled package that isn't a plain literal there. Use a local `const` or the literal.
     - **`… refers back to itself`**: a circular constant. Break the cycle.
     - **`… is a function or class, which only exists at runtime`**: use a value, not a function or class.
+    - **`: new Date() is the current time, which differs in every build`**: the constant holds `new Date()`. Write the
+      date out.
+    - **`: new Date(…) is an invalid date`**: the constant holds a `new Date(…)` whose arguments make no date.
 - **`<Class> declares @Showcase providers (…), which are deprecated and will be removed in 23.0.0; …`**: move them to
   `defineConfig({ appProviders })` in `ng-prism.config.ts`, or use a component page.
 - **`<Class> has @Showcase without a "title" field, skipping. …`**: add a `title`.
@@ -30,6 +36,9 @@ These count for `strictShowcase: true`, which ends the build with
   listed value.
 - **`<Class> declares invalid bg "<value>", expected one of: …. Skipping.`**, also per variant as
   `<Class> variant "<name>" declares invalid bg …`: use `dots`, `plain`, `light`, `dark` or `transparent`.
+- **`<Class> declares bg "checker", which was removed in 22.8.0; use 'transparent' (a checkerboard while browsing, light in both themes, see-through in a capture), or run ng update @ng-prism/core to rewrite it. Skipping.`**,
+  also per variant: `checker` is no longer a background and the `bg` is dropped. Use `transparent` (a checkerboard,
+  light in both themes, and a capture without a colour) or `light` / `dark` for an absolute colour.
 - **`<Class> declares invalid canvasLayout "<value>", …`**, also per variant: use `fit` or `stretch`.
 - **`<Class> variant "<name>" declares invalid pseudo <json>, expected an object mapping pseudo states to true or selectors. Skipping.`**:
   write `pseudo: { hover: true }` or `pseudo: { hover: '.btn' }`.
@@ -221,7 +230,6 @@ out`): the scanner failed on the class and skipped it, so that the rest of the l
 - **`<Class>: no part of the selector "<selector>" fits the host <tag>, so only its first attribute is set.`**: the host
   element isn't one the directive's selector names, so the directive may not match. Use a host that fits the selector.
 
-- **`<Class> declares bg "checker", which is deprecated and will be removed in 23.0.0; use 'transparent' for the same look with a capture that keeps its alpha, or 'light'/'dark' for an absolute colour.`**
 - **`<Class> uses @Input() decorators which are not fully supported. …`** or
   **`<Class> inherits @Input() decorators from <Base>, …`**: migrate the inputs to `input()` / `model()`.
 - **`<Class> inherits <inputs> from <Base>, which only exists as a declaration (…); without its source these inputs cannot be read, …`**:

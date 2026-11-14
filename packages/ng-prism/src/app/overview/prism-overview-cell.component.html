@@ -1,7 +1,12 @@
 <div
     class="cell__stage"
     [attr.data-bg]="unfitReason() === null ? bg() : null"
-    [attr.data-unfit]="unfitReason() === null ? null : ''">
+    [attr.data-unfit]="unfitReason() === null ? null : ''"
+    [attr.data-sim-forced]="ground().forced"
+    [attr.data-sim-vision]="ground().vision"
+    [style.--prism-sim-filter]="ground().filter"
+    [style.color-scheme]="ground().colorScheme"
+    [style.--prism-sim-canvas]="ground().canvas">
     <div class="cell__mount"><ng-container #outlet /></div>
     @if (unfitReason() !== null) {
         <span

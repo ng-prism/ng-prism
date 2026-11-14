@@ -1,20 +1,12 @@
 import { NgComponentOutlet } from '@angular/common';
 import { Component, computed, input, signal, Type } from '@angular/core';
-import { summarizeValue } from './prism-json-node.utils.js';
+import { formatDateValue } from '../../../shared/date-value.js';
+import { jsonNodeType, summarizeValue } from './prism-json-node.utils.js';
 
 const MAX_DEPTH = 10;
 const MAX_ENTRIES = 50;
 
 export { summarizeValue } from './prism-json-node.utils.js';
-
-type JsonNodeType = 'string' | 'number' | 'boolean' | 'null' | 'undefined' | 'object' | 'array';
-
-function getType(val: unknown): JsonNodeType {
-    if (val === null) return 'null';
-    if (val === undefined) return 'undefined';
-    if (Array.isArray(val)) return 'array';
-    return typeof val as JsonNodeType;
-}
 
 @Component({
     selector: 'prism-json-node',
@@ -30,7 +22,12 @@ export class PrismJsonNodeComponent {
     protected readonly maxDepth = MAX_DEPTH;
     protected readonly self: Type<PrismJsonNodeComponent> = PrismJsonNodeComponent;
 
-    protected readonly type = computed(() => getType(this.value()));
+    protected readonly type = computed(() => jsonNodeType(this.value()));
+    protected readonly dateText = computed(() => {
+        const value = this.value();
+
+        return value instanceof Date ? formatDateValue(value) : '';
+    });
     protected readonly expanded = signal(false);
 
     protected readonly entries = computed<{ key: string; value: unknown }[]>(() => {

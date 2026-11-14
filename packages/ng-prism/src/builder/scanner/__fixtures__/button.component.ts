@@ -9,10 +9,10 @@ export interface ShowcaseConfig {
         inputs?: Record<string, unknown>;
         description?: string;
         meta?: Record<string, unknown>;
-        bg?: 'dots' | 'plain' | 'light' | 'dark' | 'checker' | 'transparent';
+        bg?: 'dots' | 'plain' | 'light' | 'dark' | 'transparent';
     }[];
     tags?: string[];
-    bg?: 'dots' | 'plain' | 'light' | 'dark' | 'checker' | 'transparent';
+    bg?: 'dots' | 'plain' | 'light' | 'dark' | 'transparent';
     status?: 'stable' | 'beta' | 'wip' | 'deprecated' | string;
 }
 

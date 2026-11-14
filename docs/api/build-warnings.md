@@ -95,6 +95,8 @@ Diagnostic · `builder/scanner/showcase-diagnostics.ts`
     - `: <name> is declared without a value, as in a .d.ts file or with declare`
     - `: <name> refers back to itself`
     - `: <name> is a function or class, which only exists at runtime`
+    - `: new Date() is the current time, which differs in every build`, for a constant that holds `new Date()`
+    - `: new Date(…) is an invalid date`, for a constant that holds one
 - **Fix:** write the value out, such as `maxFileSize: 5 * 1024 * 1024` instead of `megabytes(5)`, or keep it in a `const` built from literals, enum members and arithmetic.
 
 ### A runtime value
@@ -105,8 +107,30 @@ Diagnostic · `builder/scanner/showcase-diagnostics.ts`
 
 Diagnostic · `builder/scanner/showcase-diagnostics.ts`
 
-- **Cause:** an arrow function, a function or class expression, a `new …` or a method in an object literal. The manifest is static data and cannot hold it.
+- **Cause:** an arrow function, a function or class expression, a `new …` other than a `new Date(…)`, or a method in an object literal. The manifest is static data and cannot hold it.
 - **Fix:** remove it. A demo that needs code renders through a [component page](guide/component-pages.md); `setup` on a service or a pipe is the one function the scan reads, see [`setup`](api/showcase-config.md#setup).
+
+### The current time
+
+```
+⚠ ng-prism: <Class> › <path> — "new Date()" (<file>:<line>:<col>) is the current time, which differs in every build and every visual regression run, so it was dropped; write the date out instead, such as new Date(2026, 3, 28).
+```
+
+Diagnostic · `builder/scanner/showcase-diagnostics.ts`
+
+- **Cause:** `new Date()` without arguments (since 22.8.0). A variant would show a different moment in every build, and a visual regression baseline would never match.
+- **Fix:** write the date out, see [Dates](guide/variants.md#dates).
+
+### An invalid date
+
+```
+⚠ ng-prism: <Class> › <path> — "<source>" (<file>:<line>:<col>) is an invalid date and was dropped.
+```
+
+Diagnostic · `builder/scanner/showcase-diagnostics.ts`
+
+- **Cause:** the arguments of a `new Date(…)` make no valid date, such as `new Date('soon')` (since 22.8.0).
+- **Fix:** write a date the `Date` constructor reads, such as `new Date('2026-04-28')` or `new Date(2026, 3, 28)`.
 
 ### An argument that cannot be evaluated
 
@@ -155,26 +179,26 @@ Diagnostic · `builder/scanner/component.scanner.ts`
 ### An invalid background
 
 ```
-⚠ ng-prism: <Class> declares invalid bg "<value>", expected one of: dots, plain, light, dark, checker, transparent. Skipping.
-⚠ ng-prism: <Class> variant "<name>" declares invalid bg "<value>", expected one of: dots, plain, light, dark, checker, transparent. Skipping.
+⚠ ng-prism: <Class> declares invalid bg "<value>", expected one of: dots, plain, light, dark, transparent. Skipping.
+⚠ ng-prism: <Class> variant "<name>" declares invalid bg "<value>", expected one of: dots, plain, light, dark, transparent. Skipping.
 ```
 
 Diagnostic · `builder/scanner/component.scanner.ts`
 
-- **Cause:** [`bg`](api/showcase-config.md#bg) of the class or of a variant is none of the six values.
+- **Cause:** [`bg`](api/showcase-config.md#bg) of the class or of a variant is none of the five values.
 - **Fix:** use `dots`, `plain`, `light`, `dark` or `transparent`.
 
-### The checker background
+### A removed checker background
 
 ```
-⚠ ng-prism: <Class> declares bg "checker", which is deprecated and will be removed in 23.0.0; use 'transparent' for the same look with a capture that keeps its alpha, or 'light'/'dark' for an absolute colour.
-⚠ ng-prism: <Class> variant "<name>" declares bg "checker", which is deprecated and will be removed in 23.0.0; use 'transparent' for the same look with a capture that keeps its alpha, or 'light'/'dark' for an absolute colour.
+⚠ ng-prism: <Class> declares bg "checker", which was removed in 22.8.0; use 'transparent' (a checkerboard while browsing, light in both themes, see-through in a capture), or run ng update @ng-prism/core to rewrite it. Skipping.
+⚠ ng-prism: <Class> variant "<name>" declares bg "checker", which was removed in 22.8.0; use 'transparent' (a checkerboard while browsing, light in both themes, see-through in a capture), or run ng update @ng-prism/core to rewrite it. Skipping.
 ```
 
-Notice · `builder/scanner/component.scanner.ts`
+Diagnostic · `builder/scanner/component.scanner.ts`
 
-- **Cause:** `bg: 'checker'`, deprecated since 22.2.0, removed in 23.0.0, see [`bg`](api/showcase-config.md#bg). The value still works.
-- **Fix:** use `'transparent'`, or `'light'` or `'dark'` for an absolute colour.
+- **Cause:** `bg: 'checker'` on the class or on a variant. `checker` is not a [`CanvasBg`](api/types.md#canvasbg) any more, see [Upgrading to 22.8.0](guide/upgrade-notes-22.md#upgrading-to-2280). The scan drops the `bg`, so the class or the variant behaves as if it declared none.
+- **Fix:** use `'transparent'` for a checkerboard (light in both themes, see-through in a capture), or `'light'` or `'dark'` for an absolute colour, see [`bg`](api/showcase-config.md#bg).
 
 ### An invalid canvas layout
 

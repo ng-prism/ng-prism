@@ -1,4 +1,5 @@
 import type { InputMeta, RuntimePart } from '../../plugin/plugin.types.js';
+import { formatDefaultValue } from '../../shared/default-value.js';
 import { modelChangeOutput } from '../../shared/model-outputs.js';
 import { partKeys } from '../../shared/part-keys.js';
 import { type StatusBadge, statusBadge } from './status-badge.js';
@@ -34,16 +35,15 @@ export interface PartChip {
 
 /**
  * The default of an input as it is written in a template: a string in single
- * quotes, its quotes and backslashes escaped, anything else as JSON. `undefined`
- * for an input that starts out without one, and `…` for one that has a default
- * the scan could not evaluate.
+ * quotes, its quotes and backslashes escaped, a `Date` as its day, anything else
+ * as JSON. `undefined` for an input that starts out without one, and `…` for one
+ * that has a default the scan could not evaluate.
  */
 export function formatPartDefault(input: InputMeta): string | undefined {
     if (input.defaultUnreadable) return '…';
     const value = input.defaultValue;
 
-    if (value === undefined) return undefined;
-    return typeof value === 'string' ? `'${value.replace(/[\\']/g, '\\$&')}'` : JSON.stringify(value);
+    return value === undefined ? undefined : formatDefaultValue(value);
 }
 
 /**

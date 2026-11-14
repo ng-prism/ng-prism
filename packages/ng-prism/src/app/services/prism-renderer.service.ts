@@ -104,6 +104,14 @@ export class PrismRendererService {
      */
     readonly activeStateIndex = signal<number | null>(null);
     readonly inputValues = signal<Record<string, unknown>>({});
+    private readonly _variantApplied = signal(0);
+    /**
+     * Counts every time the inputs of a variant replace `inputValues`: a
+     * variant selected, Reset, another component. A control that keeps text of
+     * its own lets go of it when this changes, also where its value stays the
+     * same. Since 22.8.0.
+     */
+    readonly variantApplied = this._variantApplied.asReadonly();
     readonly activeContent = signal<string | Record<string, string> | undefined>(undefined);
     readonly renderedElement = signal<Element | null>(null);
     /**
@@ -244,7 +252,18 @@ export class PrismRendererService {
         const comp = this.navigationService.activeComponent();
 
         if (!comp) return;
+        const changed = this.inputValues();
+
         this.applyVariant(this.activeVariantIndex(), comp);
+
+        // A key the variant state leaves out, set by a control or by a `model()` of the component, was set on the
+        // instance: it goes back to the `undefined` the input started with. Not for a default the scan could not read,
+        // which `undefined` would not restore, nor for a required input.
+        const restorable = comp.meta.inputs.filter((input) => !input.required && !input.defaultUnreadable && input.name in changed).map((input) => input.name);
+        const values = this.inputValues();
+        const cleared = restorable.filter((name) => !(name in values));
+
+        if (cleared.length > 0) this.inputValues.set({ ...values, ...Object.fromEntries(cleared.map((name) => [name, undefined])) });
     }
 
     private applyVariant(index: number, comp: RuntimeComponent): void {
@@ -255,5 +274,6 @@ export class PrismRendererService {
 
         this.inputValues.set(values);
         this.activeContent.set(activeContent);
+        this._variantApplied.update((count) => count + 1);
     }
 }

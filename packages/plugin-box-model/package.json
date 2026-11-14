@@ -1,6 +1,6 @@
 {
     "name": "@ng-prism/plugin-box-model",
-    "version": "22.7.0",
+    "version": "22.8.0-beta.1",
     "description": "CSS box model inspector for ng-prism.",
     "ng-add": {
         "save": "devDependencies"
@@ -35,7 +35,7 @@
     "peerDependencies": {
         "@angular/core": ">=20.0.0",
         "rxjs": ">=7.0.0",
-        "@ng-prism/core": "^22.7.0-0",
+        "@ng-prism/core": "^22.8.0-0",
         "@angular-devkit/schematics": ">=20.0.0"
     },
     "devDependencies": {

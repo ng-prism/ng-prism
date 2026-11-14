@@ -277,7 +277,7 @@ interface ControlDefinition {
 | `matchType` | **Required.** Called with the [`InputMeta`](api/types.md#inputmeta) of each input of the active component. Return `true` to use this control. The definitions of all plugins are asked in plugin order, and the first match wins over the built-in controls |
 | `component` | **Required.** A standalone component, rendered in place of the whole row of the input (name, type and control). It receives two inputs, `inputMeta: InputMeta` and `rendererService: PrismRendererService`                                                  |
 
-The control reads the current value from `rendererService().inputValues()[inputMeta().name]` and writes a new one with `rendererService().updateInput(inputMeta().name, value)`, see [`PrismRendererService`](api/services.md#prismrendererservice).
+The control reads the current value from `rendererService().inputValues()[inputMeta().name]` and writes a new one with `rendererService().updateInput(inputMeta().name, value)`, see [`PrismRendererService`](api/services.md#prismrendererservice). A control that keeps text of its own while someone types, as the built-in JSON editor does, drops it when `rendererService().variantApplied()` changes: Reset and another variant can hand back the value it shows.
 
 ## HeaderWidgetDefinition
 

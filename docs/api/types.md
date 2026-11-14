@@ -10,7 +10,7 @@ What the builder scans and writes, and what the styleguide app runs on. `PrismMa
 
 ### `PrismManifest`
 
-The build-time manifest: what the scan found, after the plugin hooks. Plain JSON data, no class references. `onManifestReady` receives it, and the builder writes the runtime manifest from it.
+The build-time manifest: what the scan found, after the plugin hooks. Plain data, `Date`s included, no class references. `onManifestReady` receives it, and the builder writes the runtime manifest from it.
 
 ```typescript
 interface PrismManifest {
@@ -87,9 +87,10 @@ One input of a component or directive, as the scanner reads it: a signal input (
 interface InputMeta {
     name: string;
     alias?: string;
-    type: 'string' | 'number' | 'boolean' | 'union' | 'array' | 'object' | 'unknown';
+    type: 'string' | 'number' | 'boolean' | 'union' | 'date' | 'array' | 'object' | 'unknown';
     rawType?: string;
     values?: string[];
+    emptyValue?: 'null' | 'undefined';
     defaultValue?: unknown;
     defaultUnreadable?: true;
     required: boolean;
@@ -102,10 +103,11 @@ interface InputMeta {
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`              | The class member; variants and controls use it                                                                                                                                                                               |
 | `alias`             | The public name from `alias` (or `@Input('x')`), when it differs from `name`                                                                                                                                                 |
-| `type`              | The type category that selects a control, see [Inputs & Controls](guide/inputs-and-controls.md#input-types-and-controls)                                                                                                     |
+| `type`              | The type category that selects a control, see [Inputs & Controls](guide/inputs-and-controls.md#input-types-and-controls). `'date'` is the runtime's `Date`, also with `null` or `undefined` (since 22.8.0)                   |
 | `rawType`           | The TypeScript type as text (e.g. `'primary' \| 'danger'`)                                                                                                                                                                   |
 | `values`            | For a union of literals: the individual member values                                                                                                                                                                        |
-| `defaultValue`      | The initial value, such as the argument of `input(defaultValue)`                                                                                                                                                             |
+| `emptyValue`        | For a `'date'`: what a cleared date field sets (since 22.8.0), see [Input types and controls](guide/inputs-and-controls.md#input-types-and-controls)                                                                         |
+| `defaultValue`      | The initial value, such as the argument of `input(defaultValue)`. A `new Date(…)` default is a `Date`                                                                                                                        |
 | `defaultUnreadable` | `true` when the input starts out with a value the scan could not evaluate, such as the result of a function call (since 22.7.0). `defaultValue` is missing then. Not set for `input<string>()`, which starts out `undefined` |
 | `required`          | `true` for a required input: `input.required()`, `model.required()` or `@Input({ required: true })`                                                                                                                          |
 | `doc`               | The JSDoc comment of the property, as written: `{@link X \| text}` keeps its bar (since 22.7.0), so a reader can tell the target from the text                                                                               |
@@ -683,19 +685,20 @@ Strings, not a class reference, so that `ng-prism-strip` leaves no import behind
 A canvas background, the type of [`ShowcaseConfig.bg`](api/showcase-config.md#bg) and `Variant.bg`.
 
 ```typescript
-type CanvasBg = 'dots' | 'plain' | 'light' | 'dark' | 'checker' | 'transparent';
+type CanvasBg = 'dots' | 'plain' | 'light' | 'dark' | 'transparent';
 ```
 
-| Value         | Paints                                                                                                                                                                                                                     |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dots`        | A dot grid over the themed surface, the canvas's own starting background                                                                                                                                                   |
-| `plain`       | The themed surface, no pattern                                                                                                                                                                                             |
-| `light`       | A flat light surface in an absolute colour, `--prism-void-light`                                                                                                                                                           |
-| `dark`        | A flat dark surface in an absolute colour, `--prism-void-dark`                                                                                                                                                             |
-| `checker`     | **Deprecated** since 22.2.0, removed in 23.0.0. A checkerboard over the themed surface, captured as that surface's colour                                                                                                  |
-| `transparent` | A checkerboard while browsing, real transparency in a capture. What a variant resolves to in discovery, capture and the Overview when nothing declares a background; the Playground keeps the canvas's own background then |
+| Value         | Paints                                                                                                                                                                                                                                                                                                                                   |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dots`        | A dot grid over the themed surface, the canvas's own starting background                                                                                                                                                                                                                                                                 |
+| `plain`       | The themed surface, no pattern                                                                                                                                                                                                                                                                                                           |
+| `light`       | A flat light surface in an absolute colour, `--prism-void-light`                                                                                                                                                                                                                                                                         |
+| `dark`        | A flat dark surface in an absolute colour, `--prism-void-dark`                                                                                                                                                                                                                                                                           |
+| `transparent` | A light checkerboard while browsing, the same in both themes (drawn from `--prism-void-light`), real transparency in a capture. What a variant resolves to in discovery, capture and the Overview when nothing declares a background and the config sets no `showcaseDefaults.bg`; the Playground keeps the canvas's own background then |
 
-Which background applies where, and which to declare under visual regression, is described under [`bg`](api/showcase-config.md#bg). `CANVAS_BGS` lists every value, `DEFAULT_VARIANT_BG` is `'transparent'`, and `resolveVariantBg()` resolves the background of a variant as the styleguide does, see [Plugin UI Kit](api/plugin-ui.md#constants-and-helpers).
+`light`, `dark` and `transparent` also set the text colour a component inherits, whatever the theme, see [`bg`](api/showcase-config.md#bg).
+
+Which background applies where, and which to declare under visual regression, is described under [`bg`](api/showcase-config.md#bg). `CANVAS_BGS` lists every value, `DEFAULT_VARIANT_BG` is `'transparent'`, and `resolveVariantBg()` resolves the background of a variant as the styleguide does, with the config's [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults) as an optional third argument (`showcaseDefaultBg()` reads it from the config), see [Plugin UI Kit](api/plugin-ui.md#constants-and-helpers).
 
 ### `CanvasLayout`
 
@@ -862,14 +865,14 @@ interface DiscoveryVariant {
 }
 ```
 
-| Field    | Description                                                                                                                                                                                                                                         |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`   | `Variant.name`                                                                                                                                                                                                                                      |
-| `index`  | 0-based position in the `variants` array, the `?variant=` URL value                                                                                                                                                                                 |
-| `bg`     | The background the variant renders on, already resolved: `Variant.bg`, else `ShowcaseConfig.bg`, else `'transparent'`. Always present, and what capture mode paints, see [Reading the background](guide/external-tooling.md#reading-the-background) |
-| `meta`   | `Variant.meta`, plain data only. Omitted when empty                                                                                                                                                                                                 |
-| `pseudo` | `Variant.pseudo`, as declared. Omitted when the variant forces no state. The render marker waits for the states, so a capture shows them without any action on the runner's side                                                                    |
-| `states` | `false` when the variant opts out of the component's states, omitted otherwise. Nothing is forced for a state on such a variant, and the render marker reports its cell as excluded                                                                 |
+| Field    | Description                                                                                                                                                                                                                                                                                                                             |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`   | `Variant.name`                                                                                                                                                                                                                                                                                                                          |
+| `index`  | 0-based position in the `variants` array, the `?variant=` URL value                                                                                                                                                                                                                                                                     |
+| `bg`     | The background the variant renders on, already resolved: `Variant.bg`, else `ShowcaseConfig.bg`, else the config's [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults), else `'transparent'`. Always present, and what capture mode paints, see [Reading the background](guide/external-tooling.md#reading-the-background) |
+| `meta`   | `Variant.meta`, plain data only. Omitted when empty                                                                                                                                                                                                                                                                                     |
+| `pseudo` | `Variant.pseudo`, as declared. Omitted when the variant forces no state. The render marker waits for the states, so a capture shows them without any action on the runner's side                                                                                                                                                        |
+| `states` | `false` when the variant opts out of the component's states, omitted otherwise. Nothing is forced for a state on such a variant, and the render marker reports its cell as excluded                                                                                                                                                     |
 
 ### `DiscoveryState`
 
