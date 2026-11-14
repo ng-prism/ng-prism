@@ -18,6 +18,7 @@ export type {
     NgPrismColorSchemeTarget,
     NgPrismConfig,
     NgPrismPlugin,
+    NgPrismShowcaseDefaults,
     OutputMeta,
     PanelBadge,
     PanelDefinition,
@@ -60,7 +61,7 @@ export { formatDateValue } from '../shared/date-value.js';
 // and resolve the declaration the same way the app does.
 export type { CanvasBg } from '../shared/canvas-bg.type.js';
 export { CANVAS_BGS } from '../shared/canvas-bg.type.js';
-export { DEFAULT_VARIANT_BG, resolveVariantBg } from '../shared/variant-bg.js';
+export { DEFAULT_VARIANT_BG, resolveVariantBg, showcaseDefaultBg } from '../shared/variant-bg.js';
 export type { VariantBgSource } from '../shared/variant-bg.js';
 
 // The pseudo states a variant can force. `Variant.pseudo` reaches plugins

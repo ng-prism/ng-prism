@@ -17,7 +17,7 @@ import {
 import type { RuntimeComponent } from '../../plugin/plugin.types.js';
 import { PRISM_VARIANT_INPUT } from '../../shared/composition.js';
 import type { ForcedPseudoStates } from '../../shared/pseudo-state.type.js';
-import { declaredVariantBg } from '../../shared/variant-bg.js';
+import { declaredVariantBg, showcaseDefaultBg } from '../../shared/variant-bg.js';
 import { CANVAS_BG_STYLES } from '../canvas/canvas-bg.styles.js';
 import type { StateFit } from '../pseudo/state-fit.js';
 import { activeCase, renderTypeFor } from '../renderer/composition.js';
@@ -29,6 +29,7 @@ import { computeVariantState, PrismRendererService } from '../services/prism-ren
 import { PrismSimulationService } from '../services/prism-simulation.service.js';
 import { groundSimulation, NO_GROUND_SIMULATION, overviewGround } from '../simulate/ground.js';
 import { keepScopeRoot } from '../simulate/keep-scope-root.js';
+import { PRISM_CONFIG } from '../tokens/prism-tokens.js';
 import { isPlaygroundCombination, openInPlayground, playgroundLabel } from './open-in-playground.js';
 
 /**
@@ -93,16 +94,19 @@ export class PrismOverviewCellComponent {
     private readonly panels = inject(PrismPanelService);
     private readonly simulation = inject(PrismSimulationService);
     private readonly pseudoMarker = inject(PrismPseudoStateService).createMarker();
+    private readonly fallbackBg = showcaseDefaultBg(inject(PRISM_CONFIG));
     private readonly outlet = viewChild.required('outlet', {
         read: ViewContainerRef
     });
 
     /**
-     * Never null: without a declaration, the emulated color scheme, or
-     * `DEFAULT_VARIANT_BG`. Not `resolveVariantBg`, which the discovery manifest
-     * reports and which must not depend on the session.
+     * Never null: without a declaration, the emulated color scheme, the project's
+     * `showcaseDefaults.bg`, or `DEFAULT_VARIANT_BG`. Not `resolveVariantBg`, which
+     * the discovery manifest reports and which must not depend on the session.
      */
-    protected readonly bg = computed(() => overviewGround(declaredVariantBg(this.component().meta.showcaseConfig, this.index()), this.simulation.schemeGround()));
+    protected readonly bg = computed(() =>
+        overviewGround(declaredVariantBg(this.component().meta.showcaseConfig, this.index()), this.simulation.schemeGround(), this.fallbackBg)
+    );
 
     protected readonly caption = computed(() => {
         const variant = this.component().meta.showcaseConfig.variants?.[this.index()];

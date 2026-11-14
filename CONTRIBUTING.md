@@ -493,7 +493,7 @@ npx nx run-many -t test
 | Sidebar order (`category`, `section`, the order fields, `tags`, `status`)                        | [guide/showcase-decorator.md](docs/guide/showcase-decorator.md)                                        |
 | Input types and their controls, defaults, inheritance, aliases, `InputsOf`                       | [guide/inputs-and-controls.md](docs/guide/inputs-and-controls.md)                                      |
 | States, pseudo states, when a state fits a variant, exclusion reasons                            | [guide/states.md](docs/guide/states.md)                                                                |
-| `bg` and `canvasLayout`: behaviour, both defaults, the `checker` deprecation                     | [api/showcase-config.md](docs/api/showcase-config.md)                                                  |
+| `bg` and `canvasLayout`: behaviour, both defaults                                                | [api/showcase-config.md](docs/api/showcase-config.md)                                                  |
 | Viewport width, canvas tools, the names of the UI parts, the phone layout                        | [guide/styleguide-ui.md](docs/guide/styleguide-ui.md)                                                  |
 | `content`                                                                                        | [guide/content-projection.md](docs/guide/content-projection.md)                                        |
 | `template`, host template, `imports`                                                             | [guide/compositions.md](docs/guide/compositions.md)                                                    |

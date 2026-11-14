@@ -1,9 +1,9 @@
 import { DEFAULT_VARIANT_BG } from '../../shared/variant-bg.js';
-import { groundSimulation, NO_GROUND_SIMULATION, overlayGround, overviewGround, playgroundGround } from './ground.js';
+import { groundSimulation, NO_GROUND_SIMULATION, overviewGround, playgroundGround } from './ground.js';
 import type { ScopeRootState } from './scope-root.js';
 
 describe('playgroundGround', () => {
-    const base = { override: null, recommended: null, chosen: false, canvasBg: 'dots' as const, scheme: 'dark' as const };
+    const base = { override: null, recommended: null, chosen: false, canvasBg: 'dots' as const, scheme: 'dark' as const, fallback: null };
 
     it('follows the emulated scheme while nothing else decides', () => {
         expect(playgroundGround(base)).toBe('dark');
@@ -25,8 +25,35 @@ describe('playgroundGround', () => {
     });
 
     it('keeps the override over everything', () => {
-        expect(playgroundGround({ ...base, override: 'checker', recommended: 'light' })).toBe('checker');
+        expect(playgroundGround({ ...base, override: 'transparent', recommended: 'light' })).toBe('transparent');
         expect(playgroundGround({ ...base, override: 'plain', chosen: true })).toBe('plain');
+    });
+});
+
+describe('playgroundGround with a project fallback', () => {
+    const base = { override: null, recommended: null, chosen: false, canvasBg: 'dots' as const, scheme: null, fallback: 'light' as const };
+
+    it('paints the fallback where nobody decided', () => {
+        expect(playgroundGround(base)).toBe('light');
+    });
+
+    it('lets an emulated scheme win over it', () => {
+        expect(playgroundGround({ ...base, scheme: 'dark' })).toBe('dark');
+    });
+
+    it('lets the background the user picked win over it, a picked dots included', () => {
+        expect(playgroundGround({ ...base, chosen: true })).toBe('dots');
+        expect(playgroundGround({ ...base, chosen: true, canvasBg: 'plain', scheme: 'dark' })).toBe('plain');
+    });
+
+    it('lets a declared background and the override win over it', () => {
+        expect(playgroundGround({ ...base, recommended: 'dark' })).toBe('dark');
+        expect(playgroundGround({ ...base, override: 'plain', recommended: 'dark' })).toBe('plain');
+    });
+
+    it('is the canvas background as before without a fallback', () => {
+        expect(playgroundGround({ ...base, fallback: null })).toBe('dots');
+        expect(playgroundGround({ ...base, fallback: null, scheme: 'dark' })).toBe('dark');
     });
 });
 
@@ -43,6 +70,25 @@ describe('overviewGround', () => {
     it('keeps a declared background over the scheme', () => {
         expect(overviewGround('dark', 'light')).toBe('dark');
         expect(overviewGround('plain', null)).toBe('plain');
+    });
+
+    describe('with a project fallback', () => {
+        it('paints the fallback instead of the tooling default', () => {
+            expect(overviewGround(null, null, 'light')).toBe('light');
+        });
+
+        it('lets the emulated scheme win over it', () => {
+            expect(overviewGround(null, 'dark', 'light')).toBe('dark');
+        });
+
+        it('lets a declared background win over it', () => {
+            expect(overviewGround('plain', null, 'light')).toBe('plain');
+            expect(overviewGround('dark', 'light', 'light')).toBe('dark');
+        });
+
+        it('is the tooling default for a null fallback', () => {
+            expect(overviewGround(null, null, null)).toBe(DEFAULT_VARIANT_BG);
+        });
     });
 });
 
@@ -83,20 +129,5 @@ describe('groundSimulation', () => {
             colorScheme: 'light',
             canvas: '#ffffff'
         });
-    });
-});
-
-describe('overlayGround', () => {
-    it('is the canvas background while forced colors are off', () => {
-        expect(overlayGround('light', null)).toBe('light');
-        expect(overlayGround('dots', null)).toBe('dots');
-    });
-
-    it('is the palette of forced colors over any background', () => {
-        // The ground is the palette's Canvas then, so a `light` background under the dark palette is a dark ground.
-        expect(overlayGround('light', 'dark')).toBe('dark');
-        expect(overlayGround('dots', 'dark')).toBe('dark');
-        expect(overlayGround('dark', 'light')).toBe('light');
-        expect(overlayGround('checker', 'dark')).toBe('dark');
     });
 });

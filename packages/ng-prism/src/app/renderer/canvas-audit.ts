@@ -4,7 +4,7 @@ export const CANVAS_AUDITING_ATTR = 'data-prism-auditing';
 /**
  * Runs `run` with everything the canvas draws around `element` hidden: panel
  * overlays (the a11y outline, the box model, any plugin's), the measure tool,
- * the rulers and the stage's dot or checker pattern. axe works out the
+ * the rulers and the stage's dot or checkerboard pattern. axe works out the
  * stacking itself, so an overlay on top of the subject reads as covering its
  * text and a colour-contrast check comes back undecided ("bgOverlap"), as
  * does any text over a background image.

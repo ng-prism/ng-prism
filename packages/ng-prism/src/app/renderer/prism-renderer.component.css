@@ -52,8 +52,9 @@
    edge stays: it is chrome.
 
    The measurement colours follow the ground, not the background: the canvas
-   wrap carries the overlay tokens of the palette then (overlayGround), and
-   inherit takes them back from the [data-bg] rules that re-point them. */
+   wrap carries the fixed overlay values of the palette then
+   (canvasOverlayTokens), and inherit takes them back from the [data-bg] rules
+   that re-point them to the tokens of a ground. */
 .prism-canvas-stage[data-sim-forced] {
     background-color: var(--prism-sim-canvas);
     background-image: none;
@@ -179,18 +180,26 @@
     }
 }
 
+/* The text colour the component inherits is the ground's (CANVAS_BG_STYLES),
+   --prism-text on grounds without one. Read here, not set on the stage as
+   `color`: the stage also holds the tool rail, the pills, the rulers and the
+   measurement, which keep the theme's text. What a plugin renders inside
+   .demo-wrap, an overlay over the component, inherits the ground's colour
+   unless it sets its own. It holds in a capture too, the stage being
+   see-through there and the component still the one built for that ground. */
 .demo-wrap {
     position: relative;
     display: inline-block;
+    color: var(--prism-ground-text, var(--prism-text));
     transform: scale(var(--zoom, 1));
     transition: transform 0.18s;
 }
 
 /* While the live a11y audit runs (withCanvasChromeHidden in canvas-audit.ts),
-   the stage drops its dot or checker pattern: axe decides no colour contrast
-   over a background image. The colour stays, so the subject is judged against
-   the ground it sits on. The overlays and tools around the subject are hidden
-   inline by the same function. */
+   the stage drops its dot or checkerboard pattern: axe decides no colour
+   contrast over a background image. The colour stays, so the subject is judged
+   against the ground it sits on. The overlays and tools around the subject are
+   hidden inline by the same function. */
 .prism-canvas-stage[data-prism-auditing] {
     background-image: none;
 }

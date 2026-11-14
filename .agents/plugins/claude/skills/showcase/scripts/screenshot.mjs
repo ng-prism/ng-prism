@@ -23,7 +23,8 @@
 // resolved from the current directory, never from where this file lives (a plugin cache has no node_modules).
 //
 // Default: capture mode (`capture=1`), element screenshot of `.demo-wrap` with `omitBackground`, so a
-// transparent variant background (also the default when a variant declares no `bg`) keeps its alpha.
+// transparent variant background (also the default when a variant declares no `bg`, unless the config sets
+// `showcaseDefaults.bg`) keeps its alpha.
 // --shell: the full window without capture mode, for the styleguide UI around the component.
 // --state <index>: the 0-based index into the component's `states` (`@Showcase({ states })`), in source order.
 // Without it no state is active. A state does not fit every variant: when the styleguide marks the cell with

@@ -44,3 +44,10 @@ describe('prism-overview-cell forced ground', () => {
         expect(html.slice(html.indexOf('<div'), html.indexOf('>'))).toContain('[style.--prism-sim-canvas]="ground().canvas"');
     });
 });
+
+describe('prism-overview-cell text colour', () => {
+    // The ground sets the relay on the stage, and only the box the component hangs in reads it: the cell's caption and badges are chrome.
+    it('should take the colour of the ground the stage paints, the theme text on grounds without one', () => {
+        expect(rule('.cell__mount')).toContain('color: var(--prism-ground-text, var(--prism-text))');
+    });
+});

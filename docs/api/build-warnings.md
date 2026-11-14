@@ -179,26 +179,26 @@ Diagnostic · `builder/scanner/component.scanner.ts`
 ### An invalid background
 
 ```
-⚠ ng-prism: <Class> declares invalid bg "<value>", expected one of: dots, plain, light, dark, checker, transparent. Skipping.
-⚠ ng-prism: <Class> variant "<name>" declares invalid bg "<value>", expected one of: dots, plain, light, dark, checker, transparent. Skipping.
+⚠ ng-prism: <Class> declares invalid bg "<value>", expected one of: dots, plain, light, dark, transparent. Skipping.
+⚠ ng-prism: <Class> variant "<name>" declares invalid bg "<value>", expected one of: dots, plain, light, dark, transparent. Skipping.
 ```
 
 Diagnostic · `builder/scanner/component.scanner.ts`
 
-- **Cause:** [`bg`](api/showcase-config.md#bg) of the class or of a variant is none of the six values.
+- **Cause:** [`bg`](api/showcase-config.md#bg) of the class or of a variant is none of the five values.
 - **Fix:** use `dots`, `plain`, `light`, `dark` or `transparent`.
 
-### The checker background
+### A removed checker background
 
 ```
-⚠ ng-prism: <Class> declares bg "checker", which is deprecated and will be removed in 23.0.0; use 'transparent' for the same look with a capture that keeps its alpha, or 'light'/'dark' for an absolute colour.
-⚠ ng-prism: <Class> variant "<name>" declares bg "checker", which is deprecated and will be removed in 23.0.0; use 'transparent' for the same look with a capture that keeps its alpha, or 'light'/'dark' for an absolute colour.
+⚠ ng-prism: <Class> declares bg "checker", which was removed in 22.8.0; use 'transparent' (a checkerboard while browsing, light in both themes, see-through in a capture), or run ng update @ng-prism/core to rewrite it. Skipping.
+⚠ ng-prism: <Class> variant "<name>" declares bg "checker", which was removed in 22.8.0; use 'transparent' (a checkerboard while browsing, light in both themes, see-through in a capture), or run ng update @ng-prism/core to rewrite it. Skipping.
 ```
 
-Notice · `builder/scanner/component.scanner.ts`
+Diagnostic · `builder/scanner/component.scanner.ts`
 
-- **Cause:** `bg: 'checker'`, deprecated since 22.2.0, removed in 23.0.0, see [`bg`](api/showcase-config.md#bg). The value still works.
-- **Fix:** use `'transparent'`, or `'light'` or `'dark'` for an absolute colour.
+- **Cause:** `bg: 'checker'` on the class or on a variant. `checker` is not a [`CanvasBg`](api/types.md#canvasbg) any more, see [Upgrading to 22.8.0](guide/upgrade-notes-22.md#upgrading-to-2280). The scan drops the `bg`, so the class or the variant behaves as if it declared none.
+- **Fix:** use `'transparent'` for a checkerboard (light in both themes, see-through in a capture), or `'light'` or `'dark'` for an absolute colour, see [`bg`](api/showcase-config.md#bg).
 
 ### An invalid canvas layout
 

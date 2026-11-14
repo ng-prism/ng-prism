@@ -184,31 +184,25 @@ describe('scanComponents', () => {
         warnSpy.mockRestore();
     });
 
-    it('should warn that a checker background is deprecated', () => {
+    it('should drop a checker background and name its replacement', () => {
         const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        const components = scanComponents(findShowcasedClasses(exports, checker), checker);
+        const removed = components.find((c) => c.className === 'DeprecatedBgComponent')!;
 
-        scanComponents(findShowcasedClasses(exports, checker), checker);
+        // The value is gone, not deprecated: the component and its variant fall
+        // back to what an undeclared background does.
+        expect(removed.showcaseConfig.bg).toBeUndefined();
+        expect(removed.showcaseConfig.variants?.[0].bg).toBeUndefined();
 
         // Once for the component and once for the variant that declares its own:
-        // a reviewer fixing this has to find both, and only the variant warning
+        // a reviewer fixing this has to find both, and only the variant message
         // says which variant.
         const messages = warnSpy.mock.calls.map((call) => String(call[0])).filter((message) => message.includes('DeprecatedBgComponent'));
 
-        expect(messages.filter((m) => m.includes('deprecated'))).toHaveLength(2);
+        expect(messages).toHaveLength(2);
+        expect(messages.every((m) => m.includes('removed in 22.8.0') && m.includes("'transparent'"))).toBe(true);
         expect(messages.some((m) => m.includes('Also checker'))).toBe(true);
-
-        warnSpy.mockRestore();
-    });
-
-    it('should keep a checker background despite deprecating it', () => {
-        const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
-        const components = scanComponents(findShowcasedClasses(exports, checker), checker);
-        const deprecated = components.find((c) => c.className === 'DeprecatedBgComponent')!;
-
-        // Deprecated is not invalid. Dropping the value would change what the
-        // component renders on, which is a break dressed up as a warning.
-        expect(deprecated.showcaseConfig.bg).toBe('checker');
-        expect(deprecated.showcaseConfig.variants?.[0].bg).toBe('checker');
+        expect(messages.some((m) => m.includes('deprecated'))).toBe(false);
 
         warnSpy.mockRestore();
     });
@@ -300,7 +294,7 @@ describe('scanComponents', () => {
         expect(sectioned.showcaseConfig.componentOrder).toBe(2);
     });
 
-    it('counts the values it rejects as diagnostics, but not deprecations or @Input() hints', () => {
+    it('counts the values it rejects as diagnostics, a removed checker background included, but not @Input() hints', () => {
         const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
         const diagnostics: string[] = [];
 
@@ -309,7 +303,9 @@ describe('scanComponents', () => {
         expect(diagnostics).toEqual([
             expect.stringContaining('MissingTitleComponent has @Showcase without a "title" field'),
             expect.stringContaining('InvalidBgComponent declares invalid bg "rainbow"'),
-            expect.stringContaining('InvalidStatusComponent declares invalid status "banana"')
+            expect.stringContaining('InvalidStatusComponent declares invalid status "banana"'),
+            expect.stringContaining('DeprecatedBgComponent declares bg "checker", which was removed in 22.8.0'),
+            expect.stringContaining('DeprecatedBgComponent variant "Also checker" declares bg "checker", which was removed in 22.8.0')
         ]);
 
         warnSpy.mockRestore();

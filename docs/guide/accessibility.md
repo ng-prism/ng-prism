@@ -32,7 +32,7 @@ The axe-core audit of the variant on the canvas:
 
 The A11y tab and the Violations sub-tab carry the number of open violations, red when one of them is critical or serious and amber otherwise. A clean component's tab carries no badge.
 
-**What the audit sees.** It measures the component and nothing the canvas draws around it (since 22.7.0). For the duration of the audit, the panel overlays (the A11y panel's own outline, the box model, any plugin's), the measuring tool, the rulers and the canvas's dot or checker pattern are hidden, so an outline over the component cannot hide a contrast violation and the result does not depend on which panel is open. They may blink away for that moment. What the component renders itself stays visible. The theme is the one you look at, and so is a simulated color scheme or forced colors.
+**What the audit sees.** It measures the component and nothing the canvas draws around it (since 22.7.0). For the duration of the audit, the panel overlays (the A11y panel's own outline, the box model, any plugin's), the measuring tool, the rulers and the canvas's dot or checkerboard pattern are hidden, so an outline over the component cannot hide a contrast violation and the result does not depend on which panel is open. They may blink away for that moment. What the component renders itself stays visible. The theme is the one you look at, and so is a simulated color scheme or forced colors.
 
 ### Keyboard Navigation
 

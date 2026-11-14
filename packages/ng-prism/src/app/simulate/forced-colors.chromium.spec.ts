@@ -471,6 +471,13 @@ color: red;
             focus: '.f'
         }));
 
+    // A component inherits the text colour of its ground, a colour set above the scope root: forced colors take it to CanvasText all the same.
+    it('ground-text', () =>
+        expectSimulationToMatch({
+            html: '<div style="color: #0f172a">' + scope('', '<p>Text</p>') + '</div>',
+            probes: [{ name: 'p', selector: 'p', properties: ['color'] }]
+        }));
+
     // An element without a color of its own inherits the system color its parent keeps.
     it('inherited-kept-color', () =>
         expectSimulationToMatch({

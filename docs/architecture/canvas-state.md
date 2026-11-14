@@ -6,8 +6,8 @@ The canvas (`PrismRendererComponent`) is governed by cooperating services with d
 
 Holds the user's globally persisted canvas preferences:
 
-- `bg`: global default canvas background (any `CanvasBg`: `dots | plain | light | dark | checker | transparent`), `'dots'` until the user picks one
-- `bgChosen`: whether the user picked `bg` (`setBg()`), persisted with it. The value alone cannot tell the default `dots` from a picked one, and only a background nobody picked follows a simulated color scheme (see [Simulation](#simulation)). Storage written without the flag counts any value but `dots` as picked. Only `setBg()` writes it, always `true`, so there is no way back to unpicked
+- `bg`: global default canvas background (any `CanvasBg`: `dots | plain | light | dark | transparent`), `'dots'` until the user picks one
+- `bgChosen`: whether the user picked `bg` (`setBg()`), persisted with it. The value alone cannot tell the default `dots` from a picked one, and only a background nobody picked follows a simulated color scheme (see [Simulation](#simulation)). Storage written without the flag counts any value but `dots` as picked. A stored `bg` that is no longer a `CanvasBg` (a removed value) falls back to `dots` and takes its flag with it, since nobody picked `dots`. Only `setBg()` writes it, always `true`, so there is no way back to unpicked
 - `zoom`, `guides`, `rulers`: set from the floating canvas rail; guides and rulers are toggle buttons on the rail itself, zoom is a chooser in the rail's tools menu
 - `measure`: whether the measuring tool is on, a toggle button on the rail. It lives here rather than in `PrismMeasureService` because it is the same kind of state as `guides` and `rulers`, a preference about the working environment, not a statement about the variant. The measurements themselves are in `PrismMeasureService`, see [Measuring](#measuring).
 - `viewportWidth`: `number | null`; the width `.demo-wrap` is constrained to, or `null` for unconstrained. Toggled from the rail, set from the **Width** chooser in the tools menu, and dragged from the grips at either edge of the constrained area. `toggleViewport()` restores the last width of the session, a field that is not persisted and starts at `VIEWPORT_DEFAULT` (390).
@@ -20,21 +20,22 @@ Computes the actually-applied canvas background by resolving a fallback chain:
 
 ```
 recommended = variant.bg ?? component.bg
-effective   = override ?? recommended ?? (bgChosen ? canvas.bg() : schemeGround) ?? canvas.bg()   // browsing
-effective   = recommended ?? DEFAULT_VARIANT_BG           // capture mode ('transparent')
+effective   = override ?? recommended ?? (bgChosen ? canvas.bg() : schemeGround) ?? showcaseDefaults.bg ?? canvas.bg()   // browsing
+effective   = recommended ?? showcaseDefaults.bg ?? DEFAULT_VARIANT_BG   // capture mode ('transparent')
 ```
 
 - `recommended`: computed from the active component and variant (`Variant.bg` wins over `ShowcaseConfig.bg`), `null` when neither declares one
 - `schemeGround`: `PrismSimulationService.schemeGround()`, `light` or `dark` while the simulation emulates a color scheme, else `null`; the browsing chain is `playgroundGround()` (`simulate/ground.ts`)
+- `showcaseDefaults.bg`: the project's fallback, read once from `PRISM_CONFIG` through `showcaseDefaultBg()` (`shared/variant-bg.ts`), which returns `null` for anything that is not in `CANVAS_BGS`. It only fills the place of "nobody decided", so it is not `recommended`: the pill, the recommended chip and the toolbar's choice between override and `canvas.setBg()` stay as they are. The Overview cell reads the same value (`overviewGround()`), and `providePrism` hands it to `buildDiscoveryManifest()`, so the manifest agrees with capture mode
 - `override`: read-only view of a transient signal; set when the user picks a background from the tools menu's **Background** group while a recommendation is active
-- `effective`: the final `CanvasBg` value bound to the `data-bg` attribute of `.prism-canvas-stage`. Capture mode ignores the override and the simulation, which are session UI state, and uses `DEFAULT_VARIANT_BG` where nothing is declared instead of `canvas.bg()`: `dots` paints a theme token, so a baseline would depend on the runner's theme. `DEFAULT_VARIANT_BG` is also what the discovery manifest reports, so the reported and the captured background cannot drift apart.
+- `effective`: the final `CanvasBg` value bound to the `data-bg` attribute of `.prism-canvas-stage`. Capture mode ignores the override and the simulation, which are session UI state, and uses `showcaseDefaults.bg`, or `DEFAULT_VARIANT_BG` without one, where nothing is declared instead of `canvas.bg()`: `dots` paints a theme token, so a baseline would depend on the runner's theme. That value is also what the discovery manifest reports, so the reported and the captured background cannot drift apart.
 - `isDeviating`: computed boolean; true when the override is non-null AND differs from the current recommendation. It shows the `Recommended: <bg> [Reset]` pill (`PrismCanvasBgPillComponent`), whose button calls `clearOverride()`.
 
 The override auto-clears whenever the active variant or component changes, so navigating back to a variant always shows its recommendation again.
 
 The **Background** group of the tools menu is a readout of this service as well: the filled chip (`is-on`) is `effective()`, and the chip of `recommended()` carries `is-rec`, a border in the primary colour. Each chip's swatch carries `data-bg`, painted by the same `CANVAS_BG_STYLES` as the stage, which the toolbar includes in its `styles`. A click writes the override when `recommended()` is non-null and otherwise `canvas.setBg()`, the persisted default.
 
-The shell also binds `canvasOverlayTokens(overlayGround(effective(), simulation.forcedPalette()))` (`canvas/canvas-overlay-tokens.ts`, `simulate/ground.ts`) on `.prism-canvas-wrap`. On `light` and `dark` these set the `--prism-canvas-overlay-*` tokens to fixed values, so the rail, the pills, the pin row and the rulers follow the ground rather than the theme; on the other grounds they are left to the theme, see [Canvas overlays](guide/theming.md#canvas-overlays). Under simulated forced colors `overlayGround()` answers the palette (`light` or `dark`), since the stage paints the palette's `Canvas` then, whatever `effective()` is.
+The shell also binds `canvasOverlayTokens(effective(), simulation.forcedPalette())` (`canvas/canvas-overlay-tokens.ts`) on `.prism-canvas-wrap`. On `light`, `dark` and `transparent` these set the `--prism-canvas-overlay-*` tokens and `--prism-measure` to the colours of the ground, so the rail, the pills, the pin row and the rulers follow the ground rather than the theme. Each is read as `var(--prism-void-<ground>-<role>, <default>)`, a theme token of the ground that a project retunes for a mid-tone ground, see [Canvas overlays](guide/theming.md#canvas-overlays); on the other grounds they are left to the theme. The second argument is the palette of simulated forced colors, and it wins over the background: the stage paints the palette's `Canvas` then, whatever `effective()` is, so the overlays take fixed values of the light or dark palette that no token reaches, and the plate of the measurement is `FORCED_PALETTES[palette].canvas`.
 
 ### Why a separate service?
 

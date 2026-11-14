@@ -37,6 +37,9 @@ interface NgPrismConfig {
         light?: { class?: string; attributes?: Record<string, string> };
         dark?: { class?: string; attributes?: Record<string, string> };
     };
+    showcaseDefaults?: {
+        bg?: CanvasBg;
+    };
     strictShowcase?: boolean;
     /** @deprecated */
     themeStylesheet?: string;
@@ -257,6 +260,34 @@ export default defineConfig({
 `NgPrismColorSchemeConfig` and `NgPrismColorSchemeTarget` are exported from `@ng-prism/core/plugin`.
 
 **Guide:** [Simulate](guide/styleguide-ui.md#simulate)
+
+### `showcaseDefaults`
+
+**Type** `{ bg?: CanvasBg }` · **Default** none · **Since** 22.8.0
+
+What the canvas falls back to where a `@Showcase` declares nothing. Only `bg` so far.
+
+- **`bg`** is the canvas background of every variant that declares no [`bg`](api/showcase-config.md#bg), on the variant or on the component, in place of the built-in one: Dots in the Playground, and `transparent` (`DEFAULT_VARIANT_BG`) in the Overview, in capture mode and in `__PRISM_MANIFEST__`. A library whose components are all designed against a light surface sets it once instead of declaring `bg: 'light'` on each.
+
+It is a fallback and no declaration: whatever someone decided beats it. Where nothing is decided, the first match wins:
+
+| Where                                 | Order                                                                                                                                                                                                 |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Playground                            | the override set for the variant in the tools menu, the `bg` of the variant, then of the component, the background picked for the whole canvas, a simulated color scheme, `showcaseDefaults.bg`, Dots |
+| Overview                              | the `bg` of the variant, then of the component, a simulated color scheme, `showcaseDefaults.bg`, `transparent`                                                                                        |
+| Capture mode and `__PRISM_MANIFEST__` | the `bg` of the variant, then of the component, `showcaseDefaults.bg`, `transparent`                                                                                                                  |
+
+The Playground does not treat it as the variant's recommendation: no `Recommended` pill appears, the chip in the Background group carries no recommended border, and a pick on such a variant is still the background for the whole canvas, kept across variants and visits. Capture mode and the manifest agree on it, so the `bg` a screenshot runner reads is the one in its screenshot. A value that is no [`CanvasBg`](api/types.md#canvasbg) is ignored, without a warning.
+
+```typescript
+export default defineConfig({
+    showcaseDefaults: { bg: 'light' }
+});
+```
+
+`NgPrismShowcaseDefaults` is exported from `@ng-prism/core/plugin`, and so is `showcaseDefaultBg(config)`, which returns the configured `bg`, or `null` where there is none or it is no `CanvasBg`. A runner that resolves backgrounds itself passes it to `resolveVariantBg()` as the third argument, see [Plugin UI Kit](api/plugin-ui.md#backgrounds).
+
+**Guide:** [Tour of the UI: Background](guide/styleguide-ui.md#background), [Visual Regression](guide/visual-regression.md#the-background-is-part-of-the-baseline)
 
 ## Styleguide state
 

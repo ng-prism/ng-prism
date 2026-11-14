@@ -210,14 +210,14 @@ All three are optional and the panel degrades gracefully:
 | `bg`         | no       | The canvas background this run captured on         |
 | `baselineBg` | no       | The background the stored baseline was captured on |
 
-Both take a `CanvasBg` value (`light`, `dark`, `dots`, `plain`, `checker`, `transparent`). A runner already has `bg`: it is the resolved [`bg` on the variant](guide/external-tooling.md#reading-the-background) it read from `__PRISM_MANIFEST__` to drive the app. `baselineBg` requires the runner to store the background next to the baseline image.
+Both take a `CanvasBg` value (`light`, `dark`, `dots`, `plain`, `transparent`). A runner already has `bg`: it is the resolved [`bg` on the variant](guide/external-tooling.md#reading-the-background) it read from `__PRISM_MANIFEST__` to drive the app. `baselineBg` requires the runner to store the background next to the baseline image.
 
 The panel uses them for two things:
 
-- **The frame under a capture** is painted in the recorded colour instead of the transparency checkerboard. This matters for the diff mask, whose unchanged pixels a comparator typically leaves transparent, and on a checkerboard a dark variant's diff is unreadable. Only `light` and `dark` produce a colour; `dots`, `plain` and `checker` resolve to the themed surface, which the panel cannot know the runner's value for, so those keep the checkerboard. For `checker` that is correct anyway. `transparent`, which is also what a variant with no declared background resolves to, keeps it because its capture has a real alpha channel, and the checkerboard makes that visible without inventing a surface.
+- **The frame under a capture** is painted in the recorded colour instead of the theme's transparency checkerboard. This matters for the diff mask, whose unchanged pixels a comparator typically leaves transparent, and on a checkerboard a dark variant's diff is unreadable. `light` and `dark` produce a flat colour. `transparent`, which is also what a variant with no declared background resolves to unless the config sets [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults), gets the same fixed light checkerboard the canvas draws for it: `--prism-void-light` with squares 6% towards dark ink, in both themes. A `transparent` capture has a real alpha channel and its text inherits the dark colour of that ground, so the light board is the one it can be read on. `dots` and `plain` resolve to the themed surface, which the panel cannot know the runner's value for, so those keep the panel's own checkerboard, drawn from the theme.
 - **A named cause for a 100% diff.** With both fields present and different, the panel says **Background changed.**, naming both surfaces, instead of leaving a reviewer to hunt a regression in an untouched component.
 
-Both are optional throughout. A report without them keeps the checkerboard and names no background change.
+Both are optional throughout. A report without them is framed on the light checkerboard of `transparent` and names no background change.
 
 ## Parts and compositions
 

@@ -177,9 +177,8 @@ export class PrismCanvasToolbarComponent {
      * recommended one carries the `is-rec` edge. A value missing from the list
      * cannot be shown, so a variant declaring it would leave nothing active.
      *
-     * `checker` and `transparent` paint the same checkerboard here, so their
-     * titles explain the difference, which only a capture shows. `checker` is
-     * deprecated but stays until 23.0.0 because components can still declare it.
+     * `transparent` paints a checkerboard here, so its title says what only a
+     * capture shows: the alpha channel.
      */
     protected readonly bgs = CANVAS_BGS;
 
@@ -189,7 +188,7 @@ export class PrismCanvasToolbarComponent {
      * Bound with `[attr.title]`, never `[title]`. A property binding assigns to
      * `HTMLElement.title`, a non-nullable DOMString, so the `null` below would
      * be stringified and every unremarkable button would carry a tooltip
-     * reading "null" (four of the six in the common case).
+     * reading "null" (four of the five in the common case).
      */
     protected bgTitle(bg: CanvasBg): string | null {
         if (this.variantBg.recommended() === bg) {
@@ -197,9 +196,6 @@ export class PrismCanvasToolbarComponent {
         }
         if (bg === 'transparent') {
             return 'Checkerboard here, a real alpha channel in a capture';
-        }
-        if (bg === 'checker') {
-            return 'Deprecated: same look as Transparent, but a capture keeps the themed colour';
         }
         return null;
     }

@@ -169,10 +169,12 @@ package is right:
       a search input, stays its own entry. `partOf` takes one parent only.
 
 Other fields: `description` (Markdown), `category`, `categoryOrder`, `componentOrder`, `section`, `tags`, `status`
-(`stable`, `beta`, `wip`, `deprecated`), `bg` (`dots`, `plain`, `light`, `dark`, `transparent`; `checker` is
-deprecated), `canvasLayout` (`fit`, or `stretch` for a component that fills its container: it gets the canvas width up
+(`stable`, `beta`, `wip`, `deprecated`), `bg` (`dots`, `plain`, `light`, `dark`, `transparent`), `canvasLayout`
+(`fit`, or `stretch` for a component that fills its container: it gets the canvas width up
 to 800px, with Viewport width on the width set there, a subject in a composition too), `meta` (data for plugins, e.g. `meta: { figma: '<url>' }`), `imports` (rule 13), `partOf` (rule 14). A variant
-can set its own `description`, `bg`, `canvasLayout`, `meta`, `pseudo`, `template` and `host` (rule 13).
+can set its own `description`, `bg`, `canvasLayout`, `meta`, `pseudo`, `template` and `host` (rule 13). Where a whole
+library shares one `bg`, `showcaseDefaults: { bg: 'light' }` in `ng-prism.config.ts` (since 22.8, skill setup) replaces
+declaring it on every showcase; a `bg` on a showcase or a variant still wins.
 
 `meta.a11y` (typed): `rules: { '<axe-rule>': { enabled: false } }` switches a rule off for the component's live audit
 (not audited at all), `disable: true` skips the audit, and `accept: [{ rule: '<axe-rule>', reason: '…' }]` (since 22.7,
@@ -315,8 +317,10 @@ node "${CLAUDE_SKILL_DIR}/scripts/screenshot.mjs" --pipe TimeAgoPipe
   colour vision deficiency, open it without `capture=1` and with the parameter in a browser tool, e.g.
   `http://localhost:4400/?component=<ClassName>&variant=<index>&scheme=dark` (or `motion=reduce`, `forced=active`,
   `vision=deuteranopia`).
-- A variant without `bg`, or with `bg: 'transparent'`, comes back with a transparent background (a PNG with alpha).
-  Viewers show transparent pixels differently; if a light or dark component is hard to judge, look at `--shell` too.
+- A variant with `bg: 'transparent'`, or without `bg` while the config has no `showcaseDefaults: { bg }`, comes back with
+  a transparent background (a PNG with alpha). Viewers show transparent pixels differently; if a light or dark
+  component is hard to judge, look at `--shell` too. With `showcaseDefaults.bg` set, a variant without `bg` is
+  captured on that background (the manifest's `bg` says which).
 - `--state <index>` captures the variant in one of the component's `states` (`@Showcase({ states })`; 0-based, in
   source order, listed in `window.__PRISM_MANIFEST__`). Without it no state is active. A state doesn't fit every
   variant, for example one with `states: false`, or one whose target the variant doesn't render. The script then prints

@@ -273,20 +273,20 @@ How the canvas renders the class: its background, its layout, or a page in its p
 
 ### `bg`
 
-**Type** [`CanvasBg`](api/types.md#canvasbg): `'dots' | 'plain' | 'light' | 'dark' | 'checker' | 'transparent'` · **Default** none
+**Type** [`CanvasBg`](api/types.md#canvasbg): `'dots' | 'plain' | 'light' | 'dark' | 'transparent'` · **Default** none
 
 The recommended canvas background. A variant's own `bg` wins over the component's. What each value paints is in [`CanvasBg`](api/types.md#canvasbg).
 
 Where it applies:
 
-- **Playground:** opening a variant applies the background it declares. The user can pick another one from the **Background** group of the tools menu. That override is transient and resets on the next variant or component, and while it differs from the recommendation, a `Recommended: <bg>` pill with a `Reset` button sits in the canvas. When neither the variant nor the component declares one, the canvas keeps its own background: `dots` at first, then whatever the user last picked, remembered across visits. Until the user picks one, a simulated `Light` or `Dark` color scheme takes it to `light` or `dark`, see [Simulate: The ground](guide/styleguide-ui.md#the-ground).
-- **Overview, capture mode and `__PRISM_MANIFEST__`:** the declared background, and `transparent` where nothing declares one (`DEFAULT_VARIANT_BG`). The Overview draws `transparent` as a checkerboard, and where nothing is declared it paints `light` or `dark` instead while a color scheme is simulated. Capture mode ignores the user's override and paints the declared background, and `transparent` gives a screenshot with a real alpha channel, for which a runner has to pass `omitBackground: true`. See [Capturing transparency](guide/visual-regression.md#capturing-transparency).
+- **Playground:** opening a variant applies the background it declares. The user can pick another one from the **Background** group of the tools menu. That override is transient and resets on the next variant or component, and while it differs from the recommendation, a `Recommended: <bg>` pill with a `Reset` button sits in the canvas. When neither the variant nor the component declares one, the canvas keeps its own background: `dots` at first, then whatever the user last picked, remembered across visits. Until the user picks one, a simulated `Light` or `Dark` color scheme takes it to `light` or `dark`, see [Simulate: The ground](guide/styleguide-ui.md#the-ground). A project can replace `dots` as the first value with [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults); it is no recommendation, so the pill and the chip stay as they are.
+- **Overview, capture mode and `__PRISM_MANIFEST__`:** the declared background, and `transparent` where nothing declares one (`DEFAULT_VARIANT_BG`), or the config's [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults) if it sets one. The Overview draws `transparent` as a checkerboard, and where nothing is declared it paints `light` or `dark` instead while a color scheme is simulated. Capture mode ignores the user's override and paints the declared background, and `transparent` gives a screenshot with a real alpha channel, for which a runner has to pass `omitBackground: true`. See [Capturing transparency](guide/visual-regression.md#capturing-transparency).
 
-`light` and `dark` are absolute colours (`--prism-void-light`, `--prism-void-dark`), while `dots`, `plain` and `checker` follow the active theme. A baseline under visual regression is only as stable as its background, so declare `light` or `dark` for a component designed against a surface, and `transparent` when its own transparency is under test.
+`light` and `dark` are absolute colours (`--prism-void-light`, `--prism-void-dark`), while `dots` and `plain` follow the active theme. `transparent` is a checkerboard drawn from `--prism-void-light` while browsing, the same in both themes, and nothing at all in a capture. A baseline under visual regression is only as stable as its background, so declare `light` or `dark` for a component designed against a surface, and `transparent` when its own transparency is under test.
 
-`'checker'` is deprecated since 22.2.0, removed in 23.0.0. It draws the same checkerboard as `'transparent'` while browsing, but captures on `--prism-bg-surface`, a theme token, which makes a baseline recorded on it depend on the theme the runner's browser started in. Use `'transparent'` for the same look with a capture that keeps its alpha, or `'light'` or `'dark'` for an absolute colour. The build warns for every component and variant that declares it, without counting for `strictShowcase`. It stays in the **Background** group until 23.0.0, so the UI can still mark it as active or recommended.
+The three absolute grounds also set the text colour a component inherits, in both themes and in a capture: `--prism-void-light-text` on `light` and `transparent`, `--prism-void-dark-text` on `dark`. `dots` and `plain` leave the theme's text. A component that colours its own text is not affected; one that inherits it, an icon in `currentColor` for instance, is dark on `light` and light on `dark` under either theme. See [Base Tokens](guide/theming.md#base-tokens-theme-independent).
 
-A value outside the six is dropped with a warning that counts for `strictShowcase`. On a part, `bg` is dropped with a notice.
+A value outside the five is dropped with a warning that counts for `strictShowcase`. On a part, `bg` is dropped with a notice.
 
 ```typescript
 @Showcase({
@@ -579,7 +579,7 @@ An unknown state, a target that is neither `true` nor a selector, and an empty s
 
 ## Deprecated
 
-Deprecated values and uses are marked where they apply: `bg: 'checker'` under [`bg`](#bg), and the canvas fields on a service or a pipe under [Services and pipes](#services-and-pipes). [Upgrade Notes 22.x](guide/upgrade-notes-22.md#removed-in-2300) lists everything that is removed in 23.0.0.
+Deprecated values and uses are marked where they apply, such as the canvas fields on a service or a pipe under [Services and pipes](#services-and-pipes). [Upgrade Notes 22.x](guide/upgrade-notes-22.md#removed-in-2300) lists everything that is removed in 23.0.0.
 
 ### `providers`
 

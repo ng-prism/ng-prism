@@ -225,10 +225,10 @@
 
 /* The ground itself, small. Its colour and pattern come from the
    [data-bg] rules of CANVAS_BG_STYLES, which follow this sheet: the
-   stage's colour under dots, plain and the checkerboard, light and dark
-   over it. Only the pattern's scale is the swatch's own, and these
-   selectors outweigh the [data-bg] ones. The inset ring keeps a ground
-   as dark (or as light) as the menu visible on it. */
+   stage's colour under dots and plain, the ground's own under light,
+   dark and the checkerboard. Only the pattern's scale is the swatch's
+   own, and these selectors outweigh the [data-bg] ones. The inset ring
+   keeps a ground as dark (or as light) as the menu visible on it. */
 .swatch {
     flex: none;
     width: 20px;
@@ -242,7 +242,6 @@
     background-size: 5px 5px;
 }
 
-.swatch[data-bg='checker'],
 .swatch[data-bg='transparent'] {
     background-position:
         0 0,

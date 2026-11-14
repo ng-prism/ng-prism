@@ -10,6 +10,11 @@
             "version": "22.0.0-beta.4",
             "description": "Rename the manifest cache directory from .ng-prism/ to ng-prism-cache/. The dot-prefixed name was silently excluded from @angular/build's watcher (hardcoded **/.*/** ignore pattern), so @Showcase decorator edits never triggered an HMR / reload.",
             "factory": "../dist/schematics/migrations/v22-0-cache-dir-rename/index#migrate"
+        },
+        "migration-v22-8-checker-bg": {
+            "version": "22.8.0-beta.2",
+            "description": "Rewrite bg: 'checker', removed in 22.8.0, to 'transparent' in @Showcase decorators; 'transparent' is a checkerboard while browsing, light in both themes, and see-through in a capture.",
+            "factory": "../dist/schematics/migrations/v22-8-checker-bg/index#migrate"
         }
     }
 }

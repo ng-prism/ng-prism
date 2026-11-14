@@ -83,11 +83,17 @@
    .demo-wrap is in the Playground. Nothing above the cell is positioned, so
    such an element would resolve against the document root, escape every
    scroll box on the way and stretch the document: a visually hidden text in
-   a matrix row far down scrolled the whole styleguide out of the window. */
+   a matrix row far down scrolled the whole styleguide out of the window.
+
+   It also carries the text colour the component inherits: the ground's
+   (CANVAS_BG_STYLES), --prism-text on grounds without one. Read here, as in
+   the Playground, and not set on the stage as `color`: only the component
+   takes it, the stage stays styleguide chrome. */
 .cell__mount {
     position: relative;
     display: inline-block;
     max-width: 100%;
+    color: var(--prism-ground-text, var(--prism-text));
 }
 
 :host([data-wide]) .cell__mount,

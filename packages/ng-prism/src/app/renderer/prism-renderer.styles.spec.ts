@@ -72,6 +72,13 @@ describe('prism-renderer simulated ground', () => {
     });
 });
 
+/** What the specimen inherits. The ground sets the relay, and only the box the component hangs in reads it. */
+describe('prism-renderer text colour', () => {
+    it('takes the colour of the ground the stage paints, the theme text on grounds without one', () => {
+        expect(rule('.demo-wrap')).toContain('color: var(--prism-ground-text, var(--prism-text));');
+    });
+});
+
 /**
  * The width of the tool rail with a fine or a coarse pointer, from what it is made of: its buttons (all of them extra small), its
  * padding and its border. The rail sits outside the stage and sizes to its content, so no rule states the number. A touch screen
