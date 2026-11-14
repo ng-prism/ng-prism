@@ -12,7 +12,7 @@ Add or extend TypeScript Compiler API scanner modules under `packages/ng-prism/s
 The scanner pipeline:
 
 ```
-entry-point.scanner  →  component.scanner  →  manifest.generator
+entry-point.scanner  →  component.scanner  →  builder/manifest/runtime-manifest.generator
         ↓                      ↓
   resolves exports      uses input.extractor
   from the entry file   uses ast-utils
@@ -39,7 +39,6 @@ entry-point.scanner  →  component.scanner  →  manifest.generator
 | `entry-point.scanner.ts`           | Resolve exports from entry point                                                                                                                                                 |
 | `component.scanner.ts`             | Find @Showcase components, extract config                                                                                                                                        |
 | `input.extractor.ts`               | Extract `input()`/`output()`/`model()` metadata (and legacy `@Input()`/`@Output()`)                                                                                              |
-| `manifest.generator.ts`            | Generate prism-manifest.ts source code                                                                                                                                           |
 | `pseudo-states.ts`                 | Read and validate a variant's forced pseudo states (`readPseudoStates`)                                                                                                          |
 | `showcase-diagnostics.ts`          | Word the warnings for `@Showcase` values the scan had to drop                                                                                                                    |
 | `showcase-states.ts`               | Read and validate the component-level `states` list, keeping every slot (`readShowcaseStates`)                                                                                   |

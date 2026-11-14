@@ -25,7 +25,9 @@ describe('the date control', () => {
             ['an ISO string', '2026-04-27T22:00:00.000Z'],
             ['null', null],
             ['undefined', undefined],
-            ['an invalid date', new Date(NaN)]
+            ['an invalid date', new Date(NaN)],
+            // The field takes no year before 1.
+            ['a year before 1', new Date(new Date(2026, 0, 1).setFullYear(0))]
         ])('shows an empty field for %s', (_, value) => {
             expect(toDateInputValue(value)).toBe('');
         });

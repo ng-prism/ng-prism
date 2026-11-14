@@ -159,7 +159,9 @@ export function notesPlugin(): NgPrismPlugin {
   `@ng-prism/core/plugin` (warn down to 75 % of the target, danger below), and `worstTone()` for several. The header
   badge, the sidebar and the built-in panels grade the same way, so a plugin that does too never disagrees with them.
 - Show a `Date` (an input default, a payload, a value) with `formatDateValue(date)` from `@ng-prism/core/plugin`
-  (since 22.8.0): the local day, plus the time when there is one, as the Events panel and the API page show it.
+  (since 22.8.0): the local day, plus the time when there is one, as the Events panel and the API page show it. An
+  input's default as code writes it, its `Date`s included, comes from `formatDefaultValue(value)` (since 22.8.0), and
+  the checkerboard of `transparent` from `checkerboardStyle()` (since 22.8.0).
 
 - Panel ids are not deduplicated: prefix yours and avoid the built-in `overview`, `controls`, `events` and `a11y`.
 - Decoration ids are deduplicated: built-ins first (only `a11y`), then plugins in registration order. The first
@@ -227,8 +229,8 @@ runtime contributions only:
   without the hooks. Both export the same names, since they share one `index.d.ts`.
 - Angular and `@ng-prism/core` are `peerDependencies`, never bundled. Start the `@ng-prism/core` range at the release
   whose APIs the plugin uses: `statusFor`, the UI primitives and `PanelBadge.kind` exist from 22.7.0, so a plugin that
-  follows this skill needs `^22.7.0-0`, and `^22.8.0-0` once it uses `formatDateValue`, `InputMeta`'s `'date'` or
-  `data-prism-theme`.
+  follows this skill needs `^22.7.0-0`, and `^22.8.0-0` once it uses `formatDateValue`, `formatDefaultValue`, `checkerboardStyle`,
+  `InputMeta`'s `'date'` or `data-prism-theme`.
 - Optional `ng add`: a schematic that calls `addPluginToConfig(tree, path, { importName, importFrom, call })` from
   `@ng-prism/core/schematics/utils`, with `path` pointing at `ng-prism.config.ts`.
 

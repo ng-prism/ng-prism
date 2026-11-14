@@ -12,26 +12,26 @@ import type { ScopeRootState } from './scope-root.js';
  * background they picked for the whole canvas. Only when nobody decided, the
  * ground follows the emulated scheme, so that a dark scheme does not show a
  * component on the light dot grid. Without an emulated scheme, it is the
- * canvas background as before.
+ * canvas's own `dots`.
  *
- * `fallback` is the project's `showcaseDefaults.bg`. It only replaces the
- * canvas background where nobody decided, so the emulated scheme beats it too:
- * a dark scheme should not leave the component on the light ground the project
- * set for the default case. It is no decision of the variant, which is why it is
- * not `recommended`.
+ * `picked` is the background picked for the whole canvas, `null` while nobody
+ * did: a picked `dots` holds while a scheme is emulated, the default one does
+ * not.
  *
- * `chosen` is what tells a picked `dots` from the default one: the value alone
- * cannot, and a pick made while a scheme is emulated has to hold.
+ * `fallback` is the project's `showcaseDefaults.bg`. It only replaces `dots`
+ * where nobody decided, so the emulated scheme beats it too: a dark scheme
+ * should not leave the component on the light ground the project set for the
+ * default case. It is no decision of the variant, which is why it is not
+ * `recommended`.
  */
 export function playgroundGround(o: {
     override: CanvasBg | null;
     recommended: CanvasBg | null;
-    chosen: boolean;
-    canvasBg: CanvasBg;
+    picked: CanvasBg | null;
     scheme: 'light' | 'dark' | null;
     fallback: CanvasBg | null;
 }): CanvasBg {
-    return o.override ?? o.recommended ?? (o.chosen ? o.canvasBg : o.scheme) ?? o.fallback ?? o.canvasBg;
+    return o.override ?? o.recommended ?? o.picked ?? o.scheme ?? o.fallback ?? 'dots';
 }
 
 /**

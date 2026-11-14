@@ -6,8 +6,7 @@ The canvas (`PrismRendererComponent`) is governed by cooperating services with d
 
 Holds the user's globally persisted canvas preferences:
 
-- `bg`: global default canvas background (any `CanvasBg`: `dots | plain | light | dark | transparent`), `'dots'` until the user picks one
-- `bgChosen`: whether the user picked `bg` (`setBg()`), persisted with it. The value alone cannot tell the default `dots` from a picked one, and only a background nobody picked follows a simulated color scheme (see [Simulation](#simulation)). Storage written without the flag counts any value but `dots` as picked. A stored `bg` that is no longer a `CanvasBg` (a removed value) falls back to `dots` and takes its flag with it, since nobody picked `dots`. Only `setBg()` writes it, always `true`, so there is no way back to unpicked
+- `bg`: the background picked for the whole canvas (`setBg()`), any `CanvasBg`, or `null` while nobody picked one, which paints `dots`. Nullable because a picked `dots` and the default one paint the same, but only a background nobody picked follows a simulated color scheme (see [Simulation](#simulation)). The storage keeps the format 22.7 reads: the value, `dots` while nothing is picked, and the flag `bgChosen` next to it; storage written without the flag counts any value but `dots` as picked. A stored value that is no longer a `CanvasBg` (a removed value) counts as nothing picked
 - `zoom`, `guides`, `rulers`: set from the floating canvas rail; guides and rulers are toggle buttons on the rail itself, zoom is a chooser in the rail's tools menu
 - `measure`: whether the measuring tool is on, a toggle button on the rail. It lives here rather than in `PrismMeasureService` because it is the same kind of state as `guides` and `rulers`, a preference about the working environment, not a statement about the variant. The measurements themselves are in `PrismMeasureService`, see [Measuring](#measuring).
 - `viewportWidth`: `number | null`; the width `.demo-wrap` is constrained to, or `null` for unconstrained. Toggled from the rail, set from the **Width** chooser in the tools menu, and dragged from the grips at either edge of the constrained area. `toggleViewport()` restores the last width of the session, a field that is not persisted and starts at `VIEWPORT_DEFAULT` (390).
@@ -20,7 +19,7 @@ Computes the actually-applied canvas background by resolving a fallback chain:
 
 ```
 recommended = variant.bg ?? component.bg
-effective   = override ?? recommended ?? (bgChosen ? canvas.bg() : schemeGround) ?? showcaseDefaults.bg ?? canvas.bg()   // browsing
+effective   = override ?? recommended ?? canvas.bg() ?? schemeGround ?? showcaseDefaults.bg ?? 'dots'   // browsing
 effective   = recommended ?? showcaseDefaults.bg ?? DEFAULT_VARIANT_BG   // capture mode ('transparent')
 ```
 

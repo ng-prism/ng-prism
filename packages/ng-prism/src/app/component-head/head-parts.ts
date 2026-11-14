@@ -1,5 +1,5 @@
 import type { InputMeta, RuntimePart } from '../../plugin/plugin.types.js';
-import { formatDateValue } from '../../shared/date-value.js';
+import { formatDefaultValue } from '../../shared/default-value.js';
 import { modelChangeOutput } from '../../shared/model-outputs.js';
 import { partKeys } from '../../shared/part-keys.js';
 import { type StatusBadge, statusBadge } from './status-badge.js';
@@ -43,16 +43,7 @@ export function formatPartDefault(input: InputMeta): string | undefined {
     if (input.defaultUnreadable) return '…';
     const value = input.defaultValue;
 
-    if (value === undefined) return undefined;
-    if (value instanceof Date) return formatDateValue(value);
-    return typeof value === 'string' ? `'${value.replace(/[\\']/g, '\\$&')}'` : JSON.stringify(value, readableDates);
-}
-
-/** A `Date` inside a default as its day, not as the UTC time `toISOString()` would give it. */
-function readableDates(this: Record<string, unknown>, key: string, value: unknown): unknown {
-    const raw = this[key];
-
-    return raw instanceof Date ? formatDateValue(raw) : value;
+    return value === undefined ? undefined : formatDefaultValue(value);
 }
 
 /**

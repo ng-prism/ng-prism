@@ -43,3 +43,28 @@ describe('toLocalIsoString', () => {
         expect(new Date(toLocalIsoString(date)).getTime()).toBe(date.getTime());
     });
 });
+
+/** `new Date(year, …)` reads the years 0 to 99 as 1900 to 1999. */
+function dayOfYear(year: number): Date {
+    const date = new Date(2026, 0, 1);
+
+    date.setFullYear(year, 2, 1);
+    return date;
+}
+
+// As ISO 8601 and `toISOString()` write a year: four digits up to 9999, else a sign and six. `new Date()` reads no other
+// form back, and the JSON control reads its own text back with it.
+describe('the year of a day', () => {
+    it.each([
+        [50, '0050-03-01'],
+        [999, '0999-03-01'],
+        [20266, '+020266-03-01'],
+        [-1, '-000001-03-01']
+    ])('writes %s as ISO 8601 does', (year, day) => {
+        expect(formatDateValue(dayOfYear(year))).toBe(day);
+        expect(toLocalIsoString(dayOfYear(year)).startsWith(`${day}T`)).toBe(true);
+        // Read back, not to the second: before time zones the offset was local mean time, -04:56:02 in New York, and
+        // an ISO offset has no seconds.
+        expect(Math.abs(new Date(toLocalIsoString(dayOfYear(year))).getTime() - dayOfYear(year).getTime())).toBeLessThan(60_000);
+    });
+});

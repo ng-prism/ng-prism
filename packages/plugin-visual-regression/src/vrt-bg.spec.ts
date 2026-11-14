@@ -1,4 +1,4 @@
-import type { CanvasBg } from '@ng-prism/core/plugin';
+import { type CanvasBg, checkerboardStyle } from '@ng-prism/core/plugin';
 import type { VrtVariantResult } from './visual-regression.types.js';
 import { bgChange, shotSurfaceStyle } from './vrt-bg.js';
 
@@ -41,12 +41,7 @@ describe('shotSurfaceStyle', () => {
         // The capture has a real alpha channel and dark inherited text, so the
         // board behind it has to be the light one in both themes. Only colours
         // come from here; the CSS keeps size and position.
-        const style = shotSurfaceStyle('transparent');
-        const square = 'color-mix(in srgb, var(--prism-void-light, #f7f5fc) 94%, #0f172a)';
-
-        expect(style['background-color']).toBe('var(--prism-void-light, #f7f5fc)');
-        expect(style['background-image'].split(square)).toHaveLength(5);
-        expect(Object.keys(style).sort()).toEqual(['background-color', 'background-image']);
+        expect(shotSurfaceStyle('transparent')).toEqual(checkerboardStyle());
     });
 
     it('lays a capture without a recorded background on the same checkerboard', () => {

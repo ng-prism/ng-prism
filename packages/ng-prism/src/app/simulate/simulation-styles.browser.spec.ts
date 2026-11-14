@@ -90,6 +90,25 @@ describe('SimulationStyles', () => {
         delete (CSSStyleSheet.prototype as { replaceSync?: unknown }).replaceSync;
     });
 
+    // They depend on neither, and reading them walks every rule of every sheet. Styles that arrive add theirs.
+    it('reads the forced colors rules of the sheets when forced colors come on, not on a change of the media or the palette', () => {
+        stubAdoptedSheets();
+        const apply = jest.spyOn(MediaStyleSheets.prototype, 'apply');
+        const styles = create();
+
+        addStyle('.dot { forced-color-adjust: none }');
+        styles.apply(FORCED, 'dark');
+        styles.apply({ ...FORCED, 'prefers-reduced-motion': 'reduce' }, 'dark');
+        styles.apply({ ...FORCED, 'prefers-reduced-motion': 'reduce' }, 'light');
+
+        const rules = apply.mock.calls.map(([, forced]) => forced?.rules);
+
+        expect(rules).toHaveLength(3);
+        expect(rules[0]).toEqual(rulesOf({ exempt: ['.dot'] }));
+        expect(rules[1]).toBe(rules[0]);
+        expect(rules[2]).toBe(rules[0]);
+    });
+
     it('adopts the forced colors sheet, ignored by the media engine, and removes it on clear', () => {
         const { adopt, textOf } = stubAdoptedSheets();
         const apply = jest.spyOn(MediaStyleSheets.prototype, 'apply');

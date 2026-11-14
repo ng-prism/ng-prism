@@ -2,8 +2,14 @@ function pad(value: number, length = 2): string {
     return String(Math.abs(value)).padStart(length, '0');
 }
 
-function localDay(date: Date): string {
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+/** A year as ISO 8601 and `toISOString()` write it: four digits from 0 to 9999, else a sign and six. `new Date()` reads no other form back. */
+function isoYear(year: number): string {
+    return year >= 0 && year <= 9999 ? pad(year, 4) : `${year < 0 ? '-' : '+'}${pad(year, 6)}`;
+}
+
+/** The local day of `date`, as `2026-04-28`, its year in the form of {@link isoYear}. */
+export function localDay(date: Date): string {
+    return `${isoYear(date.getFullYear())}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 /**

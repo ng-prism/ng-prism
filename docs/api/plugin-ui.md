@@ -284,6 +284,19 @@ A `Date` as the styleguide shows it (since 22.8.0): in the local time of the bro
 formatDateValue(new Date(2026, 3, 28)); // '2026-04-28'
 ```
 
+### `formatDefaultValue`
+
+```typescript
+function formatDefaultValue(value: unknown): string;
+```
+
+The default of an input as the code that sets it writes it, as the parts popover shows it (since 22.8.0): a string in single quotes with its quotes and backslashes escaped, a `Date` as `formatDateValue` shows it, also inside an array or an object, which are JSON, and anything else by its `String()`. The API page of `@ng-prism/plugin-jsdoc` shows defaults with it.
+
+```typescript
+formatDefaultValue("it's"); // "'it\\'s'"
+formatDefaultValue({ from: new Date(2026, 3, 28) }); // '{"from":"2026-04-28"}'
+```
+
 ### Backgrounds
 
 | Export               | Type                                                                                         | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -292,6 +305,7 @@ formatDateValue(new Date(2026, 3, 28)); // '2026-04-28'
 | `DEFAULT_VARIANT_BG` | `CanvasBg`                                                                                   | `'transparent'`: the background a variant without a declared `bg` reports and is captured on, unless the config sets `showcaseDefaults.bg`                                                                                                                                                                                                                                                                           |
 | `resolveVariantBg`   | `(config: VariantBgSource, variantIndex: number, fallback?: CanvasBg \| null) => CanvasBg`   | The background a variant renders on in the Overview, in capture mode and in `__PRISM_MANIFEST__`: the variant's `bg`, else the component's, else `fallback`, which is the config's [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults) (since 22.8.0), else `DEFAULT_VARIANT_BG`. `VariantBgSource` is `{ bg?: CanvasBg; variants?: readonly { bg?: CanvasBg }[] }`, which a `ShowcaseConfig` satisfies |
 | `showcaseDefaultBg`  | `(config: { showcaseDefaults?: { bg?: unknown } } \| null \| undefined) => CanvasBg \| null` | The config's [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults) (since 22.8.0), or `null` where it sets none or sets a value that is no `CanvasBg`. An `NgPrismConfig` satisfies the parameter. It is what `resolveVariantBg()` takes as `fallback`                                                                                                                                                    |
+| `checkerboardStyle`  | `() => { 'background-color': string; 'background-image': string }`                           | The checkerboard the canvas draws for `transparent` while browsing (since 22.8.0): the light ground `--prism-void-light` with squares mixed 6% towards ink, in both themes. Size and position are the caller's; the canvas uses 16px squares. The visual regression panel lays a capture on it                                                                                                                       |
 
 Which background applies where, and which to declare under visual regression, is described under [`bg`](api/showcase-config.md#bg).
 

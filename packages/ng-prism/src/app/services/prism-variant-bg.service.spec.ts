@@ -273,8 +273,7 @@ describe('PrismVariantBgService with showcaseDefaults', () => {
     it('is not a pick: the canvas background stays what it was', () => {
         activate(manifestService, nav, makeComponent());
         TestBed.flushEffects();
-        expect(canvas.bg()).toBe('dots');
-        expect(canvas.bgChosen()).toBe(false);
+        expect(canvas.bg()).toBeNull();
     });
 
     it('ignores a value that is no canvas background', () => {

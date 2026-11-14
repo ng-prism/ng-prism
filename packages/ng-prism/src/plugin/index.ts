@@ -55,6 +55,8 @@ export { partKeys } from '../shared/part-keys.js';
 
 // A `Date` in a showcase value, a default or a payload, as the styleguide shows it: a plugin that shows one shows it the same way.
 export { formatDateValue } from '../shared/date-value.js';
+// The default of an input as the parts popover shows it, which an API page shows the same way.
+export { formatDefaultValue } from '../shared/default-value.js';
 
 // The canvas background a variant renders on. Part of the discovery contract
 // (`DiscoveryVariant.bg`), so external tooling and plugins can name the type
@@ -62,6 +64,8 @@ export { formatDateValue } from '../shared/date-value.js';
 export type { CanvasBg } from '../shared/canvas-bg.type.js';
 export { CANVAS_BGS } from '../shared/canvas-bg.type.js';
 export { DEFAULT_VARIANT_BG, resolveVariantBg, showcaseDefaultBg } from '../shared/variant-bg.js';
+// The checkerboard of `transparent`, for a plugin that shows something on the same board, as the visual regression panel does.
+export { checkerboardStyle } from '../shared/checkerboard.js';
 export type { VariantBgSource } from '../shared/variant-bg.js';
 
 // The pseudo states a variant can force. `Variant.pseudo` reaches plugins

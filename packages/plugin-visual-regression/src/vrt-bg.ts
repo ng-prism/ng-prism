@@ -1,4 +1,4 @@
-import type { CanvasBg } from '@ng-prism/core/plugin';
+import { type CanvasBg, checkerboardStyle } from '@ng-prism/core/plugin';
 import type { VrtVariantResult } from './visual-regression.types.js';
 
 /**
@@ -13,25 +13,6 @@ const SURFACE: Partial<Record<CanvasBg, string>> = {
     light: 'var(--prism-void-light, #f7f5fc)',
     dark: 'var(--prism-void-dark, #07050f)'
 };
-
-/**
- * The checkerboard the canvas draws for `transparent`, as colours only.
- *
- * Keep in step with `CANVAS_BG_STYLES` in `@ng-prism/core`: the plugin cannot
- * import it, since only `@ng-prism/core/plugin` is public. The ground is
- * `--prism-void-light` and the squares are that ground mixed 6% towards
- * `#0f172a`, so a project that retunes the token retunes both boards. The four
- * gradients are the canvas's own; `.vrt-cmp__shot` supplies the size and
- * position (a 12px grid here, 16px on the canvas).
- */
-const CHECKER_GROUND = 'var(--prism-void-light, #f7f5fc)';
-const CHECKER_SQUARE = `color-mix(in srgb, ${CHECKER_GROUND} 94%, #0f172a)`;
-const CHECKER_IMAGE = [
-    `linear-gradient(45deg, ${CHECKER_SQUARE} 25%, transparent 25%)`,
-    `linear-gradient(-45deg, ${CHECKER_SQUARE} 25%, transparent 25%)`,
-    `linear-gradient(45deg, transparent 75%, ${CHECKER_SQUARE} 75%)`,
-    `linear-gradient(-45deg, transparent 75%, ${CHECKER_SQUARE} 75%)`
-].join(', ');
 
 /**
  * Background declarations for the box that holds a capture.
@@ -52,9 +33,8 @@ const CHECKER_IMAGE = [
  * the same way.
  */
 export function shotSurfaceStyle(bg: CanvasBg | undefined): Record<string, string> {
-    if (!bg || bg === 'transparent') {
-        return { 'background-color': CHECKER_GROUND, 'background-image': CHECKER_IMAGE };
-    }
+    // Size and position come from `.vrt-cmp__shot`: a 12px grid here, 16px on the canvas.
+    if (!bg || bg === 'transparent') return checkerboardStyle();
 
     const surface = SURFACE[bg];
 

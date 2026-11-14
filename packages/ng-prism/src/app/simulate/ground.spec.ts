@@ -3,7 +3,7 @@ import { groundSimulation, NO_GROUND_SIMULATION, overviewGround, playgroundGroun
 import type { ScopeRootState } from './scope-root.js';
 
 describe('playgroundGround', () => {
-    const base = { override: null, recommended: null, chosen: false, canvasBg: 'dots' as const, scheme: 'dark' as const, fallback: null };
+    const base = { override: null, recommended: null, picked: null, scheme: 'dark' as const, fallback: null };
 
     it('follows the emulated scheme while nothing else decides', () => {
         expect(playgroundGround(base)).toBe('dark');
@@ -11,27 +11,27 @@ describe('playgroundGround', () => {
     });
 
     it('keeps a background the user picked over the scheme', () => {
-        expect(playgroundGround({ ...base, chosen: true })).toBe('dots');
+        expect(playgroundGround({ ...base, picked: 'dots' })).toBe('dots');
     });
 
     it('keeps the canvas background without an emulated scheme', () => {
         expect(playgroundGround({ ...base, scheme: null })).toBe('dots');
-        expect(playgroundGround({ ...base, scheme: null, chosen: true, canvasBg: 'plain' })).toBe('plain');
+        expect(playgroundGround({ ...base, scheme: null, picked: 'plain' })).toBe('plain');
     });
 
     it('keeps what the variant recommends over the scheme', () => {
         expect(playgroundGround({ ...base, recommended: 'light' })).toBe('light');
-        expect(playgroundGround({ ...base, recommended: 'light', chosen: true })).toBe('light');
+        expect(playgroundGround({ ...base, recommended: 'light', picked: 'dots' })).toBe('light');
     });
 
     it('keeps the override over everything', () => {
         expect(playgroundGround({ ...base, override: 'transparent', recommended: 'light' })).toBe('transparent');
-        expect(playgroundGround({ ...base, override: 'plain', chosen: true })).toBe('plain');
+        expect(playgroundGround({ ...base, override: 'plain', picked: 'dots' })).toBe('plain');
     });
 });
 
 describe('playgroundGround with a project fallback', () => {
-    const base = { override: null, recommended: null, chosen: false, canvasBg: 'dots' as const, scheme: null, fallback: 'light' as const };
+    const base = { override: null, recommended: null, picked: null, scheme: null, fallback: 'light' as const };
 
     it('paints the fallback where nobody decided', () => {
         expect(playgroundGround(base)).toBe('light');
@@ -42,8 +42,8 @@ describe('playgroundGround with a project fallback', () => {
     });
 
     it('lets the background the user picked win over it, a picked dots included', () => {
-        expect(playgroundGround({ ...base, chosen: true })).toBe('dots');
-        expect(playgroundGround({ ...base, chosen: true, canvasBg: 'plain', scheme: 'dark' })).toBe('plain');
+        expect(playgroundGround({ ...base, picked: 'dots' })).toBe('dots');
+        expect(playgroundGround({ ...base, picked: 'plain', scheme: 'dark' })).toBe('plain');
     });
 
     it('lets a declared background and the override win over it', () => {

@@ -45,7 +45,7 @@ export class PrismVariantBgService {
      * It is also what the discovery manifest reports, so the reported and the
      * captured background cannot drift apart.
      *
-     * Interactive mode keeps `canvas.bg()`: browsing wants the themed dot grid,
+     * Interactive mode keeps `canvas.bg()`, `dots` while nobody picked one: browsing wants the themed dot grid,
      * and forcing `light` would break dark-theme browsing, unless the project
      * set `showcaseDefaults.bg`. While a color scheme is emulated, a background
      * nobody picked follows it instead ({@link playgroundGround}); capture mode
@@ -57,8 +57,7 @@ export class PrismVariantBgService {
             : playgroundGround({
                   override: this._override(),
                   recommended: this.recommended(),
-                  chosen: this.canvas.bgChosen(),
-                  canvasBg: this.canvas.bg(),
+                  picked: this.canvas.bg(),
                   scheme: this.simulation.schemeGround(),
                   fallback: this.fallback
               })

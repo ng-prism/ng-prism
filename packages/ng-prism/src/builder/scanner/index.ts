@@ -9,4 +9,3 @@ export type { ScanServicesOptions } from './service.scanner.js';
 export { scanPipes } from './pipe.scanner.js';
 export type { ScanPipesOptions } from './pipe.scanner.js';
 export { extractInputs, extractOutputs } from './input.extractor.js';
-export { generateManifest } from './manifest.generator.js';

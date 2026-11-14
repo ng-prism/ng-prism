@@ -2,7 +2,7 @@ import { isDevMode } from '@angular/core';
 import { collectForcedColorRules, collectForcedColorRulesIn, FORCED_LAYER, type ForcedColorRules, forcedColorsCss, mergeForcedColorRules } from './forced-colors.js';
 import { type ForcedPaletteName, readPlatformColors } from './forced-palette.js';
 import { type ForcedOptions, MediaStyleSheets } from './media-stylesheets.js';
-import { type EmulatedMedia, sameMedia } from './simulation.js';
+import type { EmulatedMedia } from './simulation.js';
 
 /** The statement that declares the layer of the forced colors sheet, before any layer of the author's. */
 const LAYER_STATEMENT = `@layer ${FORCED_LAYER};`;
@@ -35,8 +35,6 @@ export class SimulationStyles {
     private readonly media: MediaStyleSheets;
     private forcedSheet: CSSStyleSheet | null = null;
     private emulated: EmulatedMedia = {};
-    /** The palette of the last {@link apply}, `null` while forced colors are off. */
-    private palette: ForcedPaletteName | null = null;
     /** What the media engine was last given for forced colors. */
     private forced: ForcedOptions | null = null;
     private written: Written | null = null;
@@ -55,16 +53,17 @@ export class SimulationStyles {
      * Emulates `emulated` in the scope and, with a `palette`, forces colors in
      * it: the twins of the author's rules and the forced colors sheet, both in
      * the palette. The exemptions and the custom properties of gradients and
-     * background lists are collected anew, unless nothing changed. Idempotent.
+     * background lists are collected when forced colors come on, which walks
+     * every rule of every sheet: they depend on neither the emulated media nor
+     * the palette, and styles that arrive later add theirs
+     * ({@link onNewStyles}). Idempotent.
      */
     apply(emulated: EmulatedMedia, palette: ForcedPaletteName | null): void {
-        const same = sameMedia(this.emulated, emulated) && this.palette === palette;
-
         this.emulated = { ...emulated };
-        this.palette = palette;
         if (palette !== null) readPlatformColors(this.doc);
         if (palette === null) this.forced = null;
-        else if (!same || this.forced === null) this.forced = { palette, rules: collectForcedColorRules(this.doc, this.ownSheets()) };
+        else if (this.forced === null) this.forced = { palette, rules: collectForcedColorRules(this.doc, this.ownSheets()) };
+        else if (this.forced.palette !== palette) this.forced = { palette, rules: this.forced.rules };
         this.applyMedia();
         // After the media engine, and ignored by it before it is adopted, so that it is never rewritten.
         this.adoptForcedSheet();

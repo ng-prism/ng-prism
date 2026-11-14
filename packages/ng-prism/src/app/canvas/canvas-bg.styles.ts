@@ -1,3 +1,5 @@
+import { CHECKERBOARD_GROUND, CHECKERBOARD_IMAGE, CHECKERBOARD_SQUARE } from '../../shared/checkerboard.js';
+
 /**
  * What each `CanvasBg` value paints, shared by the Playground stage
  * (`prism-renderer`), the Overview cells (`prism-overview-cell`) and the
@@ -93,18 +95,16 @@ export const CANVAS_BG_STYLES = `
      (55%) under 2.5:1 on a square. The measurement colours are those of "light"
      for the reason given there, and canvasOverlayTokens returns its overlays;
      semantic-colours.spec.ts reads the square out of this rule and measures
-     both against them. --prism-checker-square is local to the rule. */
+     both against them. --prism-checker-square is local to the rule. The
+     board comes from shared/checkerboard.ts, which plugins get as
+     checkerboardStyle(). */
   [data-bg="transparent"] {
-    --prism-checker-square: color-mix(in srgb, var(--prism-void-light, #f7f5fc) 94%, #0f172a);
+    --prism-checker-square: ${CHECKERBOARD_SQUARE};
     --prism-measure: var(--prism-void-light-measure, #ca00c1);
     --prism-measure-plate: var(--prism-void-light, #f7f5fc);
     --prism-ground-text: var(--prism-void-light-text, #0f172a);
-    background-color: var(--prism-void-light, #f7f5fc);
-    background-image:
-      linear-gradient(45deg, var(--prism-checker-square) 25%, transparent 25%),
-      linear-gradient(-45deg, var(--prism-checker-square) 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, var(--prism-checker-square) 75%),
-      linear-gradient(-45deg, transparent 75%, var(--prism-checker-square) 75%);
+    background-color: ${CHECKERBOARD_GROUND};
+    background-image: ${CHECKERBOARD_IMAGE};
     background-size: 16px 16px;
     background-position: 0 0, 0 8px, 8px -8px, -8px 0;
   }
