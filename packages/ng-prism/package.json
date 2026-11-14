@@ -1,6 +1,6 @@
 {
     "name": "@ng-prism/core",
-    "version": "22.9.0",
+    "version": "22.8.0-beta.1",
     "description": "ng-prism: the Angular-native Storybook alternative. Lightweight component showcase with @Showcase decorator, no story files needed.",
     "keywords": [
         "ng-prism",
