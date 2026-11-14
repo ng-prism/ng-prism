@@ -696,7 +696,7 @@ type CanvasBg = 'dots' | 'plain' | 'light' | 'dark' | 'transparent';
 | `dark`        | A flat dark surface in an absolute colour, `--prism-void-dark`                                                                                                                                                                                                                                                                           |
 | `transparent` | A light checkerboard while browsing, the same in both themes (drawn from `--prism-void-light`), real transparency in a capture. What a variant resolves to in discovery, capture and the Overview when nothing declares a background and the config sets no `showcaseDefaults.bg`; the Playground keeps the canvas's own background then |
 
-`light`, `dark` and `transparent` also set the text colour a component inherits, to dark ink on the first and the last and to light ink on `dark`, whatever the theme. `dots` and `plain` leave the theme's text.
+`light`, `dark` and `transparent` also set the text colour a component inherits, whatever the theme, see [`bg`](api/showcase-config.md#bg).
 
 Which background applies where, and which to declare under visual regression, is described under [`bg`](api/showcase-config.md#bg). `CANVAS_BGS` lists every value, `DEFAULT_VARIANT_BG` is `'transparent'`, and `resolveVariantBg()` resolves the background of a variant as the styleguide does, with the config's [`showcaseDefaults.bg`](api/ng-prism-config.md#showcasedefaults) as an optional third argument (`showcaseDefaultBg()` reads it from the config), see [Plugin UI Kit](api/plugin-ui.md#constants-and-helpers).
 

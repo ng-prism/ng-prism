@@ -60,7 +60,7 @@ Two consequences for a runner:
 
 With nothing declared a variant resolves to `transparent`. An undeclared variant has no opinion about its surface, so it is captured without one. A project whose components are all designed against one surface can say so once with [`showcaseDefaults: { bg: 'light' }`](api/ng-prism-config.md#showcasedefaults): the variants that declare nothing resolve to that value instead, and `__PRISM_MANIFEST__` reports it.
 
-A capture keeps the text colour of the ground, also on `transparent`, which paints nothing there: a component that inherits its colour is dark ink on `light` and `transparent` and light ink on `dark`, whatever theme the runner's browser started in. It is the same colour as while browsing, see [Base Tokens](guide/theming.md#base-tokens-theme-independent).
+A capture keeps the text colour of the ground, also on `transparent`, whatever theme the runner's browser started in, so a component that inherits its colour looks as it does while browsing, see [`bg`](api/showcase-config.md#bg).
 
 ### Capturing transparency
 
@@ -78,7 +78,7 @@ A capture keeps the text colour of the ground, also on `transparent`, which pain
 })
 ```
 
-While browsing, `transparent` draws a checkerboard, because that is how the UI shows "no surface here". The checkerboard is light in both themes: a page without a surface of its own is a light one, so the ground is `--prism-void-light` and the squares are that colour mixed 6% towards dark ink, and a component sees the same ground under the dark theme as under the light one. Only under `?capture=1` does it clear the canvas and every wrapper behind it, so nothing is composited into the shot.
+While browsing, `transparent` draws a checkerboard, because that is how the UI shows "no surface here". It is light in both themes, so a component sees the same ground under the dark theme as under the light one, see [`CanvasBg`](api/types.md#canvasbg). Only under `?capture=1` does it clear the canvas and every wrapper behind it, so nothing is composited into the shot.
 
 #### The runner has to ask for it
 

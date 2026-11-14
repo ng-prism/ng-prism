@@ -44,12 +44,12 @@
             "variantName": "Outlined",
             "variantIndex": 1,
             "baselinePath": "vrt/baseline/ButtonComponent/01-outlined.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/current/ButtonComponent/01-outlined.png",
             "width": 98,
             "height": 35,
             "diffPath": "vrt/diff/ButtonComponent/01-outlined.png",
-            "bg": "checker",
+            "bg": "transparent",
             "status": "changed",
             "diffPixels": 352,
             "totalPixels": 3430,
@@ -67,9 +67,9 @@
             "totalPixels": 3430,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ButtonComponent/02-elevated.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ButtonComponent/02-elevated.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ButtonComponent",
@@ -83,9 +83,9 @@
             "totalPixels": 1820,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ButtonComponent/03-text.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ButtonComponent/03-text.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ButtonComponent",
@@ -99,9 +99,9 @@
             "totalPixels": 1640,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ButtonComponent/04-icon-only.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ButtonComponent/04-icon-only.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ButtonComponent",
@@ -115,9 +115,9 @@
             "totalPixels": 3430,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ButtonComponent/05-disabled.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ButtonComponent/05-disabled.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ButtonComponent",
@@ -131,9 +131,9 @@
             "totalPixels": 3570,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ButtonComponent/06-readonly.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ButtonComponent/06-readonly.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ButtonComponent",
@@ -157,7 +157,7 @@
             "variantName": "Full width",
             "variantIndex": 8,
             "currentPath": "vrt/current/ButtonComponent/08-full-width.png",
-            "bg": "checker",
+            "bg": "transparent",
             "status": "new"
         },
         {
@@ -172,9 +172,9 @@
             "totalPixels": 3564,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ToggleComponent/00-default-off.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ToggleComponent/00-default-off.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ToggleComponent",
@@ -188,9 +188,9 @@
             "totalPixels": 3294,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ToggleComponent/01-default-on.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ToggleComponent/01-default-on.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ToggleComponent",
@@ -204,9 +204,9 @@
             "totalPixels": 2646,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ToggleComponent/02-disabled-off.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ToggleComponent/02-disabled-off.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ToggleComponent",
@@ -220,9 +220,9 @@
             "totalPixels": 3240,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ToggleComponent/03-disabled-on.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ToggleComponent/03-disabled-on.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ToggleComponent",
@@ -236,9 +236,9 @@
             "totalPixels": 1080,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ToggleComponent/04-no-label.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ToggleComponent/04-no-label.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "BadgeComponent",
@@ -252,9 +252,9 @@
             "totalPixels": 1012,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/BadgeComponent/00-default.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/BadgeComponent/00-default.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "BadgeComponent",
@@ -268,9 +268,9 @@
             "totalPixels": 1610,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/BadgeComponent/01-success.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/BadgeComponent/01-success.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "BadgeComponent",
@@ -284,9 +284,9 @@
             "totalPixels": 1472,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/BadgeComponent/02-warning.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/BadgeComponent/02-warning.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "BadgeComponent",
@@ -300,9 +300,9 @@
             "totalPixels": 1426,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/BadgeComponent/03-error.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/BadgeComponent/03-error.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "BadgeComponent",
@@ -316,9 +316,9 @@
             "totalPixels": 1012,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/BadgeComponent/04-info.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/BadgeComponent/04-info.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "BadgeComponent",
@@ -332,9 +332,9 @@
             "totalPixels": 736,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/BadgeComponent/05-numeric.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/BadgeComponent/05-numeric.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "AvatarComponent",
@@ -348,9 +348,9 @@
             "totalPixels": 812,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/AvatarComponent/00-initials-small.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/AvatarComponent/00-initials-small.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "AvatarComponent",
@@ -364,9 +364,9 @@
             "totalPixels": 1332,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/AvatarComponent/01-initials-medium.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/AvatarComponent/01-initials-medium.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "AvatarComponent",
@@ -380,9 +380,9 @@
             "totalPixels": 2352,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/AvatarComponent/02-initials-large.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/AvatarComponent/02-initials-large.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "AvatarComponent",
@@ -396,9 +396,9 @@
             "totalPixels": 1332,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/AvatarComponent/03-placeholder.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/AvatarComponent/03-placeholder.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ChipComponent",
@@ -406,9 +406,9 @@
             "variantName": "Default",
             "variantIndex": 0,
             "baselinePath": "vrt/baseline/ChipComponent/00-default.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/current/ChipComponent/00-default.png",
-            "bg": "checker",
+            "bg": "transparent",
             "width": 70,
             "height": 27,
             "status": "unchanged",
@@ -439,9 +439,9 @@
             "totalPixels": 3248,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ChipComponent/01-removable.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ChipComponent/01-removable.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ChipComponent",
@@ -455,9 +455,9 @@
             "totalPixels": 1674,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ChipComponent/02-selected.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ChipComponent/02-selected.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ChipComponent",
@@ -471,9 +471,9 @@
             "totalPixels": 2204,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ChipComponent/03-selected-removable.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ChipComponent/03-selected-removable.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ChipComponent",
@@ -487,9 +487,9 @@
             "totalPixels": 1836,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ChipComponent/04-disabled.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ChipComponent/04-disabled.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ProgressBarComponent",
@@ -503,9 +503,9 @@
             "totalPixels": 3016,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ProgressBarComponent/00-25.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ProgressBarComponent/00-25.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ProgressBarComponent",
@@ -519,9 +519,9 @@
             "totalPixels": 2900,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ProgressBarComponent/01-50.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ProgressBarComponent/01-50.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ProgressBarComponent",
@@ -535,9 +535,9 @@
             "totalPixels": 2842,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ProgressBarComponent/02-100-success.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ProgressBarComponent/02-100-success.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ProgressBarComponent",
@@ -551,9 +551,9 @@
             "totalPixels": 2842,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ProgressBarComponent/03-warning.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ProgressBarComponent/03-warning.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ProgressBarComponent",
@@ -567,9 +567,9 @@
             "totalPixels": 2146,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ProgressBarComponent/04-error.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ProgressBarComponent/04-error.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "ProgressBarComponent",
@@ -583,9 +583,9 @@
             "totalPixels": 1798,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/ProgressBarComponent/05-indeterminate.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/ProgressBarComponent/05-indeterminate.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "AlertComponent",
@@ -599,9 +599,9 @@
             "totalPixels": 7954,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/AlertComponent/00-info.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/AlertComponent/00-info.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "AlertComponent",
@@ -615,9 +615,9 @@
             "totalPixels": 8692,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/AlertComponent/01-success.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/AlertComponent/01-success.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "AlertComponent",
@@ -625,12 +625,12 @@
             "variantName": "Warning",
             "variantIndex": 2,
             "baselinePath": "vrt/baseline/AlertComponent/02-warning.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/current/AlertComponent/02-warning.png",
             "width": 242,
             "height": 41,
             "diffPath": "vrt/diff/AlertComponent/02-warning.png",
-            "bg": "checker",
+            "bg": "transparent",
             "status": "changed",
             "diffPixels": 556,
             "totalPixels": 9922,
@@ -648,9 +648,9 @@
             "totalPixels": 9430,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/AlertComponent/03-error.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/AlertComponent/03-error.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "AlertComponent",
@@ -664,9 +664,9 @@
             "totalPixels": 8010,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/AlertComponent/04-dismissible.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/AlertComponent/04-dismissible.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "AlertComponent",
@@ -680,9 +680,9 @@
             "totalPixels": 12896,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/AlertComponent/05-with-title.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/AlertComponent/05-with-title.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "CardComponent",
@@ -696,9 +696,9 @@
             "totalPixels": 19118,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/CardComponent/00-basic.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/CardComponent/00-basic.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "CardComponent",
@@ -706,9 +706,9 @@
             "variantName": "With Image",
             "variantIndex": 1,
             "baselinePath": "vrt/baseline/CardComponent/01-with-image.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/current/CardComponent/01-with-image.png",
-            "bg": "checker",
+            "bg": "transparent",
             "width": 302,
             "height": 229,
             "status": "size-mismatch"
@@ -725,9 +725,9 @@
             "totalPixels": 12482,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/CardComponent/02-clickable.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/CardComponent/02-clickable.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "CardComponent",
@@ -741,9 +741,9 @@
             "totalPixels": 11218,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/CardComponent/03-elevated.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/CardComponent/03-elevated.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "CardComponent",
@@ -757,9 +757,9 @@
             "totalPixels": 8690,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/CardComponent/04-outlined.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/CardComponent/04-outlined.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TabsComponent",
@@ -773,9 +773,9 @@
             "totalPixels": 9956,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TabsComponent/00-default.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TabsComponent/00-default.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TabsComponent",
@@ -783,7 +783,7 @@
             "variantName": "With Disabled",
             "variantIndex": 1,
             "currentPath": "vrt/current/TabsComponent/01-with-disabled.png",
-            "bg": "checker",
+            "bg": "transparent",
             "status": "new"
         },
         {
@@ -798,9 +798,9 @@
             "totalPixels": 16872,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TabsComponent/02-many-tabs.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TabsComponent/02-many-tabs.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "SliderComponent",
@@ -814,9 +814,9 @@
             "totalPixels": 2814,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/SliderComponent/00-default.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/SliderComponent/00-default.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "SliderComponent",
@@ -830,9 +830,9 @@
             "totalPixels": 5360,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/SliderComponent/01-with-step.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/SliderComponent/01-with-step.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "SliderComponent",
@@ -846,9 +846,9 @@
             "totalPixels": 5360,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/SliderComponent/02-small-range.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/SliderComponent/02-small-range.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "SliderComponent",
@@ -862,9 +862,9 @@
             "totalPixels": 5360,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/SliderComponent/03-disabled.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/SliderComponent/03-disabled.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "SliderComponent",
@@ -878,9 +878,9 @@
             "totalPixels": 5762,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/SliderComponent/04-custom-label.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/SliderComponent/04-custom-label.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TextareaComponent",
@@ -894,9 +894,9 @@
             "totalPixels": 17574,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TextareaComponent/00-default.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TextareaComponent/00-default.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TextareaComponent",
@@ -910,9 +910,9 @@
             "totalPixels": 17574,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TextareaComponent/01-with-value.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TextareaComponent/01-with-value.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TextareaComponent",
@@ -926,9 +926,9 @@
             "totalPixels": 21412,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TextareaComponent/02-with-counter.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TextareaComponent/02-with-counter.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TextareaComponent",
@@ -942,9 +942,9 @@
             "totalPixels": 21412,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TextareaComponent/03-error-state.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TextareaComponent/03-error-state.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TextareaComponent",
@@ -958,9 +958,9 @@
             "totalPixels": 17574,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TextareaComponent/04-disabled.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TextareaComponent/04-disabled.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TextareaComponent",
@@ -974,9 +974,9 @@
             "totalPixels": 10706,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TextareaComponent/05-small.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TextareaComponent/05-small.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TooltipComponent",
@@ -990,9 +990,9 @@
             "totalPixels": 1344,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TooltipComponent/00-top.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TooltipComponent/00-top.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TooltipComponent",
@@ -1006,9 +1006,9 @@
             "totalPixels": 1344,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TooltipComponent/01-bottom.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TooltipComponent/01-bottom.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TooltipComponent",
@@ -1022,9 +1022,9 @@
             "totalPixels": 1344,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TooltipComponent/02-left.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TooltipComponent/02-left.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TooltipComponent",
@@ -1038,9 +1038,9 @@
             "totalPixels": 1344,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TooltipComponent/03-right.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TooltipComponent/03-right.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TooltipComponent",
@@ -1054,9 +1054,9 @@
             "totalPixels": 966,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TooltipComponent/04-long-text.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TooltipComponent/04-long-text.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "SpinnerComponent",
@@ -1070,9 +1070,9 @@
             "totalPixels": 336,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/SpinnerComponent/00-small.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/SpinnerComponent/00-small.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "SpinnerComponent",
@@ -1086,9 +1086,9 @@
             "totalPixels": 696,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/SpinnerComponent/01-medium.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/SpinnerComponent/01-medium.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "SpinnerComponent",
@@ -1102,9 +1102,9 @@
             "totalPixels": 1476,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/SpinnerComponent/02-large.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/SpinnerComponent/02-large.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "SpinnerComponent",
@@ -1118,9 +1118,9 @@
             "totalPixels": 2726,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/SpinnerComponent/03-with-label.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/SpinnerComponent/03-with-label.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "SpinnerComponent",
@@ -1134,9 +1134,9 @@
             "totalPixels": 696,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/SpinnerComponent/04-custom-color.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/SpinnerComponent/04-custom-color.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TooltipDirective",
@@ -1145,7 +1145,7 @@
             "variantIndex": 0,
             "status": "excluded",
             "reason": "Only renders on hover, so a screenshot captures the trigger instead of the tooltip \u2014 all five placements produced byte-identical images.",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TooltipDirective",
@@ -1159,9 +1159,9 @@
             "totalPixels": 3640,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TooltipDirective/01-bottom.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TooltipDirective/01-bottom.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TooltipDirective",
@@ -1175,9 +1175,9 @@
             "totalPixels": 3640,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TooltipDirective/02-left.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TooltipDirective/02-left.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TooltipDirective",
@@ -1191,9 +1191,9 @@
             "totalPixels": 3640,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TooltipDirective/03-right.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TooltipDirective/03-right.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "TooltipDirective",
@@ -1207,9 +1207,9 @@
             "totalPixels": 3640,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/TooltipDirective/04-long-text.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/TooltipDirective/04-long-text.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "DividerComponent",
@@ -1223,9 +1223,9 @@
             "totalPixels": 21600,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/DividerComponent/00-horizontal.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/DividerComponent/00-horizontal.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "DividerComponent",
@@ -1239,9 +1239,9 @@
             "totalPixels": 21600,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/DividerComponent/01-horizontal-dark.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/DividerComponent/01-horizontal-dark.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "DividerComponent",
@@ -1255,9 +1255,9 @@
             "totalPixels": 23200,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/DividerComponent/02-horizontal-bold.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/DividerComponent/02-horizontal-bold.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "DividerComponent",
@@ -1271,9 +1271,9 @@
             "totalPixels": 42,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/DividerComponent/03-vertical.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/DividerComponent/03-vertical.png",
-            "bg": "checker"
+            "bg": "transparent"
         },
         {
             "className": "DividerComponent",
@@ -1287,9 +1287,9 @@
             "totalPixels": 42,
             "diffRatio": 0,
             "baselinePath": "vrt/baseline/DividerComponent/04-vertical-bold.png",
-            "baselineBg": "checker",
+            "baselineBg": "transparent",
             "currentPath": "vrt/baseline/DividerComponent/04-vertical-bold.png",
-            "bg": "checker"
+            "bg": "transparent"
         }
     ]
 }
