@@ -1,5 +1,5 @@
 import type { InputMeta, ScannedComponent } from '../../plugin/plugin.types.js';
-import { modelChangeOutput } from '../../shared/model-outputs.js';
+import { modelChangeOutput, wrapperForwardsModel } from '../../shared/model-outputs.js';
 
 /** The change of a `model()` a wrapper passes on: Angular's output `event` on the subject, emitted again by the wrapper's `member`. */
 export interface ForwardedModel {
@@ -14,7 +14,6 @@ export interface ForwardedModel {
  */
 export function forwardedModels(comp: ScannedComponent, inputs: readonly InputMeta[]): ForwardedModel[] {
     return inputs
-        .filter((input) => input.model)
-        .map((input) => ({ member: modelChangeOutput(input.name), event: modelChangeOutput(input.alias ?? input.name) }))
-        .filter(({ member, event }) => !comp.outputs.some((output) => output.name === member || (output.alias ?? output.name) === event));
+        .filter((input) => input.model && wrapperForwardsModel(input, comp.outputs))
+        .map((input) => ({ member: modelChangeOutput(input.name), event: modelChangeOutput(input.alias ?? input.name) }));
 }

@@ -87,6 +87,30 @@ describe('migration v22-8-checker-bg', () => {
         expect(read(result, 'a.ts')).toBe(source.replaceAll("'checker'", "'transparent'"));
     });
 
+    // `'checker'` is no CanvasBg any more, so a file the migration leaves like this does not compile.
+    it('rewrites it inside a type assertion, satisfies or parentheses, and keeps them', async () => {
+        const source = [
+            "import { Showcase, type CanvasBg, type ShowcaseConfig } from '@ng-prism/core';",
+            '@Showcase({',
+            "    title: 'A',",
+            "    bg: 'checker' as const,",
+            '    variants: [',
+            "        { name: 'W', bg: 'checker' as CanvasBg },",
+            "        { name: 'X', bg: <CanvasBg>'checker' },",
+            "        ({ name: 'Y', bg: ('checker') }),",
+            "        { name: 'Z', bg: 'checker' satisfies CanvasBg }",
+            '    ] as const',
+            '} satisfies ShowcaseConfig)',
+            'export class A {}',
+            ''
+        ].join('\n');
+        const tree = createTree({ 'a.ts': source });
+
+        const result = await run(tree);
+
+        expect(read(result, 'a.ts')).toBe(source.replaceAll("'checker'", "'transparent'"));
+    });
+
     it('follows an aliased import', async () => {
         const source = ["import { Showcase as Demo } from '@ng-prism/core';", '', "@Demo({ title: 'A', bg: 'checker' })", 'export class A {}', ''].join('\n');
         const tree = createTree({ 'a.ts': source });

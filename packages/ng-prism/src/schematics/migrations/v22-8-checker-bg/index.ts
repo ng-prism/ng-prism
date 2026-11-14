@@ -64,6 +64,23 @@ function isShowcaseCallee(expression: ts.Expression, bindings: ShowcaseBindings)
     );
 }
 
+/**
+ * The expression inside parentheses, `as`, `satisfies`, `<T>` and `!`, which
+ * the rewrite keeps: `bg: 'checker' as const` no longer compiles either.
+ */
+function unwrap(expression: ts.Expression): ts.Expression {
+    while (
+        ts.isParenthesizedExpression(expression) ||
+        ts.isAsExpression(expression) ||
+        ts.isSatisfiesExpression(expression) ||
+        ts.isTypeAssertionExpression(expression) ||
+        ts.isNonNullExpression(expression)
+    ) {
+        expression = expression.expression;
+    }
+    return expression;
+}
+
 function propertyNameOf(name: ts.PropertyName): string | undefined {
     return ts.isIdentifier(name) || ts.isStringLiteral(name) ? name.text : undefined;
 }
@@ -87,7 +104,7 @@ function collectBgRanges(object: ts.ObjectLiteralExpression, sourceFile: ts.Sour
     for (const property of object.properties) {
         if (!ts.isPropertyAssignment(property) || propertyNameOf(property.name) !== 'bg') continue;
 
-        const range = checkerRange(property.initializer, sourceFile);
+        const range = checkerRange(unwrap(property.initializer), sourceFile);
 
         if (range) ranges.push(range);
     }
@@ -102,9 +119,14 @@ function collectFromConfig(config: ts.ObjectLiteralExpression, sourceFile: ts.So
     collectBgRanges(config, sourceFile, ranges);
 
     for (const property of config.properties) {
-        if (!ts.isPropertyAssignment(property) || propertyNameOf(property.name) !== 'variants' || !ts.isArrayLiteralExpression(property.initializer)) continue;
+        if (!ts.isPropertyAssignment(property) || propertyNameOf(property.name) !== 'variants') continue;
 
-        for (const variant of property.initializer.elements) {
+        const variants = unwrap(property.initializer);
+
+        if (!ts.isArrayLiteralExpression(variants)) continue;
+        for (const element of variants.elements) {
+            const variant = unwrap(element);
+
             if (ts.isObjectLiteralExpression(variant)) collectBgRanges(variant, sourceFile, ranges);
         }
     }
@@ -117,7 +139,7 @@ function findCheckerRanges(path: string, text: string): Range[] {
 
     const visit = (node: ts.Node): void => {
         if (ts.isDecorator(node) && ts.isCallExpression(node.expression) && isShowcaseCallee(node.expression.expression, bindings)) {
-            const config = node.expression.arguments[0];
+            const config = node.expression.arguments[0] && unwrap(node.expression.arguments[0]);
 
             if (config && ts.isObjectLiteralExpression(config)) collectFromConfig(config, sourceFile, ranges);
         }

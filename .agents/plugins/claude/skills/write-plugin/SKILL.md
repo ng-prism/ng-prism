@@ -165,7 +165,9 @@ export function notesPlugin(): NgPrismPlugin {
 - Decoration ids are deduplicated: built-ins first (only `a11y`), then plugins in registration order. The first
   definition of an id wins, later ones are dropped silently. The orders 10, 20 and 30 belong to a11y, visual regression
   and coverage.
-- The first control whose `matchType` matches wins, in registration order.
+- The first control whose `matchType` matches wins, in registration order. A control that keeps text of its own while
+  someone types drops it when `rendererService().variantApplied()` changes (since 22.8.0): Reset and another variant
+  can hand back the value it shows.
 - `InputMeta.type` is `'string' | 'number' | 'boolean' | 'union' | 'date' | 'array' | 'object' | 'unknown'`. `'date'`
   (since 22.8.0) is a `Date` input, also with `null` or `undefined`, which up to 22.7.x was `'object'`: a control that
   matches `'object'` no longer gets it. For a `'date'`, `emptyValue` (`'null' | 'undefined'`) is what an emptied control

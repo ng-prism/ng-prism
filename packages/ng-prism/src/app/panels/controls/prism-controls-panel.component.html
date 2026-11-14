@@ -66,6 +66,7 @@
                                     @default {
                                         <prism-json-control
                                             [value]="rendererService.inputValues()[input.name]"
+                                            [variantApplied]="rendererService.variantApplied()"
                                             (valueChange)="rendererService.updateInput(input.name, $event)" />
                                     }
                                 }

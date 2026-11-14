@@ -38,6 +38,22 @@ describe('the date control', () => {
             expect([date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes()]).toEqual([2026, 3, 28, 0, 0]);
         });
 
+        // `new Date(year, …)` reads 0 to 99 as 1900 to 1999.
+        it('keeps a year below 100', () => {
+            const date = fromDateInputValue('0050-03-01')!;
+
+            expect([date.getFullYear(), date.getMonth(), date.getDate(), date.getHours()]).toEqual([50, 2, 1, 0]);
+            expect(toDateInputValue(date)).toBe('0050-03-01');
+        });
+
+        // The field takes years up to 275760, so a fifth digit typed into the year is a day, not an emptied field.
+        it('reads a year of more than four digits', () => {
+            const date = fromDateInputValue('20266-04-28')!;
+
+            expect([date.getFullYear(), date.getMonth(), date.getDate()]).toEqual([20266, 3, 28]);
+            expect(toDateInputValue(date)).toBe('20266-04-28');
+        });
+
         it.each([
             ['an empty field', ''],
             ['text that is no day', '28.04.2026']

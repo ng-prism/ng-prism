@@ -72,6 +72,16 @@ describe('Dates in the JSON control', () => {
         expect((parseForJsonControl('{ "at": "soon" }', value) as { at: unknown }).at).toBe('soon');
     });
 
+    // V8 reads 'Room 12' as 2001-12-01 and '5' as 2001-05-01.
+    it.each([['Room 12'], ['5'], ['Meeting 3']])('leaves %s a string where the Date was', (text) => {
+        expect((parseForJsonControl(JSON.stringify({ at: text }), value) as { at: unknown }).at).toBe(text);
+    });
+
+    // The text moves up to the slot where the Date was.
+    it('leaves the text of an array a string when a Date before it is deleted', () => {
+        expect(parseForJsonControl('["Room 12"]', [new Date(2026, 3, 28), 'Room 12'])).toEqual(['Room 12']);
+    });
+
     it('keeps a Date at the root and in arrays', () => {
         const date = new Date(2026, 3, 28);
 
@@ -111,6 +121,13 @@ describe('an edit in the JSON control', () => {
         const { edit } = applyJsonEdit(null, text, value);
 
         expect(followJsonValue(edit, { at: new Date(2026, 4, 1) })).toBeNull();
+    });
+
+    // Reset or another variant that hands back the value the edit started from, such as `undefined` again.
+    it('lets go of text that does not parse when the inputs of a variant replace the values', () => {
+        const { edit } = applyJsonEdit(null, '{', undefined);
+
+        expect(followJsonValue(edit, undefined, true)).toBeNull();
     });
 
     it('keeps the value it started from when the text does not parse', () => {

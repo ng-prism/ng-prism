@@ -104,6 +104,14 @@ export class PrismRendererService {
      */
     readonly activeStateIndex = signal<number | null>(null);
     readonly inputValues = signal<Record<string, unknown>>({});
+    private readonly _variantApplied = signal(0);
+    /**
+     * Counts every time the inputs of a variant replace `inputValues`: a
+     * variant selected, Reset, another component. A control that keeps text of
+     * its own lets go of it when this changes, also where its value stays the
+     * same. Since 22.8.0.
+     */
+    readonly variantApplied = this._variantApplied.asReadonly();
     readonly activeContent = signal<string | Record<string, string> | undefined>(undefined);
     readonly renderedElement = signal<Element | null>(null);
     /**
@@ -266,5 +274,6 @@ export class PrismRendererService {
 
         this.inputValues.set(values);
         this.activeContent.set(activeContent);
+        this._variantApplied.update((count) => count + 1);
     }
 }

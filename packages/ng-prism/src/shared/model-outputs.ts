@@ -15,3 +15,15 @@ export function publicOutputNames({ inputs, outputs }: { inputs: readonly InputM
         ...inputs.filter((input) => input.model).map((input) => modelChangeOutput(input.alias ?? input.name))
     ];
 }
+
+/**
+ * Whether a wrapper passes on the change of `model()` input `input` as an output of its own, `<name>Change`. Not where
+ * an output of the subject already has that member name or the public name of the change: the wrapper passes that output
+ * on instead. Since 22.8.0.
+ */
+export function wrapperForwardsModel(input: InputMeta, outputs: readonly OutputMeta[]): boolean {
+    const member = modelChangeOutput(input.name);
+    const event = modelChangeOutput(input.alias ?? input.name);
+
+    return !outputs.some((output) => output.name === member || (output.alias ?? output.name) === event);
+}

@@ -1,5 +1,5 @@
 import type { RuntimeComponent } from '../../plugin/plugin.types.js';
-import { modelChangeOutput } from '../../shared/model-outputs.js';
+import { modelChangeOutput, wrapperForwardsModel } from '../../shared/model-outputs.js';
 import { activeCase } from './composition.js';
 import { buildInputBindings } from './input-bindings.js';
 
@@ -16,14 +16,15 @@ export interface ModelChangeSource {
 /**
  * The `model()` inputs of variant `variantIndex` whose changes the renderer listens to: those the variant binds. A
  * component it renders itself is subscribed to through its model signal. A directive renders in `__PrismHost` and a
- * composed variant in the composition wrapper, which pass the change on as an output of the member's name plus `Change`.
+ * composed variant in the composition wrapper, which pass the change on as an output of the member's name plus `Change`,
+ * unless an output of the subject takes that name (see `wrapperForwardsModel`).
  */
 export function modelChangeSources(comp: RuntimeComponent, variantIndex: number): ModelChangeSource[] {
     const bindings = buildInputBindings(comp, variantIndex);
     const wrapped = comp.meta.componentMeta.isDirective || activeCase(comp, variantIndex) !== null;
 
     return comp.meta.inputs
-        .filter((input) => input.model && bindings.has(input.name))
+        .filter((input) => input.model && bindings.has(input.name) && (!wrapped || wrapperForwardsModel(input, comp.meta.outputs)))
         .map((input) => ({
             input: input.name,
             member: wrapped ? modelChangeOutput(input.name) : input.name,

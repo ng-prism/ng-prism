@@ -51,6 +51,18 @@ describe('modelChangeSources', () => {
         expect(modelChangeSources(comp, 1)).toEqual([]);
     });
 
+    // The wrapper's `valueChange` is then that output, which the renderer already hears as one, not the model's change.
+    it.each([
+        ['the member', { name: 'valueChange' }],
+        ['the event', { name: 'other', alias: 'valChange' }]
+    ])('does not listen to the host where an output of the directive takes the name of %s', (_, output) => {
+        const comp = makeComp({ inputs: [{ ...VALUE, alias: 'val' }], isDirective: true });
+
+        comp.meta.outputs = [output];
+
+        expect(modelChangeSources(comp, 0)).toEqual([]);
+    });
+
     it('lists nothing for a component without a model', () => {
         expect(modelChangeSources(makeComp({ inputs: [LABEL] }), 0)).toEqual([]);
     });

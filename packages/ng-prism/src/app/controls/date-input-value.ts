@@ -1,4 +1,5 @@
-const DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
+/** The value of an `<input type="date">`: a year of four digits or more, as the field takes years up to 275760. */
+const DAY = /^(\d{4,})-(\d{2})-(\d{2})$/;
 
 /** The value of an `<input type="date">` for `value`: its local day, `''` for anything that is no valid `Date`. */
 export function toDateInputValue(value: unknown): string {
@@ -13,5 +14,13 @@ export function toDateInputValue(value: unknown): string {
 export function fromDateInputValue(text: string): Date | null {
     const match = DAY.exec(text);
 
-    return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null;
+    if (!match) return null;
+
+    // Not `new Date(year, …)`, which reads the years 0 to 99 as 1900 to 1999.
+    const date = new Date(0);
+
+    date.setFullYear(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    date.setHours(0, 0, 0, 0);
+
+    return date;
 }

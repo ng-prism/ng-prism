@@ -46,9 +46,15 @@ export function parseForJsonControl(raw: string, previous: unknown): unknown {
     return reviveDates(JSON.parse(raw), previous);
 }
 
+/**
+ * A day, optionally with a time and an offset, as the control writes a `Date`: only text in this form becomes a `Date`
+ * again, since `new Date()` also reads text such as `'Room 12'` or `'5'` as a day.
+ */
+const ISO_DATE = /^[+-]?\d{4,6}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?)?$/;
+
 function reviveDates(value: unknown, previous: unknown): unknown {
     if (previous instanceof Date) {
-        const date = typeof value === 'string' ? new Date(value) : undefined;
+        const date = typeof value === 'string' && ISO_DATE.test(value) ? new Date(value) : undefined;
 
         return date && !Number.isNaN(date.getTime()) ? date : value;
     }
@@ -88,10 +94,11 @@ export function applyJsonEdit(edit: JsonEdit | null, raw: string, value: unknown
 
 /**
  * The edit once `value` comes in: kept while it is what the edit emitted, gone for a value from elsewhere, such as Reset,
- * another variant or a `model()` the component set, so that the control shows that value.
+ * another variant or a `model()` the component set, so that the control shows that value. `replaced` says the inputs of
+ * a variant replaced the values, which ends the edit also where they hand back the value it emitted.
  */
-export function followJsonValue(edit: JsonEdit | null, value: unknown): JsonEdit | null {
-    return edit && edit.emitted === value ? edit : null;
+export function followJsonValue(edit: JsonEdit | null, value: unknown, replaced = false): JsonEdit | null {
+    return edit && !replaced && edit.emitted === value ? edit : null;
 }
 
 @Component({
@@ -105,11 +112,14 @@ export class JsonControlComponent {
     readonly value = input<unknown>(null);
     readonly label = input('');
     readonly typeName = input('');
+    /** `PrismRendererService.variantApplied`: a change ends the edit, also where the value stays the same. */
+    readonly variantApplied = input(0);
     readonly valueChange = output<unknown>();
 
-    private readonly edit = linkedSignal<unknown, JsonEdit | null>({
-        source: this.value,
-        computation: (value, previous) => followJsonValue(previous?.value ?? null, value)
+    private readonly edit = linkedSignal<{ value: unknown; variantApplied: number }, JsonEdit | null>({
+        source: () => ({ value: this.value(), variantApplied: this.variantApplied() }),
+        computation: ({ value, variantApplied }, previous) =>
+            followJsonValue(previous?.value ?? null, value, previous !== undefined && previous.source.variantApplied !== variantApplied)
     });
     readonly parseError = computed(() => this.edit()?.error ?? false);
 
