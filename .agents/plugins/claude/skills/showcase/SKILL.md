@@ -30,8 +30,9 @@ package is right:
    and keeps the rest. The one function that works is the `setup: () => [...]` of a service or pipe: the builder reads the array
    literal from the source and never calls it. When the whole config can't be evaluated, the component is skipped.
    The one `new` that works is `new Date(…)` with arguments it can read (since 22.8.0), in variants and as an input
-   default; the browser makes the `Date` from the arguments as written. For a day without a time write the local form
-   `new Date(2026, 3, 28)` (month from 0): `new Date('2026-04-28')` is midnight in UTC and shows the 27th west of UTC.
+   default; the browser makes the `Date` from the arguments as written. For a day without a time write a local form,
+   `new Date(2026, 3, 28)` (month from 0) or `new Date('2026-04-28T00:00')` (a time without an offset is local):
+   `new Date('2026-04-28')` is midnight in UTC and shows the 27th west of UTC.
    `new Date()` without arguments is the current time and is dropped.
    Constants imported from a compiled package (`.d.ts`) are readable only as plain literals.
    `defineConfig({ strictShowcase: true })` in `ng-prism.config.ts` turns every dropped value into a build error.

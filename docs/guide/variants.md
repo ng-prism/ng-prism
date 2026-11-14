@@ -41,7 +41,7 @@ A `Date` is a value like any other, as long as the scanner can read its argument
 })
 ```
 
-- **For a day without a time, write the local form,** `new Date(2026, 3, 28)`: midnight of the 28th in every time zone. The month counts from 0, so `3` is April. `new Date('2026-04-28')` is midnight in UTC, which west of UTC is still the 27th: a date picker in New York shows the day before.
+- **For a day without a time, write a local form,** `new Date(2026, 3, 28)` or `new Date('2026-04-28T00:00')`: midnight of the 28th in every time zone. In the first the month counts from 0, so `3` is April. The second reads like the day it is, because a time without an offset is local time. `new Date('2026-04-28')` without the time is midnight in UTC, which west of UTC is still the 27th: a date picker in New York shows the day before.
 - **`new Date()` without arguments is dropped with a warning.** It is the current time, which would differ in every build and every visual regression run. Write the date out instead, see [The current time](api/build-warnings.md#the-current-time).
 
 How the Controls panel edits a `Date` input is under [Input types and controls](guide/inputs-and-controls.md#input-types-and-controls).
