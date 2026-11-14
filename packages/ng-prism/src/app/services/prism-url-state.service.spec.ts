@@ -994,7 +994,9 @@ describe('PrismUrlStateService', () => {
             expect(window.location.search).toBe('?component=Foo');
         });
 
-        it('follows the URL on popstate, and a URL without them is the real environment', () => {
+        // The simulation is a condition the reader looks under, not a place: it stays across components, so moving
+        // through the history keeps it as well, and the entry takes it on.
+        it('keeps the simulation on popstate and writes it into the entry', () => {
             const comp = createComponent({ className: 'Foo' });
 
             setUrl('?component=Foo&motion=reduce');
@@ -1007,17 +1009,18 @@ describe('PrismUrlStateService', () => {
             setUrl('?component=Foo&scheme=dark');
             window.dispatchEvent(new PopStateEvent('popstate'));
             flush();
-            expect(sim.state()).toEqual({ ...DEFAULT_SIMULATION, scheme: 'dark' });
+            expect(sim.state()).toEqual({ ...DEFAULT_SIMULATION, motion: 'reduce' });
+            expect(window.location.search).toBe('?component=Foo&motion=reduce');
 
             setUrl('?component=Foo');
             window.dispatchEvent(new PopStateEvent('popstate'));
             flush();
-            expect(sim.state()).toEqual(DEFAULT_SIMULATION);
+            expect(sim.state()).toEqual({ ...DEFAULT_SIMULATION, motion: 'reduce' });
             expect(nav.activeComponent()).toBe(comp);
-            expect(window.location.search).toBe('?component=Foo');
+            expect(window.location.search).toBe('?component=Foo&motion=reduce');
         });
 
-        it('brings back the simulation of a history entry on back', async () => {
+        it('does not bring back a simulation turned off since on back', async () => {
             const a = createComponent({ className: 'A' });
             const b = createComponent({ className: 'B' });
             const { url, nav, sim } = setup({ components: [a, b] });
@@ -1027,6 +1030,8 @@ describe('PrismUrlStateService', () => {
             sim.set({ vision: 'tritanopia' });
             flush();
             nav.select(b);
+            flush();
+            expect(window.location.search).toBe('?component=B&vision=tritanopia');
             sim.set({ vision: 'none' });
             flush();
             expect(window.location.search).toBe('?component=B');
@@ -1035,8 +1040,28 @@ describe('PrismUrlStateService', () => {
             flush();
 
             expect(nav.activeComponent()).toBe(a);
-            expect(sim.state().vision).toBe('tritanopia');
-            expect(window.location.search).toBe('?component=A&vision=tritanopia');
+            expect(sim.state().vision).toBe('none');
+            expect(window.location.search).toBe('?component=A');
+        });
+
+        it('rewrites the entry on back without adding one', async () => {
+            const a = createComponent({ className: 'A' });
+            const b = createComponent({ className: 'B' });
+            const { url, nav, sim } = setup({ components: [a, b] });
+
+            url.init();
+            nav.select(a);
+            flush();
+            nav.select(b);
+            sim.set({ scheme: 'dark' });
+            flush();
+            const length = window.history.length;
+
+            await goBack();
+            flush();
+
+            expect(window.location.search).toBe('?component=A&scheme=dark');
+            expect(window.history.length).toBe(length);
         });
 
         it('ignores them with urlState: false', () => {

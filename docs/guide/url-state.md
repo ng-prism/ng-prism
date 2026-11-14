@@ -70,7 +70,7 @@ http://localhost:4400/?component=ButtonComponent&scheme=dark&vision=deuteranopia
 
 - **Only what differs from the default is written**, so a URL without a simulation has none of them.
 - **A link that names any of them sets the whole simulation.** A setting it leaves out is off, and the simulation kept in the session does not apply. An unknown value counts as left out, so it costs only its own setting.
-- **A change of the simulation rewrites the current history entry** and never adds one. The back and forward buttons restore the simulation of the entry they open, and an entry without these parameters has none.
+- **A change of the simulation rewrites the current history entry** and never adds one. The back and forward buttons keep the simulation as it is, as switching the component does, and the entry they open takes it on in place.
 - **Capture mode ignores them**: a capture never simulates, see [Capture Isolation Mode](guide/external-tooling.md#capture-isolation-mode).
 
 ## Deep-Linking
@@ -91,7 +91,7 @@ The state is part of the address next to the variant. It goes from the URL when 
 
 ## Browser Back/Forward
 
-Selecting another component or page pushes a new browser history entry. Changing the variant, the state, the view, the shown part, the panel tab or the simulation rewrites the current entry instead, so stepping through variants does not fill the history. The browser back and forward buttons move between components and pages, and an entry holds the variant, state, view, part, panel and simulation its component was last left in.
+Selecting another component or page pushes a new browser history entry. Changing the variant, the state, the view, the shown part, the panel tab or the simulation rewrites the current entry instead, so stepping through variants does not fill the history. The browser back and forward buttons move between components and pages, and an entry holds the variant, state, view, part and panel its component was last left in. The simulation is not part of it: it stays as it is, see [Simulation](#simulation).
 
 A component you select in the sidebar opens on the Playground, see [Tour of the UI](guide/styleguide-ui.md#playground-overview-and-api). A link, a reload and the back and forward buttons open the view their URL names, so going back returns to the Overview or API tab an entry was left on. The sidebar scrolls to the entry they open, see [Sidebar](guide/styleguide-ui.md#sidebar).
 

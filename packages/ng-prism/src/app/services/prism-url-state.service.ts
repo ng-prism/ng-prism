@@ -99,9 +99,10 @@ export class PrismUrlStateService {
 
     /**
      * Brings the app to the state the URL describes. The simulation follows
-     * it on `popstate`, a link without one meaning the real environment. At
-     * `start` it does only when the link says something about it: otherwise
-     * what is set stays, for the session restore that runs next.
+     * it only at `start`, and only when the link says something about it:
+     * otherwise what is set stays, for the session restore that runs next. On
+     * `popstate` it stays as it is, a condition the reader looks under rather
+     * than a place, and the entry takes it on.
      */
     private restoreFromUrl(start: boolean): void {
         const params = new URLSearchParams(window.location.search);
@@ -122,7 +123,7 @@ export class PrismUrlStateService {
         this.suppressSync = true;
         try {
             // Before anything that writes the URL back, the rewrite of a part's address below.
-            if (!start || hasSimulationParams(params)) {
+            if (start && hasSimulationParams(params)) {
                 this.simulationService.set(readSimulationParams(params));
             }
 
@@ -216,10 +217,28 @@ export class PrismUrlStateService {
                     this.simulationService.state(),
                     true
                 );
+            } else if (!start) {
+                this.writeSimulationToEntry();
             }
         } finally {
             this.suppressSync = false;
         }
+    }
+
+    /**
+     * Back and forward keep the simulation, so the entry they open takes it on,
+     * in place. Everything else in the entry stays, its hash included.
+     */
+    private writeSimulationToEntry(): void {
+        const { pathname, search, hash } = window.location;
+        const params = new URLSearchParams(search);
+
+        writeSimulationParams(this.simulationService.state(), params);
+
+        const queryString = params.toString();
+        const newUrl = `${pathname}${queryString ? `?${queryString}` : ''}${hash}`;
+
+        if (newUrl !== pathname + search + hash) window.history.replaceState(null, '', newUrl);
     }
 
     private writeToUrl(
